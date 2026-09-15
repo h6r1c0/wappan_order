@@ -30,3 +30,7 @@
 ## GitHubへの反映と公開準備
 
 2026年9月15日、main `b6e7a09d2fe4e3d3ddb15e5bb5a4f1a951f1232f` へ第一版を反映。Actions run `34954296927` のverify（計算・DB・ブラウザー・ビルド・公開artifact作成）が成功。PagesをGitHub Actionsに設定後、run attempt 2でverify・deployとも成功。公開URLと主要JS/CSSはHTTP 200、公開ファイルのSupabase接続先一致、service_role文字列なしを確認。ユーザー1名の係権限登録とDB側の読取認可は確認済み。
+
+## Auth・公開の最終確認
+
+2026年9月15日、登録済み係が公開アプリからメール・パスワードでログインでき、Supabase `last_sign_in_at` の更新を確認。URL Configurationは所有者が公開URLをSite URL・Redirect URLへ保存。公開Auth settings APIはHTTP 200かつ `disable_signup: true` を返し、一般サインアップ無効化を確認。業務workspaceはrevision 0で、実注文・照合用テストデータはまだ未登録。

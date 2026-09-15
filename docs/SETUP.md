@@ -7,7 +7,7 @@
 - Project URL: `https://vywgmxegeemlpsescika.supabase.co`
 - DB、RLS、共有保存、更新履歴、競合防止を適用済み。既知の商品8件・購入者2件・固定注文を初期登録済み。実注文・テスト注文は0件。
 - ローカル接続設定と本番ビルドを確認済み。秘密キーは使用していません。
-- Authユーザー1名を登録し、係の利用権限を確認済み。GitHub mainへ実装を反映済み。GitHub上の計算・DBテスト、ブラウザーテスト、ビルドも成功。GitHub Pagesへの公開も完了しています。
+- Authユーザー1名を登録し、係の利用権限を確認済み。GitHub mainへ実装を反映済み。GitHub上の計算・DBテスト、ブラウザーテスト、ビルドも成功。GitHub Pagesへの公開、利用者ログイン、Auth URL設定、一般サインアップ無効化まで完了しています。
 
 **このプロジェクトでSQLを再実行する必要はありません。最初の係のアカウントと利用権限も登録済みです。**
 
@@ -51,7 +51,7 @@ where user_id in (select id from auth.users where lower(email)=lower('停止す�
 
 main更新時には自動で検証・公開します。接続情報を変更したらワークフローを再実行してください。DB未設定での実運用はできません。
 
-Supabase **Authentication → URL Configuration** の **Site URL** と **Redirect URLs** に、このアプリURLを設定してください。パスワード再設定メールがアプリへ戻れるようになります。メール送信の運用制限がある場合はSupabase側のSMTP設定を確認してください。
+Supabase **Authentication → URL Configuration** の **Site URL** と **Redirect URLs** は公開アプリURLに設定済みです。一般ユーザーの新規サインアップも無効化済みです。
 
 ## 最後の接続確認
 
