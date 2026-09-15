@@ -8,3 +8,4 @@ test-results/
 
 supabase/.temp/
 !.env.production
+.reconciliation-*

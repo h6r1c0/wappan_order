@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { uid, price, yen, normalize } from "./domain";
+import { uid, price, yen, normalize, snapshot, newRound, today, productAvailable } from "./domain";
 import {
   useApp,
   Button,
@@ -12,7 +12,12 @@ import {
   Tag,
   Empty,
 } from "./ui";
-import { readExcel, detectColumns, extractRows } from "./excel";
+import { readExcel, detectColumns, extractRows, analyzeSheet, permanentProduct } from "./excel";
+const lifecycleLabels = { staple: "定番", once: "今回限り", seasonal: "期間商品", permanent: "常設定番" };
+const importIdentity = name => normalize(name).replace(/^ミルクスティックパン$/, "ミルクスティック");
+function Lifecycle({ value, onChange }) {
+  return <Field label="商品区分"><select aria-label="商品区分" value={value || ""} onChange={e => onChange(e.target.value)}><option value="">区分を確認してください</option>{Object.entries(lifecycleLabels).map(([key, text]) => <option key={key} value={key}>{text}</option>)}</select></Field>;
+}
 export function ProductEditor({ product, onClose }) {
   const { state, save } = useApp();
   const [p, set] = useState(
@@ -89,7 +94,9 @@ export function ProductEditor({ product, onClose }) {
           value={p.cost}
           onChange={(v) => put("cost", v)}
         />
-        <details>
+        <Lifecycle value={permanentProduct(p.name) ? "permanent" : p.lifecycle || "staple"} onChange={v => put("lifecycle", v)} />
+        {p.lifecycle === "once" && <Field label="利用する注文回"><select value={p.roundId || ""} onChange={e => put("roundId", e.target.value)}><option value="">選んでください</option>{state.rounds.map(r => <option key={r.id} value={r.id}>{r.date}{r.test ? "（テスト）" : ""}</option>)}</select></Field>}
+        <details open={p.lifecycle === "seasonal"}>
           <summary>対象期間を設定</summary>
           <Field
             label="開始日"
@@ -119,6 +126,8 @@ export function ProductEditor({ product, onClose }) {
 }
 export function ExcelImport({ onClose }) {
   const { state, save, notify } = useApp();
+  const [analysis, setAnalysis] = useState(null), [target, setTarget] = useState("");
+  const [delivery, setDelivery] = useState(today()), [testRound, setTestRound] = useState(false);
   const [sheets, setSheets] = useState([]),
     [sheet, setSheet] = useState(0),
     [mapping, setMapping] = useState({ start: 0, pairs: [] }),
@@ -128,9 +137,13 @@ export function ExcelImport({ onClose }) {
     setSheet(n);
     setMapping(detectColumns(ss[n].rows));
     setRows(null);
+    const result = analyzeSheet(ss[n]);
+    setAnalysis(result);
+    if (result.format !== "unknown") prepare(result.products);
+    else setRows(null);
   };
-  const prepare = () => {
-    const data = extractRows(sheets[sheet].rows, mapping.pairs, mapping.start);
+  const prepare = (automatic) => {
+    const data = Array.isArray(automatic) ? automatic : extractRows(sheets[sheet].rows, mapping.pairs, mapping.start);
     if (!data.length) {
       notify(
         "商品が見つかりません。商品名・税込価格の列と開始行を確認してください。",
@@ -141,7 +154,7 @@ export function ExcelImport({ onClose }) {
     setRows(
       data.map((x) => {
         const p = state.products.find(
-            (p) => normalize(p.name) === normalize(x.name),
+            (p) => importIdentity(p.name) === importIdentity(x.name),
           ),
           duplicate = seen.has(normalize(x.name));
         seen.add(normalize(x.name));
@@ -151,11 +164,12 @@ export function ExcelImport({ onClose }) {
           include: !duplicate,
           duplicate,
           category:
-            p?.category ||
+            x.category || p?.category ||
             (/クッキー|ガレット|スコーン/.test(x.name) ? "焼き菓子" : "パン"),
           mode: p?.mode || "auto",
           manual: p?.manual ?? null,
           matchId: p?.id || "",
+          lifecycle: permanentProduct(x.name) ? "permanent" : x.lifecycle || "",
         };
       }),
     );
@@ -183,8 +197,10 @@ export function ExcelImport({ onClose }) {
           }}
         />
       </Field>
+      {analysis && <p className="notice">{analysis.label}{analysis.format !== "unknown" ? "として読み取りました" : "です。詳細設定から読み取り範囲を指定してください"}。{analysis.warnings.map((w, i) => <span key={i}><br />{w}</span>)}</p>}
       {sheets.length > 0 && !rows && (
-        <>
+        <details open={analysis?.format === "unknown"}>
+          <summary>詳細設定・シートの選択</summary>
           <Field label="シート">
             <select
               value={sheet}
@@ -276,19 +292,23 @@ export function ExcelImport({ onClose }) {
           <Button disabled={!mapping.pairs.length} onClick={prepare}>
             読み取って確認へ
           </Button>
-        </>
+        </details>
       )}
       {rows && (
         <>
           <p className="notice">
             {rows.length}
-            件を読み取りました。商品名・税込価格・販売価格を元の表と照合してください。価格を読めなかった行は含まれません。同じ名前は既存商品を更新します。
+            商品を読み取りました。名前・価格・区分を確認してください。修正する商品はタップして開けます。
           </p>
+          <p>{Object.entries(lifecycleLabels).map(([key, label]) => `${label} ${rows.filter(r => r.include && r.lifecycle === key).length}件`).join(" ／ ")}</p>
+          <Field label="商品を使う注文回（今回限りの商品は選択必須）"><select value={target} onChange={e => setTarget(e.target.value)}><option value="">商品マスターのみ登録</option><option value="new">新しい納品日で注文回も作る</option>{state.rounds.map(r => <option key={r.id} value={r.id}>{r.date}{r.test ? "（テスト）" : ""}</option>)}</select></Field>
+          {target === "new" && <><Field label="納品予定日" type="date" value={delivery} onChange={e => setDelivery(e.target.value)} /><Check label="テスト入力（年度実績へ含めない）" checked={testRound} onChange={setTestRound} /></>}
           {rows.map((r, i) => {
             const put = (k, v) =>
               setRows(rows.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
             return (
-              <div className="card" key={r.id}>
+              <details className="card import-product" key={r.id} open={!r.lifecycle || r.mode === "manual"}>
+                <summary>{r.name}<br /><span>税込 {yen(r.gross)} → 販売 {yen(price(r))} ／ {lifecycleLabels[r.lifecycle] || "区分の確認が必要"}{!r.include ? "（登録しない）" : ""}</span></summary>
                 <Check
                   label={`${r.row}行目${r.duplicate ? "・重複候補（初期は除外）" : ""}`}
                   checked={r.include}
@@ -304,6 +324,8 @@ export function ExcelImport({ onClose }) {
                   value={r.gross}
                   onChange={(v) => put("gross", v)}
                 />
+                <Lifecycle value={r.lifecycle} onChange={v => put("lifecycle", v)} />
+                {r.lifecycle === "seasonal" && <div className="grid2"><Field label="開始日" type="date" value={r.start || ""} onChange={e => put("start", e.target.value)} /><Field label="終了日" type="date" value={r.end || ""} onChange={e => put("end", e.target.value)} /></div>}
                 <Field label="登録先">
                   <select
                     value={r.matchId}
@@ -355,7 +377,7 @@ export function ExcelImport({ onClose }) {
                   />
                 )}
                 <strong>販売価格 {yen(price(r))}</strong>
-              </div>
+              </details>
             );
           })}
           <div className="sticky-action">
@@ -367,9 +389,13 @@ export function ExcelImport({ onClose }) {
               onClick={async () => {
                 if (
                   await save((s) => {
+                    const targetId = target === "new" ? uid() : target;
                     const names = new Set(),
                       ids = new Set();
                     for (const r of rows.filter((r) => r.include)) {
+                      if (!r.lifecycle) throw Error(`${r.name}の商品区分を確認してください`);
+                      if (r.lifecycle === "once" && !target) throw Error("今回限りの商品を使う注文回を選んでください。先に納品日から注文回を作成できます。");
+                      if (r.lifecycle === "seasonal" && (!r.start || !r.end)) throw Error("期間商品の開始日と終了日を入力してください");
                       const name = normalize(r.name);
                       if (names.has(name))
                         throw Error(
@@ -378,7 +404,7 @@ export function ExcelImport({ onClose }) {
                       names.add(name);
                       const existing =
                         s.products.find((p) => p.id === r.matchId) ||
-                        s.products.find((p) => normalize(p.name) === name);
+                        s.products.find((p) => importIdentity(p.name) === importIdentity(r.name));
                       if (existing && ids.has(existing.id))
                         throw Error("同じ商品を更新する行が複数あります");
                       if (existing) ids.add(existing.id);
@@ -395,10 +421,22 @@ export function ExcelImport({ onClose }) {
                         category: r.category,
                         mode: r.mode,
                         manual: r.manual,
+                        lifecycle: permanentProduct(r.name) ? "permanent" : r.lifecycle,
+                        roundId: r.lifecycle === "once" ? targetId : "",
+                        start: r.lifecycle === "seasonal" ? r.start : "",
+                        end: r.lifecycle === "seasonal" ? r.end : "",
                       };
                       if (existing)
                         s.products[s.products.indexOf(existing)] = p;
                       else s.products.push(p);
+                      const round = s.rounds.find(x => x.id === targetId);
+                      if (round && !round.products.some(x => x.id === p.id)) round.products.push(snapshot(p));
+                    }
+                    if (target === "new") {
+                      const round = newRound(s, delivery, testRound);
+                      round.id = targetId;
+                      round.products = s.products.filter(p => productAvailable(p, delivery, targetId) && price(p) != null).map(snapshot);
+                      s.rounds.push(round);
                     }
                   }, "Excel商品取り込み")
                 )
@@ -539,6 +577,7 @@ function BuyerEditor({ buyer, onClose }) {
           checked={b.active}
           onChange={(v) => set({ ...b, active: v })}
         />
+        {buyer?.testOnly && <Check label="氏名を確認し、通常の注文でも選択できるようにする" checked={!b.testOnly} onChange={v => set({...b,testOnly:!v,active:v})} />}
         <h3>毎回の固定注文</h3>
         <p className="muted">
           その人の未入力の注文を開くと反映します。入力済みの回は変わりません。

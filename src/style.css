@@ -8,6 +8,8 @@
   font-size: 16px;
   line-height: 1.6;
 }
+.import-product > summary { display: block; padding-right: 12px; }
+.import-product > summary > span { display: block; font-size: .9rem; font-weight: 500; margin-top: 6px; }
 * {
   box-sizing: border-box;
 }

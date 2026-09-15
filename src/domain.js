@@ -1,4 +1,6 @@
+import { permanentProduct } from "./excel.js";
 export const uid = () => crypto.randomUUID();
+export const productAvailable = (p, date, roundId = "") => p.active && (permanentProduct(p.name) || p.lifecycle === "permanent" || (p.lifecycle !== "once" || (roundId && p.roundId === roundId)) && (!p.start || p.start <= date) && (!p.end || date <= p.end));
 export const today = () =>
   new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(
     new Date(),
@@ -100,10 +102,7 @@ export function newRound(state, date, test = false) {
     products: state.products
       .filter(
         (p) =>
-          p.active &&
-          price(p) != null &&
-          (!p.start || p.start <= date) &&
-          (!p.end || date <= p.end),
+          productAvailable(p, date) && price(p) != null,
       )
       .map(snapshot),
     orders: {},
@@ -151,6 +150,7 @@ export const eventClaim = (e) =>
 export function invoiceDeductions(s, r) {
   const events = r.eventIds.map((id) => s.events.find((e) => e.id === id));
   if (events.some((e) => eventCost(e) == null)) return null;
+  if (r.stockIds.some(id => s.stocks.find(st => st.id === id)?.cost == null)) return null;
   return (
     sum(events.map(eventCost)) +
     sum(
@@ -201,13 +201,15 @@ export function addSale(s, stock, entry) {
   integer(entry.qty, "販売数");
   if (entry.qty < 1 || entry.qty > stockRemaining(s, stock))
     throw Error("販売数が残数を超えています");
-  if (!entry.paid && !entry.buyerId) throw Error("購入者を選んでください");
+  if (!entry.pending && !entry.paid && !entry.buyerId) throw Error("購入者を選んでください");
   s.sales.push({
     ...entry,
     id: uid(),
     stockId: stock.id,
-    buyerId: entry.paid ? null : entry.buyerId,
-    buyerName: entry.paid
+    paid: entry.pending ? false : entry.paid,
+    buyerId: entry.paid || entry.pending ? null : entry.buyerId,
+    chargeRoundId: entry.pending || entry.paid ? null : entry.chargeRoundId,
+    buyerName: entry.pending ? "販売先・支払方法未確認" : entry.paid
       ? "その場で支払い済み"
       : s.buyers.find((b) => b.id === entry.buyerId)?.name,
     price: stock.price,
@@ -245,6 +247,7 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
     (x) =>
       !x.void &&
       !x.paid &&
+      !x.pending &&
       (includeTest || !isSaleTest(s, x)) &&
       (roundId ? x.chargeRoundId === roundId : from <= x.date && x.date <= to),
   ))
@@ -283,8 +286,8 @@ export function report(s, from, to, year) {
       type: "園内販売",
       name: s.stocks.find((st) => st.id === sale.stockId).name,
       revenue: sale.qty * sale.price,
-      cost: sale.qty * sale.cost,
-      profit: sale.qty * (sale.price - sale.cost),
+      cost: sale.cost == null ? null : sale.qty * sale.cost,
+      profit: sale.cost == null ? null : sale.qty * (sale.price - sale.cost),
     });
   for (const h of s.history.filter((h) => !h.test && inRange(h.date)))
     rows.push({
@@ -379,6 +382,8 @@ export function validate(s) {
     if (p.end) date(p.end);
     if (p.start && p.end && p.end < p.start)
       throw Error("対象期間の終了日を確認してください");
+    if (p.lifecycle && !["staple", "once", "seasonal", "permanent"].includes(p.lifecycle)) throw Error("商品区分を確認してください");
+    if (p.lifecycle === "seasonal" && (!p.start || !p.end)) throw Error("期間商品の開始日と終了日が必要です");
   }
   for (const b of s.buyers) {
     if (!b.name.trim()) throw Error("購入者名が必要です");
@@ -448,13 +453,13 @@ export function validate(s) {
     if (!st.name.trim()) throw Error("園内販売の商品名を入力してください");
     date(st.date);
     integer(st.qty, "販売可能数");
-    integer(st.cost, "仕入単価");
+    if (st.cost != null) integer(st.cost, "仕入単価");
     integer(st.price, "販売価格");
     if (stockRemaining(s, st) < 0) throw Error("販売数が在庫数を超えています");
     if (st.eventId) {
       const e = s.events.find((e) => e.id === st.eventId),
         l = e?.lines.find((l) => l.id === st.eventLineId);
-      if (!l || (st.qty > 0 && st.cost !== l.cost) || st.test !== e.test)
+      if (!l || st.cost == null || (st.qty > 0 && st.cost !== l.cost) || st.test !== e.test)
         throw Error("行事振替元と仕入単価・テスト区分が一致しません");
     }
   }
@@ -462,13 +467,14 @@ export function validate(s) {
     date(sale.date);
     integer(sale.qty, "販売数");
     integer(sale.price, "販売価格");
-    integer(sale.cost, "仕入単価");
+    if (sale.cost != null) integer(sale.cost, "仕入単価");
     const st = s.stocks.find((st) => st.id === sale.stockId);
     if (!st || sale.qty < 1 || sale.date < st.date)
       throw Error("販売日・販売数を確認してください");
     if (sale.price !== st.price || sale.cost !== st.cost)
       throw Error("販売済み商品の単価は変更できません");
-    if (!sale.paid && !s.buyers.some((b) => b.id === sale.buyerId))
+    if (sale.pending && (sale.paid || sale.buyerId || sale.chargeRoundId)) throw Error("未確認販売を入金・請求扱いにはできません");
+    if (!sale.pending && !sale.paid && !s.buyers.some((b) => b.id === sale.buyerId))
       throw Error("購入者を選択してください");
     if (sale.chargeRoundId) {
       const r = s.rounds.find((r) => r.id === sale.chargeRoundId);

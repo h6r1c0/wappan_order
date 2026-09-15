@@ -36,6 +36,7 @@ export function Sales() {
         売れたら「販売を記録」。残数と請求額が更新されます。
       </p>
       <Check label="売り切れの商品も表示" checked={all} onChange={setAll} />
+      {state.sales.some(x => !x.void && x.pending) && <p className="notice">販売先・支払方法が未確認の記録があります。個人請求・入金済みには含めていません。「売り切れの商品も表示」から記録を確認できます。</p>}
       {state.stocks
         .filter((st) => all || stockRemaining(state, st) > 0)
         .sort((a, b) => b.date.localeCompare(a.date))
@@ -126,6 +127,9 @@ function StockEditor({ stock, onClose }) {
           e.preventDefault();
           if (
             await save((s) => {
+              if (stock?.cost == null && st.cost != null) {
+                for (const sale of s.sales.filter(x => x.stockId === st.id && x.cost == null)) sale.cost = st.cost;
+              }
               if (stock)
                 s.stocks[s.stocks.findIndex((x) => x.id === st.id)] = st;
               else s.stocks.push(st);
@@ -195,8 +199,7 @@ function StockEditor({ stock, onClose }) {
               <Qty value={st.qty} onChange={(v) => put("qty", v)} />
             </Field>
             <Money
-              required
-              label="仕入単価"
+              label="仕入単価（不明なら空欄・利益は未確定）"
               value={st.cost}
               onChange={(v) => put("cost", v)}
             />
@@ -205,7 +208,7 @@ function StockEditor({ stock, onClose }) {
         {locked ? (
           <p>
             販売価格 {yen(st.price)} ／ 仕入単価 {yen(st.cost)}
-            （販売履歴があるため単価は変更不可）
+            （確認済み単価は販売履歴に保持。不明だった仕入単価の追加入力は販売記録にも反映）
           </p>
         ) : (
           <Money
@@ -244,7 +247,7 @@ function StockEditor({ stock, onClose }) {
                   </span>
                 </div>
                 <small>
-                  {sale.date} ／ {sale.paid ? "入金済み" : "個人請求"}{" "}
+                  {sale.date} ／ {sale.pending ? "販売先・支払方法未確認（請求に含めない）" : sale.paid ? "入金済み" : "個人請求"}{" "}
                   {sale.void ? "／ 取消済み" : ""}
                 </small>
                 {sale.note && <p>{sale.note}</p>}
@@ -308,17 +311,19 @@ export function SaleEditor({ stock, onClose }) {
         onChange={(e) => put("date", e.target.value)}
       />
       <div className="tabs">
-        <Button secondary={entry.paid} onClick={() => put("paid", false)}>
+        <Button secondary={entry.paid || entry.pending} onClick={() => set({...entry, paid: false, pending: false})}>
           購入者へ後日請求
         </Button>
-        <Button secondary={!entry.paid} onClick={() => put("paid", true)}>
+        <Button secondary={!entry.paid} onClick={() => set({...entry, paid: true, pending: false})}>
           その場で支払い済み
         </Button>
       </div>
-      {!entry.paid && (
+      <Check label="売れたことだけ確認済み（販売先・支払方法は未確認）" checked={!!entry.pending} onChange={v => set({...entry, pending:v, paid:false})} />
+      {!entry.paid && !entry.pending && (
         <>
           <h3>購入者を選ぶ</h3>
           <BuyerPicker
+            includeTest={stock.test}
             value={entry.buyerId}
             onChange={(id) => put("buyerId", id)}
           />
@@ -347,7 +352,7 @@ export function SaleEditor({ stock, onClose }) {
         />
       </Field>
       <p className="total">
-        {entry.paid ? "入金額" : "個人請求に追加"}：
+        {entry.pending ? "販売額（請求・入金は保留）" : entry.paid ? "入金額" : "個人請求に追加"}：
         {yen(stock.price * entry.qty)}
       </p>
       <Button

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   newRound,
+  productAvailable,
   price,
   snapshot,
   orderDraft,
@@ -62,7 +63,7 @@ export function Orders() {
             {r.test && <Tag>テスト・年度集計対象外</Tag>}
             <div className="line">
               <span>{Object.keys(r.orders).length}人 入力済み</span>
-              <strong>{yen(roundRevenue(r))} ›</strong>
+              <strong>{r.reconciliationPending ? "判明分 " : ""}{yen(roundRevenue(r))} ›</strong>
             </div>
           </button>
         ))}
@@ -184,7 +185,7 @@ function Round({ round: r, back }) {
       <p>
         <Tag>{r.status}</Tag> {r.test && <Tag>テスト・集計対象外</Tag>}
       </p>
-      {r.note && <p className="notice">{r.note}</p>}
+      {r.note && (r.reconciliationPending ? <details className="notice"><summary>実資料の照合中：表示金額は判明分です（詳細・未確認事項）</summary><p>{r.note}</p></details> : <p className="notice">{r.note}</p>)}
       <div className="tabs">
         {["注文入力", "集金額", "発注数", "納品・精算"].map((t) => (
           <Button key={t} secondary={tab !== t} onClick={() => setTab(t)}>
@@ -200,7 +201,7 @@ function Round({ round: r, back }) {
               この回の商品
             </Button>
           </div>
-          <BuyerPicker value={buyerId} onChange={choose} />
+          <BuyerPicker value={buyerId} onChange={choose} includeTest={r.test} />
           {!draft && (
             <Empty>
               名前をタップすると、固定注文が入った入力欄が開きます。
@@ -293,7 +294,7 @@ function Round({ round: r, back }) {
       {tab === "集金額" && (
         <>
           <Summary
-            label="この注文回にまとめた個人請求"
+            label={r.reconciliationPending ? "個人請求の判明分（照合中・未確定）" : "この注文回にまとめた個人請求"}
             value={yen(rows.reduce((a, b) => a + b.total, 0))}
             note="通常注文＋この回に集金をまとめた園内販売。即時入金は含みません。"
           />
@@ -303,7 +304,7 @@ function Round({ round: r, back }) {
             onClick={async () => {
               try {
                 await copyText(
-                  rows.map((x) => `${x.name}　${yen(x.total)}`).join("\n"),
+                  (r.reconciliationPending ? "照合用・未確定（未確認価格・園内販売の個人割当を含まない）\n" : "") + rows.map((x) => `${x.name}　${yen(x.total)}`).join("\n"),
                 );
                 notify("集金額をコピーしました");
               } catch (e) {
@@ -644,7 +645,7 @@ function RoundProducts({ round: r, onClose }) {
       ))}
       <h3>商品を追加</h3>
       {state.products
-        .filter((p) => p.active && !items.some((x) => x.id === p.id))
+        .filter((p) => productAvailable(p, r.date, r.id) && !items.some((x) => x.id === p.id))
         .map((p) => (
           <Button
             secondary

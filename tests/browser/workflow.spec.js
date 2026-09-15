@@ -3,6 +3,15 @@ import { initialState, validate } from "../../src/domain.js";
 import * as XLSX from "xlsx";
 import fs from "node:fs/promises";
 async function qaFont(page) {
+  if (process.env.QA_FONT_DIR) {
+    await page.route('https://qa-fonts.test/**', async route => {
+      const name=new URL(route.request().url()).pathname.split('/').pop();
+      await route.fulfill({contentType:'font/woff2',body:await fs.readFile(process.env.QA_FONT_DIR+'/files/'+name),headers:{'access-control-allow-origin':'*'}});
+    });
+    const css=(await fs.readFile(process.env.QA_FONT_DIR+'/400.css','utf8')).replaceAll('./files/','https://qa-fonts.test/files/');
+    await page.addStyleTag({content:css+"\n* { font-family: 'Noto Sans JP', sans-serif !important; }"});
+    await page.evaluate(()=>document.fonts.ready);
+  }
   if (process.env.QA_FONT_CSS) {
     await page.addStyleTag({
       content: await fs.readFile(process.env.QA_FONT_CSS, "utf8"),
@@ -116,6 +125,10 @@ test("スマホ: Excel→固定注文→欠品→精算→行事振替→後日�
     buffer: XLSX.write(book, { type: "buffer", bookType: "xlsx" }),
   });
   await page.getByRole("button", { name: "読み取って確認へ" }).click();
+  await expect(page.getByLabel("商品区分", {exact:true})).toHaveCount(5);
+  for (const field of await page.getByLabel("商品区分", {exact: true}).all()) {
+    if (await field.inputValue() === "") await field.selectOption("staple");
+  }
   await expect(page.getByText("販売価格 430円")).toBeVisible();
   await page.getByRole("button", { name: "確認した商品を登録" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -179,7 +192,7 @@ test("スマホ: Excel→固定注文→欠品→精算→行事振替→後日�
   ).toBeVisible();
   await page.getByRole("button", { name: "余剰を園内販売へ振替" }).click();
   await page.getByRole("button", { name: "振り替えて園内販売に追加" }).click();
-  expect(shared.state.stocks[0].qty).toBe(2);
+  await expect.poll(()=>shared.state.stocks[0]?.qty).toBe(2);
   await closeToast(page);
   await page.screenshot({
     path: "test-results/mobile-event.png",
@@ -204,7 +217,7 @@ test("スマホ: Excel→固定注文→欠品→精算→行事振替→後日�
   await page
     .getByRole("button", { name: "販売を記録して残数を減らす" })
     .click();
-  expect(shared.state.sales.length).toBe(2);
+  await expect.poll(()=>shared.state.sales.length).toBe(2);
   await nav(page, "集計");
   await page.getByLabel("対象年度").selectOption("2026");
   await expect(page.locator(".hero>strong")).toHaveText("694円");
@@ -230,6 +243,70 @@ test("スマホ: Excel→固定注文→欠品→精算→行事振替→後日�
     ),
   ).toBe(true);
   expect(errors).toEqual([]);
+});
+
+test("実Excelの自動読取・今回限りの次回除外・30人の購入者選択", async ({page,context}) => {
+  test.skip(!process.env.WAPPAN_EXCEL_DIR, "実資料の保存場所を指定して実行");
+  const shared={state:initialState(),revision:0};
+  for(let i=0;i<28;i++) shared.state.buyers.push({id:`b${i}`,name:`確認用${i+1}`,active:true,fixed:[]});
+  await backend(context,shared); await login(page);
+  const files=(await fs.readdir(process.env.WAPPAN_EXCEL_DIR)).filter(f=>f.endsWith('(3).xlsx'));
+  for(const file of files){
+    await nav(page,'商品・購入者');
+    await page.getByRole('button',{name:'Excelから取り込む'}).click();
+    await page.getByLabel('Excel注文表').setInputFiles(process.env.WAPPAN_EXCEL_DIR+'/'+file);
+    const sweets=file.includes('菓子');
+    await expect(page.getByLabel('商品区分',{exact:true})).toHaveCount(sweets?14:47);
+    await expect(page.getByLabel('商品名の列')).toHaveCount(0);
+    await expect(page.getByText(sweets?'定番焼き菓子注文書として読み取りました。':'月次パン注文書として読み取りました。',{exact:true})).toBeVisible();
+    if(!sweets){
+      await page.getByLabel('商品を使う注文回').selectOption('new');
+      await page.getByLabel('納品予定日').fill('2026-09-11');
+      await page.getByLabel('テスト入力（年度実績へ含めない）').check();
+    }
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.screenshot({path:`test-results/import-${sweets?'sweets':'bread'}.png`,fullPage:false});
+    await page.getByRole('button',{name:'確認した商品を登録'}).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  }
+  expect(shared.state.products.filter(p=>p.lifecycle==='once').length).toBe(12);
+  expect(shared.state.rounds[0].products.some(p=>p.name.includes('抹茶キャレ'))).toBe(true);
+  await nav(page,'注文');
+  await page.getByRole('button',{name:'＋ 注文回を作る'}).click();
+  await page.getByLabel('納品予定日').fill('2026-10-09');
+  await page.getByRole('button',{name:'この納品日で注文を始める'}).click();
+  expect(shared.state.rounds[1].products.some(p=>p.name.includes('抹茶キャレ'))).toBe(false);
+  expect(shared.state.rounds[1].products.some(p=>p.name==='パンのカリカリ')).toBe(true);
+  await expect(page.getByLabel('購入者を絞り込む')).toBeVisible();
+  await page.getByLabel('購入者を絞り込む').fill('確認用28');
+  await page.getByRole('button',{name:'確認用28',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'2. 確認用28さんの注文'})).toBeVisible();
+  for(const width of [320,375,430]){
+    await page.setViewportSize({width,height:812});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+});
+
+test("9月11日実資料：集金判明分・完売・年度除外・再読込",async({page,context})=>{
+  test.skip(!process.env.WAPPAN_RECON,"私的な照合資料がある環境だけ実行");
+  const {data,results}=await import('../../.reconciliation-data.mjs');
+  const shared={state:data,revision:6};
+  await backend(context,shared);await login(page);
+  await page.getByText('11人 入力済み').click();
+  await page.getByRole('button',{name:'集金額',exact:true}).click();
+  await expect(page.getByText(results.normalKnown.toLocaleString('ja-JP')+'円',{exact:true}).first()).toBeVisible();
+  expect(results.matchedProducts).toBe(29);
+  expect(results.remaining).toBe(0);
+  await nav(page,'園内販売');
+  await page.getByLabel('売り切れの商品も表示').check();
+  await expect(page.getByText('残り 0',{exact:true})).toHaveCount(11);
+  await page.getByRole('button',{name:'数量・記録を見る'}).first().click();
+  await expect(page.getByText('販売先・支払方法未確認',{exact:true})).toBeVisible();
+  await page.getByRole('dialog').getByRole('button',{name:'閉じる'}).click();
+  await nav(page,'集計');
+  await expect(page.locator('.hero>strong')).toHaveText('0円');
+  await page.reload();await nav(page,'集計');
+  await expect(page.locator('.hero>strong')).toHaveText('0円');
 });
 test("複数端末: 同じ共有データと同時編集の上書き拒否、最新読込で復旧", async ({
   browser,

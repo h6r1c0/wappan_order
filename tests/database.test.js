@@ -86,5 +86,15 @@ test("Postgres: migration/RLS/許可された係だけ保存/競合拒否/振替
       .rows[0].n,
     3,
   );
+  state.rounds.pop();
+  const unknown={id:"unconfirmed",name:"資料商品",date:"2026-09-11",qty:2,price:390,cost:null,test:true};
+  state.stocks.push(unknown);
+  addSale(state,unknown,{date:"2026-09-11",qty:2,pending:true,paid:false});
+  await db.query("select public.wappan_save(3,$1,'unconfirmed sale')",[state]);
+  state.sales.at(-1).paid=true;
+  await assert.rejects(()=>db.query("select public.wappan_save(4,$1,'invalid pending')",[state]),/Pending sale/);
+  state.sales.at(-1).paid=false;
+  unknown.qty=1;
+  await assert.rejects(()=>db.query("select public.wappan_save(4,$1,'oversold')",[state]),/oversold/);
   await db.close();
 });

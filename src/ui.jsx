@@ -153,15 +153,18 @@ export function Summary({ label, value, note }) {
     </div>
   );
 }
-export function BuyerPicker({ value, onChange, allowAdd = true }) {
+export function BuyerPicker({ value, onChange, allowAdd = true, includeTest = false }) {
   const { state, save } = useApp();
+  const [query, setQuery] = useState("");
   const [name, setName] = useState(""),
     [adding, setAdding] = useState(false);
   return (
     <>
+      {state.buyers.length > 12 && <Field label="購入者を絞り込む" type="search" placeholder="名前の一部（入力しなくても選べます）" value={query} onChange={e => setQuery(e.target.value)} />}
       <div className="buyer-grid">
         {state.buyers
-          .filter((b) => b.active || b.id === value)
+          .filter((b) => b.id === value || (b.testOnly ? includeTest : b.active))
+          .filter(b => b.name.normalize("NFKC").includes(query.normalize("NFKC")))
           .map((b) => (
             <button
               type="button"
