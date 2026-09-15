@@ -26,3 +26,7 @@
 - iPhone実機のSafariでの最終的な指の押しやすさは所有者の端末で確認する。
 
 [セットアップ](SETUP.md)の後、[9月11日分の照合](ACCEPTANCE.md)を行って本番利用へ移行する。
+
+## GitHubへの反映と公開準備
+
+2026年9月15日、main `b6e7a09d2fe4e3d3ddb15e5bb5a4f1a951f1232f` へ第一版を反映。Actions run `34954296927` のverify（計算・DB・ブラウザー・ビルド・公開artifact作成）が成功。deployはPagesサイト未有効のためconfigure-pagesで404。所有者によるSettings → Pages → Source: GitHub Actionsの初回設定後、失敗ジョブを再実行する。ユーザー1名の係権限登録とDB側の読取認可は確認済み。
