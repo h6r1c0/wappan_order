@@ -217,7 +217,7 @@ export function ProductQuantityEditor({
       {query ? (
         unselected.map(row)
       ) : (
-        <details open={selected.length === 0}>
+        <details open>
           <summary>＋ 商品を選ぶ（{unselected.length}品）</summary>
           {unselected.map(row)}
         </details>
