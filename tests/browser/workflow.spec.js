@@ -327,7 +327,10 @@ test("スマホ: LINE貼付と共通販売用在庫・販売場所・任意価�
   await expect(page.getByText('手話タイム',{exact:true})).toBeVisible();
   await page.getByRole('dialog').getByRole('button',{name:'閉じる'}).click();
   expect(shared.state.externalDestinations).toContain('手話タイム');
-  for(const width of [320,375,430]){await page.setViewportSize({width,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}\n  await page.setViewportSize({width:375,height:812});\n  const buyerColumns=await page.locator('.buyer-grid').first().evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);\n  expect(buyerColumns).toBe(3);
+  for(const width of [320,375,430]){await page.setViewportSize({width,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+  await page.setViewportSize({width:375,height:812});
+  const buyerColumns=await page.locator('.buyer-grid').first().evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);
+  expect(buyerColumns).toBe(3);
 });
 
 test("実Excelの自動読取・今回限りの次回除外・30人の購入者選択", async ({page,context}) => {
