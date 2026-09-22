@@ -400,7 +400,7 @@ test("購入者を入力中に追加、利益のみ過去実績・年度調整�
   await page.getByLabel("新しい購入者名").fill("検証購入者");
   await page.getByRole("button", { name: "追加して選ぶ" }).click();
   await expect(
-    page.getByRole("heading", { name: "2. 検証購入者さんの注文" }),
+    page.getByRole("heading", { name: "検証購入者さんの注文" }),
   ).toBeVisible();
   await page
     .getByLabel("ミルクスティックパン 数量", { exact: true })
