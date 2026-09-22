@@ -37,6 +37,11 @@ import {
   CollectionList,
   copyText,
 } from "./ui";
+const PURPOSES = [
+  ["個人注文", new URL("../wappan_icon_personal_order_final.png", import.meta.url).href, "購入者ごとの注文"],
+  ["販売用", new URL("../wappan_icon_sales_basket_final.png", import.meta.url).href, "販売・残数・セット"],
+  ["おやつ用", new URL("../wappan_icon_snack_use_anpan_final.png", import.meta.url).href, "使用数と財政請求"],
+];
 export function Orders() {
   const { state, save } = useApp();
   const [id, setId] = useState(null),
@@ -113,7 +118,7 @@ export function Orders() {
 }
 function Round({ round: r, back }) {
   const { state, save, notify } = useApp();
-  const [tab, setTab] = useState("注文入力"),
+  const [tab, setTab] = useState("個人注文"),
     [buyerId, setBuyerId] = useState(null),
     [draft, setDraft] = useState(null),
     [query, setQuery] = useState(""),
@@ -174,7 +179,7 @@ function Round({ round: r, back }) {
         onClick={() => {
           if (
             draft &&
-            !confirm("注文入力を閉じますか？未保存の数量変更は失われます。")
+            !confirm("個人注文を閉じますか？未保存の数量変更は失われます。")
           )
             return;
           back();
@@ -192,22 +197,27 @@ function Round({ round: r, back }) {
         <Tag>{r.status}</Tag> {r.test && <Tag>テスト・集計対象外</Tag>}
       </p>
       {r.note && (r.reconciliationPending ? <details className="notice"><summary>実資料の照合中：表示金額は判明分です（詳細・未確認事項）</summary><p>{r.note}</p></details> : <p className="notice">{r.note}</p>)}
-      <div className="tabs">
-        {["注文入力", "園内販売用", "行事用", "マルシェ", "集金額", "発注数", "納品・精算"].map((t) => (
-          <Button key={t} secondary={tab !== t} onClick={() => setTab(t)}>
-            {t}
-          </Button>
+      <div className="purpose-grid" aria-label="注文の用途を選ぶ">
+        {PURPOSES.map(([label, image, note]) => (
+          <button type="button" key={label} className={`purpose ${tab === label ? "selected" : ""}`} onClick={() => setTab(label)}>
+            <img src={image} alt="" />
+            <span><strong>{label}</strong><small>{note}</small></span>
+          </button>
+        ))}
+      </div>
+      <div className="tabs work-tabs">
+        {["集金額", "発注数", "納品・精算"].map((t) => (
+          <Button key={t} secondary={tab !== t} onClick={() => setTab(t)}>{t}</Button>
         ))}
       </div>
       {lineImport&&<LineImport round={r} onClose={()=>setLineImport(false)}/>}
-      {tab==='園内販売用'&&<Sales roundId={r.id}/>}
-      {tab==='行事用'&&<Events roundId={r.id}/>}
-      {tab==='マルシェ'&&<Markets roundId={r.id}/>}
-      {tab === "注文入力" && (
+      {tab==='販売用'&&<><Sales roundId={r.id}/><Markets roundId={r.id}/></>}
+      {tab==='おやつ用'&&<Events roundId={r.id}/>}
+      {tab === "個人注文" && (
         <>
           <Button secondary onClick={()=>setLineImport(true)}>LINE注文を貼り付け</Button>
           <div className="section-head">
-            <h2>1. 購入者を選ぶ</h2>
+              <h2>購入者を選ぶ</h2>
             <Button secondary onClick={() => setProducts(true)}>
               この回の商品
             </Button>
@@ -220,7 +230,7 @@ function Round({ round: r, back }) {
           )}
           {draft && (
             <section className="card order-editor" data-unsaved="true">
-              <h2>2. {currentBuyer?.name}さんの注文</h2>
+              <h2>{currentBuyer?.name}さんの注文</h2>
               {currentBuyer?.fixed.some(
                 (f) => !r.products.some((p) => p.id === f.productId),
               ) && (
@@ -291,12 +301,13 @@ function Round({ round: r, back }) {
           <h3>入力済みの購入者</h3>
           {Object.entries(r.orders).map(([id, o]) => (
             <button
-              className="card clickable line"
+              className="card clickable line completed-buyer"
               key={id}
               onClick={() => choose(id)}
             >
-              <span>
+              <span className="completed-buyer-name">
                 {state.buyers.find((b) => b.id === id)?.name || o.name}
+                <small>入力済み</small>
               </span>
               <b>{yen(orderAmount(r, o))} ›</b>
             </button>
@@ -308,7 +319,7 @@ function Round({ round: r, back }) {
           <Summary
             label={r.reconciliationPending ? "個人請求の判明分（照合中・未確定）" : "この注文回にまとめた個人請求"}
             value={yen(rows.reduce((a, b) => a + b.total, 0))}
-            note="通常注文＋この回に集金をまとめた園内販売。即時入金は含みません。"
+            note="個人注文＋販売用からの追加購入。外部売上は含みません。"
           />
           <CollectionList rows={rows} />
           <Button
@@ -316,7 +327,7 @@ function Round({ round: r, back }) {
             onClick={async () => {
               try {
                 await copyText(
-                  (r.reconciliationPending ? "照合用・未確定（未確認価格・園内販売の個人割当を含まない）\n" : "") + rows.map((x) => `${x.name}　${yen(x.total)}`).join("\n"),
+                  (r.reconciliationPending ? "照合用・未確定（未確認価格・販売用商品の個人割当を含まない）\n" : "") + rows.map((x) => `${x.name}　${yen(x.total)}`).join("\n"),
                 );
                 notify("集金額をコピーしました");
               } catch (e) {
@@ -332,11 +343,11 @@ function Round({ round: r, back }) {
         <>
           <h2>わっぱんへ発注する数量</h2>
           <p className="muted">
-            個人・園内販売用・行事用・外部販売用を合算した、この納品日の発注数です。余剰や販売先の振替は追加発注に数えません。
+            個人注文・販売用・おやつ用を合算した、この納品日の発注数です。販売場所の変更や余剰の振替は追加発注に数えません。
           </p>
           {deliveryTotals(state,r).map((p) => (
             <div className="card line" key={p.id}>
-              <span>{p.name}<small>個人 {p.personal} ／ 園内 {p.onsite} ／ 行事 {p.event} ／ 外部 {p.external}</small></span>
+              <span>{p.name}<small>個人 {p.personal} ／ 販売用 {p.sales} ／ おやつ用 {p.snack}</small></span>
               <strong>{p.qty} 個／袋</strong>
             </div>
           ))}
@@ -394,7 +405,7 @@ function Round({ round: r, back }) {
       {tab === "納品・精算" && (
         <>
           <div className="notice">
-            欠品があるときだけ「注文入力」で、了承した購入者の数量を減らして保存してください。全員の納品確認は不要です。
+            欠品があるときだけ「個人注文」で、了承した購入者の数量を減らして保存してください。全員の納品確認は不要です。
           </div>
           <div className="grid2">
             <Summary label="修正後の通常販売額" value={yen(total)} />
@@ -470,12 +481,12 @@ function Invoice({ round: r }) {
       />
       <details open={eventIds.length > 0 || stockIds.length > 0}>
         <summary>同じ納品回の用途別仕入（自動で区分）</summary>
-        <p className="muted">行事用・園内販売用・外部販売用は、この納品回への登録から自動で集計します。振替は追加仕入に数えません。</p>
-        {state.events.filter(e=>e.roundId===r.id).map(e=><p key={e.id}>行事：{e.name}</p>)}
-        {state.stocks.filter(st=>r.stockIds.includes(st.id)).map(st=><p key={st.id}>{st.channel==='external'?'外部販売':'園内販売'}：{st.name} ×{st.qty} ／ {yen(st.cost==null?null:st.cost*st.qty)}</p>)}
+        <p className="muted">販売用・おやつ用は、この納品回への登録から自動で区分します。販売場所の変更や余剰振替は追加仕入に数えません。</p>
+        {state.events.filter(e=>e.roundId===r.id).map(e=><p key={e.id}>おやつ用：{e.name}</p>)}
+        {state.stocks.filter(st=>r.stockIds.includes(st.id)).map(st=><p key={st.id}>販売用：{st.name} ×{st.qty} ／ {yen(st.cost==null?null:st.cost*st.qty)}</p>)}
       </details>
-      <p>行事・園内販売の仕入：{yen(ded)}</p>
-      <p className="total">通常注文の仕入：{yen(roundCost(state, preview))}</p>
+      <p>販売用・おやつ用の仕入：{yen(ded)}</p>
+      <p className="total">個人注文の仕入：{yen(roundCost(state, preview))}</p>
       <Field label="納品・精算の状態">
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           {["入力中", "注文確定", "納品済み", "精算済み"].map((v) => (
@@ -501,7 +512,7 @@ function RoundSettings({ round: r, onClose, onDeleted }) {
           if (
             test !== r.test &&
             !confirm(
-              "関連する行事・園内販売も同じテスト区分へ変更します。続けますか？",
+              "関連する販売用・おやつ用も同じテスト区分へ変更します。続けますか？",
             )
           )
             return;

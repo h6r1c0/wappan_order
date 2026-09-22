@@ -5,9 +5,6 @@ import { validate } from "./domain";
 import { upgrade } from "./commerce";
 import { AppContext, Button, Field } from "./ui";
 import { Orders } from "./orders";
-import { Sales } from "./sales";
-import { Events } from "./events";
-import { Markets } from './markets';
 import { Reports } from "./reports";
 import { Masters } from "./masters";
 import "./style.css";
@@ -119,11 +116,15 @@ function App() {
     <>
       <header>
         <img
+          className="school-logo"
           src={new URL("../ohisama_header_logo.png", import.meta.url).href}
           alt="おひさま保育園"
         />
-        <div>
-          <b>わっぱん</b>
+        <div className="app-title">
+          <img
+            src={new URL("../wappan_title_logo_final.png", import.meta.url).href}
+            alt="わっぱん"
+          />
           <small>注文・集計</small>
         </div>
         {session && (
@@ -212,12 +213,6 @@ function App() {
                 <fieldset disabled={saving} className="workspace">
                   {page === "注文" ? (
                     <Orders />
-                  ) : page === "園内販売" ? (
-                    <Sales />
-                  ) : page === "行事" ? (
-                    <Events />
-                  ) : page === "マルシェ" ? (
-                    <Markets />
                   ) : page === "集計" ? (
                     <Reports />
                   ) : (
@@ -228,9 +223,6 @@ function App() {
               <nav aria-label="主な業務">
                 {[
                   ["注文", "order"],
-                  ["園内販売", "shop"],
-                  ["マルシェ", "market"],
-                  ["行事", "event"],
                   ["集計", "report"],
                   ["商品・購入者", "people"],
                 ].map(([label, icon]) => (

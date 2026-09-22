@@ -1,9 +1,9 @@
 :root {
   font-family:
-    ui-rounded, "Hiragino Maru Gothic ProN", "BIZ UDPGothic", "Yu Gothic",
+    "M PLUS Rounded 1c", ui-rounded, "Hiragino Maru Gothic ProN", "BIZ UDPGothic", "Yu Gothic",
     Meiryo, system-ui, sans-serif;
-  color: #382b24;
-  background: #fbf7ef;
+  color: #3f3029;
+  background: #fff9ed;
   font-synthesis: none;
   font-size: 16px;
   line-height: 1.6;
@@ -57,26 +57,32 @@ header {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #fffdf8;
-  border-bottom: 1px solid #d9c8b5;
-  padding: 12px max(16px, calc((100vw - 860px) / 2));
-  min-height: 84px;
+  background: linear-gradient(180deg, #fffdf7, #fff5df);
+  border-bottom: 1px solid #ead5b6;
+  padding: 9px max(16px, calc((100vw - 860px) / 2));
+  min-height: 76px;
 }
-header img {
-  width: 152px;
+.school-logo {
+  width: 92px;
   height: auto;
 }
-header div {
+.app-title {
   flex: 1;
-  white-space: nowrap;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
-header b {
+.app-title img {
   display: block;
-  font-size: 23px;
-  letter-spacing: 0.06em;
+  width: 132px;
+  height: 50px;
+  object-fit: contain;
 }
 header small {
-  font-size: 12px;
+  font-size: 11px;
+  margin-top: -8px;
+  color: #765947;
 }
 header .button {
   font-size: 12px;
@@ -161,9 +167,9 @@ small {
   align-items: center;
   gap: 8px;
   min-height: 46px;
-  border: 1px solid #805035;
+  border: 1px solid #9a5f38;
   border-radius: 12px;
-  background: #805035;
+  background: #985a33;
   color: white;
   font-weight: 700;
   padding: 11px 16px;
@@ -172,9 +178,9 @@ small {
   margin: 4px 0;
 }
 .button.secondary {
-  background: #fffdfa;
-  color: #67412e;
-  border-color: #cbb6a1;
+  background: #fffef9;
+  color: #70472f;
+  border-color: #d9bc99;
 }
 .button.danger {
   color: #a42828;
@@ -195,6 +201,48 @@ small {
   margin: 10px 0 16px;
 }
 .choice-grid .button { margin: 0; min-height: 52px; }
+.purpose-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin: 16px 0 10px;
+}
+.purpose {
+  min-width: 0;
+  min-height: 108px;
+  padding: 10px 7px;
+  border: 2px solid #ead5b7;
+  border-radius: 17px;
+  background: #fffefa;
+  color: #49352a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+}
+.purpose:nth-child(2) { background: #fff5f5; }
+.purpose:nth-child(3) { background: #fff8e8; }
+.purpose.selected {
+  border-color: #a65e35;
+  box-shadow: 0 0 0 3px #f6d8ae;
+  background: #fff4dc;
+}
+.purpose img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+.purpose span { min-width: 0; }
+.purpose strong { display: block; font-size: 16px; line-height: 1.35; }
+.purpose small { font-size: 10px; line-height: 1.3; margin-top: 2px; }
+.work-tabs { margin-top: 6px; }
+.sales-tools {
+  border-top: 1px solid #ead7bd;
+  margin-top: 24px;
+  padding-top: 16px;
+}
 .tabs .button {
   flex: 1;
   white-space: nowrap;
@@ -203,8 +251,8 @@ small {
 }
 .card {
   display: block;
-  background: #fffefb;
-  border: 1px solid #e0d1bf;
+  background: #fffefa;
+  border: 1px solid #ead9c1;
   border-radius: 16px;
   padding: 18px;
   margin: 12px 0;
@@ -217,11 +265,29 @@ small {
 }
 .card.clickable:hover {
   border-color: #9e7353;
-  background: #fffaf0;
+  background: #fff6e5;
 }
 .card.line {
   display: flex;
 }
+.completed-buyer { min-height: 68px; }
+.completed-buyer-name {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+.completed-buyer-name small {
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 3px;
+}
+.completed-buyer > b { font-size: 19px; font-variant-numeric: tabular-nums; }
+.collection-person > span {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+.collection-person > strong { font-size: 20px; }
 .card.product-row {
   display: flex;
 }
@@ -272,21 +338,24 @@ small {
 }
 .buyer-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
   gap: 9px;
   margin: 14px 0;
 }
 .buyer {
-  min-height: 53px;
-  background: #fffdf8;
-  color: #48362c;
-  border: 1px solid #cdb9a3;
+  min-height: 50px;
+  background: #fffef9;
+  color: #423128;
+  border: 1px solid #d9bf9f;
   border-radius: 12px;
-  padding: 12px;
+  padding: 9px 10px;
   overflow-wrap: anywhere;
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 700;
 }
 .buyer.selected {
-  background: #805035;
+  background: #8e5434;
   color: white;
   border-color: #805035;
   font-weight: 700;
@@ -307,19 +376,10 @@ small {
   font-size: 16px;
 }
 .cat {
-  width: 46px;
-  height: 46px;
+  width: 50px;
+  height: 50px;
   flex-shrink: 0;
-  background-image: url("../wappan_category_icons.png");
-  background-size: 200% 100%;
-  background-repeat: no-repeat;
-}
-.cat.bread {
-  background-position: left;
-}
-.cat.cookie {
-  background-position: right;
-  clip-path: inset(0 0 0 6%);
+  object-fit: contain;
 }
 .qty {
   display: flex;
@@ -346,7 +406,7 @@ small {
 }
 .tag {
   display: inline-block;
-  background: #efe4d4;
+  background: #f5e6cb;
   border-radius: 6px;
   padding: 3px 8px;
   color: #65482f;
@@ -355,7 +415,7 @@ small {
 }
 .summary {
   border-radius: 14px;
-  background: #f1e7d7;
+  background: #fff0d2;
   padding: 17px;
   margin: 12px 0;
   display: flex;
@@ -500,7 +560,7 @@ nav {
   display: flex;
   justify-content: center;
   border-top: 1px solid #d9c8b4;
-  background: #fffdf9;
+  background: #fffdf7;
   padding: 6px 4px max(7px, env(safe-area-inset-bottom));
   z-index: 10;
 }
@@ -522,8 +582,8 @@ nav button {
   white-space: nowrap;
 }
 nav button.active {
-  background: #f0e3d0;
-  color: #734527;
+  background: #ffe9bd;
+  color: #6d3d24;
   font-weight: 700;
 }
 .remaining {
@@ -552,7 +612,7 @@ nav button.active {
   border-bottom: 1px solid #ddcfbb;
 }
 .hero {
-  background: #805035;
+  background: linear-gradient(135deg, #9b5d37, #bc7849);
   color: #fff9ef;
   padding: 25px;
   border-radius: 20px;
@@ -635,11 +695,12 @@ details.card summary small {
   clip: rect(0, 0, 0, 0);
 }
 @media (max-width: 390px) {
-  header img {
-    width: 116px;
+  .school-logo {
+    width: 74px;
   }
-  header b {
-    font-size: 21px;
+  .app-title img {
+    width: 112px;
+    height: 44px;
   }
   header {
     gap: 8px;
@@ -656,9 +717,13 @@ details.card summary small {
     font-size: 23px;
   }
   .cat {
-    width: 37px;
-    height: 37px;
+    width: 44px;
+    height: 44px;
   }
+  .purpose { min-height: 101px; padding: 8px 4px; }
+  .purpose img { width: 48px; height: 48px; }
+  .purpose strong { font-size: 15px; }
+  .purpose small { display: none; }
   .summary strong {
     font-size: 22px;
   }

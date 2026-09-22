@@ -93,7 +93,7 @@ async function closeToast(page) {
   const b = page.getByRole("button", { name: "お知らせを閉じる" });
   if (await b.count()) await b.click();
 }
-test("スマホ: Excel→固定注文→欠品→精算→行事振替→後日請求・即時入金→年度・再読込", async ({
+test("スマホ: Excel→固定注文→欠品→精算→おやつ余剰振替→後日請求・即時入金→年度・再読込", async ({
   page,
   context,
 }) => {
@@ -137,7 +137,18 @@ test("スマホ: Excel→固定注文→欠品→精算→行事振替→後日�
   await page.getByRole("button", { name: "＋ 注文回を作る" }).click();
   await page.getByLabel("納品予定日").fill("2026-09-11");
   await page.getByRole("button", { name: "この納品日で注文を始める" }).click();
+  await expect(page.locator('header img[src*="ohisama_header_logo"]')).toBeVisible();
+  await expect(page.locator('header img[src*="wappan_title_logo_final"]')).toBeVisible();
+  await expect(page.locator('.purpose img')).toHaveCount(3);
+  await expect(page.locator('nav button')).toHaveCount(3);
+  expect(await page.locator('body').evaluate(el=>getComputedStyle(el).fontFamily)).toContain('M PLUS Rounded 1c');
   await page.getByRole("button", { name: "ホリ", exact: true }).click();
+  await expect(page.locator('.cat[src*="wappan_icon_category_bread_final"]')).toBeVisible();
+  await expect(page.locator('.cat[src*="wappan_icon_category_gingerbread_final"]')).toBeVisible();
+  for(const icon of await page.locator('.cat').all()){
+    const size=await icon.evaluate(el=>({w:el.getBoundingClientRect().width,h:el.getBoundingClientRect().height,fit:getComputedStyle(el).objectFit}));
+    expect(size.w).toBe(size.h);expect(size.fit).toBe('contain');
+  }
   await expect(page.getByLabel("ガレット 数量", { exact: true })).toHaveValue(
     "2",
   );
@@ -167,7 +178,7 @@ test("スマホ: Excel→固定注文→欠品→精算→行事振替→後日�
   ).toBeVisible();
   await page.getByRole("button", { name: "発注数", exact: true }).click();
   await page.getByRole("button", { name: "注文確定にする" }).click();
-  await page.getByRole("button", { name: "注文入力", exact: true }).click();
+  await page.getByRole("button", { name: "個人注文", exact: true }).click();
   await page.getByRole("button", { name: "ホリ", exact: true }).click();
   await page.getByLabel("ガレット 数量", { exact: true }).selectOption("1");
   await page.getByRole("button", { name: "保存して次の購入者へ" }).click();
@@ -175,29 +186,29 @@ test("スマホ: Excel→固定注文→欠品→精算→行事振替→後日�
   await page.getByLabel("実際に支払う仕入税込総額").fill("4260");
   await page.getByLabel("納品・精算の状態").selectOption("精算済み");
   await page.getByRole("button", { name: "仕入額・状態を保存" }).click();
-  await nav(page, "行事");
-  await page.getByRole("button", { name: "＋ 行事を追加" }).click();
-  await page.getByLabel("行事名", { exact: true }).fill("検証用行事");
-  await page.getByLabel("行事日", { exact: true }).fill("2026-09-11");
+  await page.getByRole("button", { name: "おやつ用", exact: true }).click();
+  await page.getByRole("button", { name: "＋ おやつ予定を追加" }).click();
+  await page.getByLabel("行事・おやつ名", { exact: true }).fill("検証用おやつ");
+  await page.getByLabel("使用日", { exact: true }).fill("2026-09-11");
   await page.getByRole("button", { name: "＋ 商品行を追加" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("数量", { exact: true }).nth(0).selectOption("other");
   await dialog.getByLabel("数量 その他", { exact: true }).fill("20");
   await dialog.getByLabel("数量", { exact: true }).nth(1).selectOption("other");
   await dialog.getByLabel("数量 その他", { exact: true }).nth(1).fill("18");
-  await page.getByRole("button", { name: "行事の注文・使用数を保存" }).click();
+  await page.getByRole("button", { name: "おやつ用の注文・使用数を保存" }).click();
   await expect(
     page.getByText("2,484円", { exact: true }).first(),
   ).toBeVisible();
-  await page.getByRole("button", { name: "余剰を園内販売へ振替" }).click();
-  await page.getByRole("button", { name: "振り替えて園内販売に追加" }).click();
+  await page.getByRole("button", { name: "余剰を販売用へ振替" }).click();
+  await page.getByRole("button", { name: "振り替えて販売用に追加" }).click();
   await expect.poll(()=>shared.state.stocks[0]?.qty).toBe(2);
   await closeToast(page);
   await page.screenshot({
     path: "test-results/mobile-event.png",
     fullPage: true,
   });
-  await nav(page, "園内販売");
+  await page.getByRole("button", { name: "販売用", exact: true }).click();
   await page.getByRole("button", { name: "販売を記録", exact: true }).click();
   await page.getByRole("button", { name: "ホリ", exact: true }).click();
   await page.getByLabel("販売日", { exact: true }).fill("2026-09-11");
@@ -246,7 +257,7 @@ test("スマホ: Excel→固定注文→欠品→精算→行事振替→後日�
   expect(errors).toEqual([]);
 });
 
-test("スマホ: LINE貼付とマルシェのタップ販売・外部名称・入金未確認",async({page,context})=>{
+test("スマホ: LINE貼付と共通販売用在庫・販売場所・任意価格・入金未確認",async({page,context})=>{
   const shared={state:initialState(),revision:0};
   shared.state.products.forEach(p=>{if(p.gross==null&&p.manual==null)p.gross=394});
   await backend(context,shared);page.on('dialog',d=>d.accept());await login(page);
@@ -259,23 +270,22 @@ test("スマホ: LINE貼付とマルシェのタップ販売・外部名称・�
   await page.getByRole('button',{name:'この内容で注文へ反映'}).click();
   expect(shared.state.rounds[0].orders.hori.quantities.brown).toBe(1);
   expect(shared.state.sales).toHaveLength(0);
-  await page.getByRole('button',{name:'マルシェ',exact:true}).first().click();
-  await page.getByRole('button',{name:'＋ 販売イベント'}).click();
-  await page.getByLabel('販売イベント名').fill('手話タイム販売会');
-  await page.getByLabel('販売日').fill('2026-09-11');
-  await page.getByRole('button',{name:'販売イベントを保存'}).click();
-  await page.getByRole('button',{name:'＋ 商品を置く'}).click();
+  await page.getByRole('button',{name:'販売用',exact:true}).click();
+  await page.getByRole('button',{name:'＋ 販売用商品を追加'}).click();
   await page.getByLabel('商品を選ぶ').selectOption('milk');
   await page.getByRole('dialog').getByLabel('数量',{exact:true}).selectOption('2');
   await page.getByLabel('仕入単価（不明なら空欄・利益は未確定）').fill('200');
   await page.getByRole('button',{name:'商品を保存'}).click();
   await page.getByRole('button',{name:'販売を記録',exact:true}).click();
   await page.getByLabel('1個の販売価格（この販売だけ）').fill('420');
+  await page.getByLabel('販売場所（任意）').fill('手話タイム');
+  await page.getByRole('button',{name:'外部販売',exact:true}).click();
   await page.getByLabel('外部販売先・団体・マルシェ名').fill('手話タイム');
   await page.getByRole('button',{name:'販売を記録して残数を減らす'}).click();
   expect(shared.state.sales[0].destinationName).toBe('手話タイム');
   expect(shared.state.sales[0].paymentStatus).toBe('unconfirmed');
   expect(shared.state.sales[0].price).toBe(420);
+  expect(shared.state.sales[0].salePlace).toBe('手話タイム');
   expect(shared.state.externalDestinations).toContain('手話タイム');
   for(const width of [320,375,430]){await page.setViewportSize({width,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
 });
@@ -315,7 +325,7 @@ test("実Excelの自動読取・今回限りの次回除外・30人の購入者�
   await expect(page.getByLabel('購入者を絞り込む')).toBeVisible();
   await page.getByLabel('購入者を絞り込む').fill('確認用28');
   await page.getByRole('button',{name:'確認用28',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'2. 確認用28さんの注文'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'確認用28さんの注文'})).toBeVisible();
   for(const width of [320,375,430]){
     await page.setViewportSize({width,height:812});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -332,7 +342,9 @@ test("9月11日実資料：集金判明分・完売・年度除外・再読込",
   await expect(page.getByText(results.normalKnown.toLocaleString('ja-JP')+'円',{exact:true}).first()).toBeVisible();
   expect(results.matchedProducts).toBe(29);
   expect(results.remaining).toBe(0);
-  await nav(page,'園内販売');
+  await nav(page,'注文');
+  await page.getByText('11人 入力済み').click();
+  await page.getByRole('button',{name:'販売用',exact:true}).click();
   await page.getByLabel('売り切れの商品も表示').check();
   await expect(page.getByText('残り 0',{exact:true})).toHaveCount(11);
   await page.getByRole('button',{name:'数量・記録を見る'}).first().click();

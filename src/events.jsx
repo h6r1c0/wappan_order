@@ -32,11 +32,11 @@ export function Events({roundId=null}) {
   return (
     <>
       <div className="section-head">
-        <h1>行事の注文</h1>
-        <Button onClick={() => setEdit({})}>＋ 行事を追加</Button>
+        <h1>おやつ用</h1>
+        <Button onClick={() => setEdit({})}>＋ おやつ予定を追加</Button>
       </div>
       <p className="lead">
-        使った分だけ財政へ請求。余りは園内販売へ振り替えます。
+        使った分だけ財政へ請求。余りは販売用へ振り替えます。
       </p>
       {[...state.events].filter(e=>!roundId||e.roundId===roundId)
         .sort((a, b) => b.date.localeCompare(a.date))
@@ -52,7 +52,7 @@ export function Events({roundId=null}) {
               {e.date} {e.test && <Tag>テスト</Tag>}
             </p>
             <Summary
-              label="財政への請求額（行事使用分のみ）"
+              label="財政への請求額（おやつ使用分のみ）"
               value={yen(eventClaim(e))}
             />
             {e.lines.map((l) => {
@@ -66,7 +66,7 @@ export function Events({roundId=null}) {
                       注文<strong>{l.qty}</strong>
                     </span>
                     <span>
-                      行事使用<strong>{l.used}</strong>
+                      おやつ使用<strong>{l.used}</strong>
                     </span>
                     <span>
                       振替済<strong>{moved}</strong>
@@ -87,7 +87,7 @@ export function Events({roundId=null}) {
                     secondary
                     onClick={() => setMove({ event: e, line: l })}
                   >
-                    余剰を園内販売へ振替
+                    余剰を販売用へ振替
                   </Button>
                   {state.stocks
                     .filter((st) => st.eventLineId === l.id && st.qty > 0)
@@ -103,12 +103,12 @@ export function Events({roundId=null}) {
                           onClick={async () => {
                             if (
                               confirm(
-                                "この振替を戻して、行事の未処理余剰に戻しますか？",
+                                "この振替を戻して、おやつ用の未処理余剰に戻しますか？",
                               )
                             )
                               await save(
                                 (s) => undoTransfer(s, st.id),
-                                "行事振替を取消",
+                                "おやつ余剰の振替を取消",
                               );
                           }}
                         >
@@ -122,7 +122,7 @@ export function Events({roundId=null}) {
             {e.note && <p>{e.note}</p>}
             <details>
               <summary>仕入の内訳</summary>
-              <p>行事注文全体 {yen(eventCost(e))}</p>
+              <p>おやつ用の注文全体 {yen(eventCost(e))}</p>
               <p>
                 財政請求 {yen(eventClaim(e))} ／ 販売側へ振替{" "}
                 {yen(
@@ -132,14 +132,14 @@ export function Events({roundId=null}) {
                 )}
               </p>
               <p className="muted">
-                未処理余剰は財政請求・販売利益へ加えません。同じ納品書の通常注文がある場合は、その回の「納品・精算」でこの行事を選んでください。
+                未処理余剰は財政請求・販売利益へ加えません。同じ納品日の「納品・精算」でまとめて確認できます。
               </p>
             </details>
           </section>
         ))}
       {!state.events.length && (
         <Empty>
-          行事名と注文数を登録し、使用後に実際の使用数を入力します。
+          おやつ名と注文数を登録し、使用後に実際の使用数を入力します。
         </Empty>
       )}
       {edit && (
@@ -200,7 +200,7 @@ function EventEditor({ event, onClose, roundId=null }) {
     });
   return (
     <Modal
-      title={event ? "行事の注文・使用数" : "行事を追加"}
+      title={event ? "おやつ用の注文・使用数" : "おやつ予定を追加"}
       onClose={onClose}
     >
       <form
@@ -214,25 +214,25 @@ function EventEditor({ event, onClose, roundId=null }) {
               if (i < 0) s.events.push(e);
               else s.events[i] = e;
               setEventTest(s, e, e.test);
-            }, "行事注文を保存")
+            }, "おやつ用を保存")
           )
             onClose();
         }}
       >
         <Field
           required
-          label="行事名"
+          label="行事・おやつ名"
           value={e.name}
           onChange={(ev) => set({ ...e, name: ev.target.value })}
         />
         <Field
           required
-          label="行事日"
+          label="使用日"
           type="date"
           value={e.date}
           onChange={(ev) => set({ ...e, date: ev.target.value })}
         />
-        {e.roundId ? <p className="notice">納品回：{state.rounds.find(r=>r.id===e.roundId)?.date}（用途：行事用）</p> : <Field label="納品予定日（空欄なら行事日と同じ）" type="date" value={e.deliveryDate||''} onChange={ev=>set({...e,deliveryDate:ev.target.value})}/>}
+        {e.roundId ? <p className="notice">納品回：{state.rounds.find(r=>r.id===e.roundId)?.date}（用途：おやつ用）</p> : <Field label="納品予定日（空欄なら使用日と同じ）" type="date" value={e.deliveryDate||''} onChange={ev=>set({...e,deliveryDate:ev.target.value})}/>}
         {e.lines.map((l, i) => {
           const moved = transferredQty(state, l.id);
           return (
@@ -247,7 +247,7 @@ function EventEditor({ event, onClose, roundId=null }) {
                 <Field label="注文数">
                   <Qty value={l.qty} onChange={(v) => put(i, "qty", v)} />
                 </Field>
-                <Field label="実際の行事使用数">
+                <Field label="実際のおやつ使用数">
                   <Qty value={l.used} onChange={(v) => put(i, "used", v)} />
                 </Field>
               </div>
@@ -315,14 +315,13 @@ function EventEditor({ event, onClose, roundId=null }) {
           checked={e.test}
           onChange={(v) => set({ ...e, test: v })}
         />
-        <Button type="submit">行事の注文・使用数を保存</Button>
+        <Button type="submit">おやつ用の注文・使用数を保存</Button>
       </form>
     </Modal>
   );
 }
 function TransferEditor({ event, line, onClose }) {
   const { state, save } = useApp();
-  const [marketId,setMarketId]=useState('');
   const remaining = line.qty - line.used - transferredQty(state, line.id);
   const [qty, setQty] = useState(remaining),
     [amount, setAmount] = useState(
@@ -335,11 +334,11 @@ function TransferEditor({ event, line, onClose }) {
     ),
     [date, setDate] = useState(event.date);
   return (
-    <Modal title="余剰を園内販売へ振替" onClose={onClose}>
+    <Modal title="余剰を販売用へ振替" onClose={onClose}>
       <h3>
         {line.name} ／ 未処理余剰 {remaining}個
       </h3>
-      <Field label="余剰の販売先"><select value={marketId} onChange={e=>setMarketId(e.target.value)}><option value="">園内販売</option>{state.markets.filter(m=>m.roundId===event.roundId).map(m=><option key={m.id} value={m.id}>外部販売：{m.name}</option>)}</select></Field>
+      <p className="notice">共通の販売用在庫へ移します。販売場所は、実際に売れたときだけ必要に応じて記録します。</p>
       <Field label="振り替える数量">
         <Qty value={qty} onChange={setQty} />
       </Field>
@@ -350,7 +349,7 @@ function TransferEditor({ event, line, onClose }) {
         onChange={setAmount}
       />
       <Field
-        label="園内販売の開始日"
+        label="販売開始日"
         type="date"
         value={date}
         onChange={(e) => setDate(e.target.value)}
@@ -368,13 +367,13 @@ function TransferEditor({ event, line, onClose }) {
               const e = s.events.find((x) => x.id === event.id),
                 l = e.lines.find((x) => x.id === line.id);
               transfer(s, e, l, qty, amount, date);
-              Object.assign(s.stocks.at(-1),{roundId:e.roundId,channel:marketId?'external':'onsite',marketId:marketId||null});
-            }, "行事余剰を園内販売へ振替")
+              Object.assign(s.stocks.at(-1),{roundId:e.roundId,channel:'sales',marketId:null});
+            }, "おやつ余剰を販売用へ振替")
           )
             onClose();
         }}
       >
-        振り替えて園内販売に追加
+        振り替えて販売用に追加
       </Button>
     </Modal>
   );

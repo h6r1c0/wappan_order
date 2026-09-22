@@ -309,12 +309,12 @@ export function report(s, from, to, year) {
     rows.push({
       id: sale.id,
       date: sale.date,
-      type: s.stocks.find(st=>st.id===sale.stockId)?.channel==='external' ? "外部販売" : "園内販売",
+      type: "販売用商品",
       name: s.stocks.find((st) => st.id === sale.stockId).name,
       revenue: sale.qty * sale.price,
       cost: sale.cost == null ? null : sale.qty * sale.cost,
       profit: sale.cost == null ? null : sale.qty * (sale.price - sale.cost),
-      provisional: (()=>{const st=s.stocks.find(st=>st.id===sale.stockId);return st?.marketId && s.markets?.find(m=>m.id===st.marketId)?.expense==null;})(),
+      provisional: (()=>{const st=s.stocks.find(st=>st.id===sale.stockId),mid=sale.marketId||st?.marketId;return mid && s.markets?.find(m=>m.id===mid)?.expense==null;})(),
     });
   for(const x of (s.bundleSales||[]).filter(x=>!x.void&&inRange(x.date))){
     const m=s.markets.find(m=>m.id===x.marketId),r=s.rounds.find(r=>r.id===m?.roundId);if(r?.test)continue;
@@ -507,7 +507,7 @@ export function validate(s) {
     const st = s.stocks.find((st) => st.id === sale.stockId);
     if (!st || sale.qty < 1 || sale.date < st.date)
       throw Error("販売日・販売数を確認してください");
-    if ((st.channel !== 'external' && sale.price !== st.price) || sale.cost !== st.cost)
+    if (sale.cost !== st.cost)
       throw Error("販売済み商品の単価は変更できません");
     const destinationType=sale.destinationType || (sale.pending?'unknown':sale.paid?'external':'buyer');
     const paymentStatus=sale.paymentStatus || (sale.pending?'unconfirmed':sale.paid?'paid':'later');

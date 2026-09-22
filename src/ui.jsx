@@ -66,11 +66,18 @@ export function Empty({ children }) {
   return <p className="empty">{children}</p>;
 }
 export function Cat({ category }) {
+  const cookie = category === "焼き菓子";
   return (
-    <span
-      aria-label={category}
-      className={`cat ${category === "焼き菓子" ? "cookie" : "bread"}`}
-      role="img"
+    <img
+      alt=""
+      aria-hidden="true"
+      className="cat"
+      src={new URL(
+        cookie
+          ? "../wappan_icon_category_gingerbread_final.png"
+          : "../wappan_icon_category_bread_final.png",
+        import.meta.url,
+      ).href}
     />
   );
 }
@@ -172,7 +179,7 @@ export function BuyerPicker({ value, onChange, allowAdd = true, includeTest = fa
               key={b.id}
               onClick={() => onChange(b.id)}
             >
-              {b.name}
+              <span>{b.name}</span>
             </button>
           ))}
       </div>
@@ -228,12 +235,12 @@ export function CollectionList({ rows }) {
     <div className="stack">
       {rows.map((row) => (
         <details className="card" key={row.id}>
-          <summary>
-            <span>{row.name}</span>
+          <summary className="collection-person">
+            <span>{row.name}<small>入力済み</small></span>
             <strong>{yen(row.total)}</strong>
           </summary>
           <p>
-            通常注文 {yen(row.normal)} ／ 園内販売 {yen(row.onsite)}
+            個人注文 {yen(row.normal)} ／ 販売用から追加 {yen(row.onsite)}
           </p>
           {row.lines.map((l, i) => (
             <div className="line" key={i}>
