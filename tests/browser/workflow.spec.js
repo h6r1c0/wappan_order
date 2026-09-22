@@ -98,6 +98,7 @@ test("スマホ: Excel→固定注文→欠品→精算→おやつ余剰振替�
   context,
 }) => {
   const shared = { state: initialState(), revision: 0 };
+  shared.state.products.find((product) => product.id === "galette").cost = 100;
   await backend(context, shared);
   page.on("dialog", (d) => d.accept());
   const errors = [];
@@ -190,7 +191,7 @@ test("スマホ: Excel→固定注文→欠品→精算→おやつ余剰振替�
   await page.getByLabel("ガレット 数量", { exact: true }).selectOption("1");
   await page.getByRole("button", { name: "保存して次の購入者へ" }).click();
   await page.getByRole("button", { name: "納品・精算", exact: true }).click();
-  await page.getByLabel("実際に支払う仕入税込総額").fill("4260");
+  await page.getByLabel("実際に支払う仕入税込総額").fill("6260");
   await page.getByLabel("納品・精算の状態").selectOption("精算済み");
   await page.getByRole("button", { name: "仕入額・状態を保存" }).click();
   await page.getByRole("button", { name: "おやつ用", exact: true }).click();
