@@ -766,3 +766,225 @@ details.card summary small {
     border: 1px solid #aaa;
   }
 }
+
+
+/* 初見でも業務の順序が分かる明るい画面 */
+:root {
+  color: #362b25;
+  background: #fffaf0;
+}
+body {
+  background: linear-gradient(180deg, #fffdf8 0, #fff8e9 100%);
+}
+header {
+  position: relative;
+  background: linear-gradient(180deg, #fffef9, #fff1d2);
+  border-bottom-color: #eccb98;
+  min-height: 96px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.school-logo {
+  width: 72px;
+  align-self: flex-start;
+}
+.app-title {
+  align-items: center;
+}
+.app-title img {
+  width: min(230px, 34vw);
+  height: 68px;
+}
+header small {
+  margin-top: -9px;
+  color: #8a5635;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.delivery-heading {
+  background: linear-gradient(100deg, #fff0cc, #fff9ec);
+  border-left: 6px solid #dc843d;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin: 14px 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.delivery-heading h1 {
+  margin: 0;
+}
+.work-title {
+  margin: 22px 0 10px;
+}
+.work-title h1 {
+  margin: 2px 0 0;
+}
+.personal-start {
+  border-top: 1px solid #ead5b6;
+  margin-top: 18px;
+  padding-top: 18px;
+}
+.line-import-entry {
+  border-color: #86ad91 !important;
+  background: #f2fbf2 !important;
+  color: #315d3c !important;
+}
+.work-section {
+  background: #fffefa;
+  border: 1px solid #ead7bd;
+  border-radius: 18px;
+  padding: 18px;
+  margin: 16px 0 24px;
+  box-shadow: 0 4px 14px #6e43110a;
+}
+.sale-action-section {
+  border-color: #b8d4bd;
+  background: linear-gradient(180deg, #f7fcf6, #fffefa);
+}
+.history-section {
+  background: #fffaf1;
+}
+.task-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 0 14px;
+}
+.task-heading > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #df8540;
+  color: white;
+  font-weight: 800;
+}
+.task-heading h2,
+.task-heading h3 {
+  margin: 0;
+  color: #493328;
+}
+.task-heading small {
+  margin-top: 1px;
+}
+.task-heading.compact {
+  margin-top: 18px;
+}
+.task-heading.compact > span {
+  flex-basis: 30px;
+  height: 30px;
+}
+.primary-wide {
+  width: 100%;
+  min-height: 54px;
+  background: #41744c;
+  border-color: #35653f;
+}
+.stock-card {
+  background: white;
+  padding: 15px;
+}
+.stock-card.sold-out {
+  background: #f7f3ec;
+  border-color: #d7cabc;
+}
+.sold-out-label {
+  color: #765e50;
+  background: #ebe3da;
+  border-radius: 999px;
+  padding: 4px 9px;
+}
+.compact-notice {
+  margin-bottom: 4px;
+}
+.buyer-add {
+  border: 1px solid #d6c2a5;
+  background: #fffaf0;
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 8px;
+}
+.similar-buyers {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 8px 0;
+}
+.similar-buyers > span {
+  width: 100%;
+  color: #6f5140;
+  font-size: 13px;
+  font-weight: 700;
+}
+.similar-buyers .button {
+  min-height: 42px;
+  padding: 8px 12px;
+}
+.buyer-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.buyer {
+  min-height: 46px;
+  padding: 6px 4px;
+  font-size: 17px;
+  line-height: 1.25;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.button {
+  box-shadow: 0 1px 1px #6a3f1b0d;
+}
+.button:not(.secondary):not(.danger) {
+  background: #a55e32;
+}
+.notice {
+  background: #fff4d9;
+  border-left-color: #df8536;
+}
+@media (min-width: 560px) {
+  .buyer-grid {
+    grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+  }
+}
+@media (max-width: 390px) {
+  header {
+    min-height: 86px;
+    gap: 5px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .school-logo {
+    width: 54px;
+  }
+  .app-title img {
+    width: 158px;
+    height: 58px;
+  }
+  header small {
+    font-size: 11px;
+  }
+  header .button {
+    padding: 7px 6px;
+    font-size: 10px;
+  }
+  .delivery-heading {
+    padding: 12px;
+  }
+  .work-section {
+    padding: 13px;
+    margin-bottom: 20px;
+  }
+  .task-heading {
+    gap: 8px;
+  }
+  .task-heading > span {
+    flex-basis: 30px;
+    height: 30px;
+  }
+}

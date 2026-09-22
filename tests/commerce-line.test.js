@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,newRound,addSale,collections,report,stockRemaining,transfer,validate} from '../src/domain.js';
 import {delivery,upgrade,moveStock,sellBundle,marketTotals,deliveryTotals,salesOrderQuantities,setSalesOrderQuantities,snackOrderQuantities,setSnackOrderQuantities} from '../src/commerce.js';
-import {destinationCandidate,parseLineOrder} from '../src/line-import.js';
+import {destinationCandidate,looksLikePersonalName,parseLineOrder} from '../src/line-import.js';
 
 function setup(){
  const s=initialState();s.products.forEach(p=>{if(p.gross==null&&p.manual==null)p.gross=394});
@@ -91,4 +91,16 @@ test('行事余剰を販売へ移しても財政請求と仕入原価を二重�
  transfer(s,e,e.lines[0],2,200,r.date);upgrade(s);const st=s.stocks.at(-1);
  addSale(s,st,{date:r.date,qty:2,destinationType:'external',destinationName:'手話タイム',paymentStatus:'paid'});
  assert.equal(18*138,2484);assert.equal(report(s,'2026-04-01','2027-03-31',2026).profit,124);validate(s);
+});
+
+
+test('LINE個人注文は未登録の氏名だけを追加候補にし、団体名は購入者にしない',()=>{
+ const {s,r}=setup();
+ const personal=parseLineOrder('山田　花子\nカリカリ1\n黒糖1',s,r);
+ assert.equal(personal.suggestedBuyerName,'山田 花子');
+ assert.equal(personal.products.length,2);
+ assert.equal(looksLikePersonalName('山田花子'),true);
+ const external=parseLineOrder('手話タイム\nカリカリ1',s,r);
+ assert.equal(external.suggestedBuyerName,'');
+ assert.equal(looksLikePersonalName('手話タイム'),false);
 });
