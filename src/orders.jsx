@@ -1,4 +1,9 @@
 import React, { useState } from "react";
+import { deliveryTotals } from './commerce';
+import {LineImport} from './line-import.jsx';
+import {Sales} from './sales';
+import {Events} from './events';
+import {Markets} from './markets';
 import {
   newRound,
   productAvailable,
@@ -75,6 +80,8 @@ export function Orders() {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
+              const existing=state.rounds.find(r=>r.date===date&&r.test===test);
+              if(existing){setCreating(false);setId(existing.id);return;}
               const r = newRound(state, date, test);
               if (await save((s) => s.rounds.push(r), "注文回を作成")) {
                 setCreating(false);
@@ -112,7 +119,7 @@ function Round({ round: r, back }) {
     [query, setQuery] = useState(""),
     [cat, setCat] = useState("全部"),
     [settings, setSettings] = useState(false),
-    [products, setProducts] = useState(false);
+    [products, setProducts] = useState(false), [lineImport,setLineImport]=useState(false);
   const choose = (id, newBuyer) => {
     if (
       draft &&
@@ -147,7 +154,6 @@ function Round({ round: r, back }) {
     unselected = filtered.filter((p) => !draft?.quantities[p.id]);
   const productRow = (p) => (
     <div className="product-row" key={p.id}>
-      <Cat category={p.category} />
       <span className="grow">
         {p.name}
         <small>{yen(p.price)}</small>
@@ -187,14 +193,19 @@ function Round({ round: r, back }) {
       </p>
       {r.note && (r.reconciliationPending ? <details className="notice"><summary>実資料の照合中：表示金額は判明分です（詳細・未確認事項）</summary><p>{r.note}</p></details> : <p className="notice">{r.note}</p>)}
       <div className="tabs">
-        {["注文入力", "集金額", "発注数", "納品・精算"].map((t) => (
+        {["注文入力", "園内販売用", "行事用", "マルシェ", "集金額", "発注数", "納品・精算"].map((t) => (
           <Button key={t} secondary={tab !== t} onClick={() => setTab(t)}>
             {t}
           </Button>
         ))}
       </div>
+      {lineImport&&<LineImport round={r} onClose={()=>setLineImport(false)}/>}
+      {tab==='園内販売用'&&<Sales roundId={r.id}/>}
+      {tab==='行事用'&&<Events roundId={r.id}/>}
+      {tab==='マルシェ'&&<Markets roundId={r.id}/>}
       {tab === "注文入力" && (
         <>
+          <Button secondary onClick={()=>setLineImport(true)}>LINE注文を貼り付け</Button>
           <div className="section-head">
             <h2>1. 購入者を選ぶ</h2>
             <Button secondary onClick={() => setProducts(true)}>
@@ -230,6 +241,7 @@ function Round({ round: r, back }) {
                     key={c}
                     onClick={() => setCat(c)}
                   >
+                    {c !== '全部' && <Cat category={c}/>}
                     {c}
                   </Button>
                 ))}
@@ -320,11 +332,11 @@ function Round({ round: r, back }) {
         <>
           <h2>わっぱんへ発注する数量</h2>
           <p className="muted">
-            通常注文の合計です。園内販売・行事はそれぞれの画面で確認してください。
+            個人・園内販売用・行事用・外部販売用を合算した、この納品日の発注数です。余剰や販売先の振替は追加発注に数えません。
           </p>
-          {productTotals(r).map((p) => (
+          {deliveryTotals(state,r).map((p) => (
             <div className="card line" key={p.id}>
-              <span>{p.name}</span>
+              <span>{p.name}<small>個人 {p.personal} ／ 園内 {p.onsite} ／ 行事 {p.event} ／ 外部 {p.external}</small></span>
               <strong>{p.qty} 個／袋</strong>
             </div>
           ))}
@@ -337,7 +349,7 @@ function Round({ round: r, back }) {
               try {
                 await copyText(
                   `${r.date} 納品\n` +
-                    productTotals(r)
+                    deliveryTotals(state,r)
                       .map((p) => `${p.name}　${p.qty}`)
                       .join("\n"),
                 );
@@ -350,7 +362,7 @@ function Round({ round: r, back }) {
             商品名・数量をコピー
           </Button>
           <pre className="copyable">
-            {productTotals(r)
+            {deliveryTotals(state,r)
               .map((p) => `${p.name}　${p.qty}`)
               .join("\n")}
           </pre>
@@ -457,58 +469,10 @@ function Invoice({ round: r }) {
         onChange={setInvoice}
       />
       <details open={eventIds.length > 0 || stockIds.length > 0}>
-        <summary>同じ納品書に行事・園内販売が含まれる</summary>
-        <p className="muted">
-          含まれるものだけ選ぶと、自動で通常注文の仕入額から分けます。行事から振り替えた商品を重ねて選ぶ必要はありません。
-        </p>
-        {state.events
-          .filter(
-            (e) =>
-              e.test === r.test &&
-              !state.rounds.some(
-                (x) => x.id !== r.id && x.eventIds.includes(e.id),
-              ),
-          )
-          .map((e) => (
-            <Check
-              key={e.id}
-              label={`${e.date} ${e.name}`}
-              checked={eventIds.includes(e.id)}
-              onChange={(v) =>
-                setEvents(
-                  v
-                    ? [...eventIds, e.id]
-                    : eventIds.filter((id) => id !== e.id),
-                )
-              }
-            />
-          ))}
-        {state.stocks
-          .filter(
-            (st) =>
-              !st.eventId &&
-              st.test === r.test &&
-              !state.rounds.some(
-                (x) => x.id !== r.id && x.stockIds.includes(st.id),
-              ),
-          )
-          .map((st) => (
-            <Check
-              key={st.id}
-              label={`${st.date} 園内販売 ${st.name} ${st.qty}個（${yen(st.qty * st.cost)}）`}
-              checked={stockIds.includes(st.id)}
-              onChange={(v) =>
-                setStocks(
-                  v
-                    ? [...stockIds, st.id]
-                    : stockIds.filter((id) => id !== st.id),
-                )
-              }
-            />
-          ))}
-        {!state.events.length && !state.stocks.length && (
-          <p>先に行事・園内販売商品を登録すると、ここで選べます。</p>
-        )}
+        <summary>同じ納品回の用途別仕入（自動で区分）</summary>
+        <p className="muted">行事用・園内販売用・外部販売用は、この納品回への登録から自動で集計します。振替は追加仕入に数えません。</p>
+        {state.events.filter(e=>e.roundId===r.id).map(e=><p key={e.id}>行事：{e.name}</p>)}
+        {state.stocks.filter(st=>r.stockIds.includes(st.id)).map(st=><p key={st.id}>{st.channel==='external'?'外部販売':'園内販売'}：{st.name} ×{st.qty} ／ {yen(st.cost==null?null:st.cost*st.qty)}</p>)}
       </details>
       <p>行事・園内販売の仕入：{yen(ded)}</p>
       <p className="total">通常注文の仕入：{yen(roundCost(state, preview))}</p>

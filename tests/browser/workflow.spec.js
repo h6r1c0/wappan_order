@@ -211,8 +211,10 @@ test("スマホ: Excel→固定注文→欠品→精算→行事振替→後日�
   await expect(page.getByText("残り 1", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "販売を記録", exact: true }).click();
   await page
-    .getByRole("button", { name: "その場で支払い済み", exact: true })
+    .getByRole("button", { name: "外部販売", exact: true })
     .click();
+  await page.getByLabel("外部販売先・団体・マルシェ名").fill("その場販売");
+  await page.getByRole("button", { name: "入金済み", exact: true }).click();
   await page.getByLabel("販売日", { exact: true }).fill("2026-09-11");
   await page
     .getByRole("button", { name: "販売を記録して残数を減らす" })
@@ -243,6 +245,40 @@ test("スマホ: Excel→固定注文→欠品→精算→行事振替→後日�
     ),
   ).toBe(true);
   expect(errors).toEqual([]);
+});
+
+test("スマホ: LINE貼付とマルシェのタップ販売・外部名称・入金未確認",async({page,context})=>{
+  const shared={state:initialState(),revision:0};
+  shared.state.products.forEach(p=>{if(p.gross==null&&p.manual==null)p.gross=394});
+  await backend(context,shared);page.on('dialog',d=>d.accept());await login(page);
+  await page.getByRole('button',{name:'＋ 注文回を作る'}).click();
+  await page.getByLabel('納品予定日').fill('2026-09-11');
+  await page.getByRole('button',{name:'この納品日で注文を始める'}).click();
+  await page.getByRole('button',{name:'LINE注文を貼り付け'}).click();
+  await page.getByLabel('注文文章').fill('ホリ\n黒糖1');
+  await page.getByRole('button',{name:'注文候補を読み取る'}).click();
+  await page.getByRole('button',{name:'この内容で注文へ反映'}).click();
+  expect(shared.state.rounds[0].orders.hori.quantities.brown).toBe(1);
+  expect(shared.state.sales).toHaveLength(0);
+  await page.getByRole('button',{name:'マルシェ',exact:true}).first().click();
+  await page.getByRole('button',{name:'＋ 販売イベント'}).click();
+  await page.getByLabel('販売イベント名').fill('手話タイム販売会');
+  await page.getByLabel('販売日').fill('2026-09-11');
+  await page.getByRole('button',{name:'販売イベントを保存'}).click();
+  await page.getByRole('button',{name:'＋ 商品を置く'}).click();
+  await page.getByLabel('商品を選ぶ').selectOption('milk');
+  await page.getByLabel('入荷した総数量（販売済みを含む）').selectOption('2');
+  await page.getByLabel('仕入単価（不明なら空欄・利益は未確定）').fill('200');
+  await page.getByRole('button',{name:'商品を保存'}).click();
+  await page.getByRole('button',{name:'販売を記録',exact:true}).click();
+  await page.getByLabel('1個の販売価格（この販売だけ）').fill('420');
+  await page.getByLabel('外部販売先・団体・マルシェ名').fill('手話タイム');
+  await page.getByRole('button',{name:'販売を記録して残数を減らす'}).click();
+  expect(shared.state.sales[0].destinationName).toBe('手話タイム');
+  expect(shared.state.sales[0].paymentStatus).toBe('unconfirmed');
+  expect(shared.state.sales[0].price).toBe(420);
+  expect(shared.state.externalDestinations).toContain('手話タイム');
+  for(const width of [320,375,430]){await page.setViewportSize({width,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
 });
 
 test("実Excelの自動読取・今回限りの次回除外・30人の購入者選択", async ({page,context}) => {

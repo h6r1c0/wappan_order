@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { initialState, validate } from "./domain";
+import { upgrade } from "./commerce";
 const url = import.meta.env.VITE_SUPABASE_URL,
   key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const configured = !!url && !!key;
@@ -14,7 +15,7 @@ export async function readWorkspace() {
     throw Error(
       "共有データを読み込めません。通信状態と係の利用登録を確認してください。",
     );
-  return { state: data.data || initialState(), revision: data.revision };
+  return { state: upgrade(data.data || initialState()), revision: data.revision };
 }
 export async function writeWorkspace(revision, state, description) {
   validate(state);

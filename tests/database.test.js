@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import { initialState, transfer, addSale, newRound } from "../src/domain.js";
+import { upgrade } from "../src/commerce.js";
 test("Postgres: migration/RLS/許可された係だけ保存/競合拒否/振替検証/監査履歴", async () => {
   const db = new PGlite();
   await db.exec(
@@ -74,7 +75,7 @@ test("Postgres: migration/RLS/許可された係だけ保存/競合拒否/振替
   r.invoice = 2760;
   state.rounds.push(r);
   await db.query("select public.wappan_save(2,$1,'invoice')", [state]);
-  const r2 = newRound(state, "2026-09-11");
+  const r2 = {...structuredClone(r),id:crypto.randomUUID(),invoice:null};
   r2.eventIds = [e.id];
   state.rounds.push(r2);
   await assert.rejects(
@@ -96,5 +97,9 @@ test("Postgres: migration/RLS/許可された係だけ保存/競合拒否/振替
   state.sales.at(-1).paid=false;
   unknown.qty=1;
   await assert.rejects(()=>db.query("select public.wappan_save(4,$1,'oversold')",[state]),/oversold/);
+  unknown.qty=2;
+  upgrade(state);
+  await db.query("select public.wappan_save(4,$1,'schema 2 migration')",[state]);
+  assert.equal((await db.query("select data->>'schema' schema from public.wappan_workspace")).rows[0].schema,'2');
   await db.close();
 });

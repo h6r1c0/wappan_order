@@ -131,6 +131,7 @@ export function Reports() {
               value={yen(data.salesProfit)}
             />
             <Summary label="利益調整" value={yen(data.adjustment)} />
+            <Summary label="出店経費（利益反映分）" value={yen(data.expenses||0)} />
           </div>
           <Summary
             label={`最終利益${data.pending || data.provisional ? "（暫定）" : ""}`}
@@ -148,7 +149,7 @@ export function Reports() {
             </p>
           )}
           {data.provisional && (
-            <p className="notice">精算前の注文を含むため、利益は暫定です。</p>
+            <p className="notice">精算前の注文、または場所代不明の外部販売を含むため、利益は暫定です。</p>
           )}
           {data.undated > 0 && (
             <p className="notice">

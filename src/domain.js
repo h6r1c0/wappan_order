@@ -1,4 +1,5 @@
 import { permanentProduct } from "./excel.js";
+import { bundleUsed, movedOut, bundleCost, validateCommerce } from "./commerce.js";
 export const uid = () => crypto.randomUUID();
 export const productAvailable = (p, date, roundId = "") => p.active && (permanentProduct(p.name) || p.lifecycle === "permanent" || (p.lifecycle !== "once" || (roundId && p.roundId === roundId)) && (!p.start || p.start <= date) && (!p.end || date <= p.end));
 export const today = () =>
@@ -56,6 +57,7 @@ export function initialState() {
   }));
   return {
     schema: 1,
+    markets: [], bundles: [], bundleSales: [], externalDestinations: [], aliases: {products:{},buyers:{}},
     products,
     buyers: [
       {
@@ -93,6 +95,7 @@ export function snapshot(p) {
 }
 export function newRound(state, date, test = false) {
   if (!date) throw Error("納品日を入力してください");
+  if(state.rounds.some(r=>r.date===date&&r.test===test))throw Error("同じ納品日の注文回があります。既存の納品回を開いてください");
   return {
     id: uid(),
     date,
@@ -135,8 +138,8 @@ export function orderDraft(state, round, buyer) {
   };
 }
 export const soldQty = (s, id) =>
-  sum(s.sales.filter((x) => !x.void && x.stockId === id).map((x) => x.qty));
-export const stockRemaining = (s, stock) => stock.qty - soldQty(s, stock.id);
+  sum(s.sales.filter((x) => !x.void && x.stockId === id).map((x) => x.qty)) + bundleUsed(s,id);
+export const stockRemaining = (s, stock) => stock.qty - soldQty(s, stock.id) - movedOut(s,stock.id);
 export const transferredQty = (s, lineId) =>
   sum(s.stocks.filter((x) => x.eventLineId === lineId).map((x) => x.qty));
 export const eventCost = (e) =>
@@ -163,7 +166,7 @@ export function invoiceDeductions(s, r) {
 }
 export function undoTransfer(s, stockId) {
   const stock = s.stocks.find((x) => x.id === stockId);
-  if (!stock?.eventId || soldQty(s, stockId) > 0)
+  if (!stock?.eventId || soldQty(s, stockId) > 0 || movedOut(s,stockId)>0)
     throw Error(
       "販売済みの商品は振替を戻せません。誤った販売は先に取消してください。",
     );
@@ -195,26 +198,46 @@ export function transfer(s, event, line, qty, sellingPrice, date) {
     eventLineId: line.id,
     note: `${event.name}の余剰`,
     roundId: null,
+    channel: 'onsite', depth: 0,
   });
 }
 export function addSale(s, stock, entry) {
   integer(entry.qty, "販売数");
   if (entry.qty < 1 || entry.qty > stockRemaining(s, stock))
     throw Error("販売数が残数を超えています");
-  if (!entry.pending && !entry.paid && !entry.buyerId) throw Error("購入者を選んでください");
+  const destinationType = entry.destinationType || (entry.pending ? "unknown" : entry.paid ? "external" : "buyer");
+  const paymentStatus = entry.paymentStatus || (entry.pending ? "unconfirmed" : entry.paid ? "paid" : "later");
+  if (destinationType === "buyer" && !entry.buyerId) throw Error("購入者を選んでください");
+  if (destinationType === "external" && !String(entry.destinationName || "").trim()) entry.destinationName = "外部販売（名称未入力）";
+  const salePrice = entry.price ?? stock.price;
+  integer(salePrice, "販売価格");
+  if (!['buyer','external','unknown'].includes(destinationType) || !['paid','later','unconfirmed'].includes(paymentStatus)) throw Error("販売先・支払状態を確認してください");
+  if (destinationType === 'unknown' && paymentStatus !== 'unconfirmed') throw Error("販売先未確認は入金未確認として保存してください");
+  if (destinationType === 'buyer' && paymentStatus !== 'later') throw Error("購入者への販売は後日請求として保存してください");
+  const buyerName = destinationType === 'buyer'
+    ? s.buyers.find((b) => b.id === entry.buyerId)?.name
+    : destinationType === 'external'
+      ? String(entry.destinationName).trim()
+      : "販売先未確認";
   s.sales.push({
     ...entry,
     id: uid(),
     stockId: stock.id,
-    paid: entry.pending ? false : entry.paid,
-    buyerId: entry.paid || entry.pending ? null : entry.buyerId,
-    chargeRoundId: entry.pending || entry.paid ? null : entry.chargeRoundId,
-    buyerName: entry.pending ? "販売先・支払方法未確認" : entry.paid
-      ? "その場で支払い済み"
-      : s.buyers.find((b) => b.id === entry.buyerId)?.name,
-    price: stock.price,
+    destinationType,
+    paymentStatus,
+    destinationName: destinationType === 'external' ? String(entry.destinationName).trim() : null,
+    pending: destinationType === 'unknown',
+    paid: paymentStatus === 'paid',
+    buyerId: destinationType === 'buyer' ? entry.buyerId : null,
+    chargeRoundId: destinationType === 'buyer' ? entry.chargeRoundId : null,
+    buyerName,
+    price: salePrice,
     cost: stock.cost,
   });
+  if (destinationType === 'external') {
+    s.externalDestinations ??= [];
+    if (!s.externalDestinations.includes(buyerName)) s.externalDestinations.push(buyerName);
+  }
 }
 export const isSaleTest = (s, sale) =>
   s.stocks.find((x) => x.id === sale.stockId)?.test;
@@ -246,8 +269,7 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
   for (const sale of s.sales.filter(
     (x) =>
       !x.void &&
-      !x.paid &&
-      !x.pending &&
+      (x.destinationType || (!x.paid && !x.pending ? 'buyer' : 'external')) === 'buyer' &&
       (includeTest || !isSaleTest(s, x)) &&
       (roundId ? x.chargeRoundId === roundId : from <= x.date && x.date <= to),
   ))
@@ -258,12 +280,16 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
       sale.price * sale.qty,
       `${sale.date} ${s.stocks.find((st) => st.id === sale.stockId).name} ×${sale.qty}`,
     );
+  for (const sale of (s.bundleSales||[]).filter(
+    (x) => !x.void && x.destinationType === 'buyer' && (includeTest || !s.rounds.find(r=>r.id===x.chargeRoundId)?.test) &&
+      (roundId ? x.chargeRoundId === roundId : from <= x.date && x.date <= to),
+  )) add(sale.buyerId,s.buyers.find(b=>b.id===sale.buyerId)?.name||sale.destinationName,'onsite',sale.price*sale.qty,`${sale.date} ${sale.name} ×${sale.qty}`);
   return [...map.values()].map((r) => ({ ...r, total: r.normal + r.onsite }));
 }
 export function report(s, from, to, year) {
   const inRange = (d) => from <= d && d <= to;
   const rows = [];
-  for (const r of s.rounds.filter((r) => !r.test && inRange(r.date))) {
+  for (const r of s.rounds.filter((r) => !r.test && inRange(r.date) && (Object.keys(r.orders).length || r.invoice!=null))) {
     const revenue = roundRevenue(r),
       cost = roundCost(s, r);
     rows.push({
@@ -283,12 +309,21 @@ export function report(s, from, to, year) {
     rows.push({
       id: sale.id,
       date: sale.date,
-      type: "園内販売",
+      type: s.stocks.find(st=>st.id===sale.stockId)?.channel==='external' ? "外部販売" : "園内販売",
       name: s.stocks.find((st) => st.id === sale.stockId).name,
       revenue: sale.qty * sale.price,
       cost: sale.cost == null ? null : sale.qty * sale.cost,
       profit: sale.cost == null ? null : sale.qty * (sale.price - sale.cost),
+      provisional: (()=>{const st=s.stocks.find(st=>st.id===sale.stockId);return st?.marketId && s.markets?.find(m=>m.id===st.marketId)?.expense==null;})(),
     });
+  for(const x of (s.bundleSales||[]).filter(x=>!x.void&&inRange(x.date))){
+    const m=s.markets.find(m=>m.id===x.marketId),r=s.rounds.find(r=>r.id===m?.roundId);if(r?.test)continue;
+    const cost=bundleCost(x),revenue=x.price*x.qty;
+    rows.push({id:x.id,date:x.date,type:'外部セット販売',name:x.name,revenue,cost,profit:cost==null?null:revenue-cost,provisional:m?.expense==null});
+  }
+  for(const m of (s.markets||[]).filter(m=>inRange(m.date)&&!s.rounds.find(r=>r.id===m.roundId)?.test)){
+    if(m.expenseMode==='apply'&&m.expense!=null)rows.push({id:m.id,date:m.date,type:'外部販売経費',name:m.name,revenue:0,cost:0,profit:-m.expense,expense:m.expense});
+  }
   for (const h of s.history.filter((h) => !h.test && inRange(h.date)))
     rows.push({
       ...h,
@@ -315,6 +350,7 @@ export function report(s, from, to, year) {
     pending: rows.filter((r) => r.profit == null).length,
     provisional: rows.some((r) => r.provisional),
     salesProfit,
+    expenses: sum(rows.map(r=>r.expense||0)),
     adjustment,
     profit: salesProfit + adjustment,
     undated: s.adjustments.filter(
@@ -342,7 +378,7 @@ export function setEventTest(s, e, test) {
   for (const st of s.stocks.filter((st) => st.eventId === e.id)) st.test = test;
 }
 export function validate(s) {
-  if (s.schema !== 1) throw Error("未対応のデータ形式です");
+  if (s.schema !== 1 && s.schema !== 2) throw Error("未対応のデータ形式です");
   const unique = (rows, key = "id") => {
     if (new Set(rows.map((r) => r[key])).size !== rows.length)
       throw Error("同じデータが重複しています");
@@ -471,10 +507,14 @@ export function validate(s) {
     const st = s.stocks.find((st) => st.id === sale.stockId);
     if (!st || sale.qty < 1 || sale.date < st.date)
       throw Error("販売日・販売数を確認してください");
-    if (sale.price !== st.price || sale.cost !== st.cost)
+    if ((st.channel !== 'external' && sale.price !== st.price) || sale.cost !== st.cost)
       throw Error("販売済み商品の単価は変更できません");
-    if (sale.pending && (sale.paid || sale.buyerId || sale.chargeRoundId)) throw Error("未確認販売を入金・請求扱いにはできません");
-    if (!sale.pending && !sale.paid && !s.buyers.some((b) => b.id === sale.buyerId))
+    const destinationType=sale.destinationType || (sale.pending?'unknown':sale.paid?'external':'buyer');
+    const paymentStatus=sale.paymentStatus || (sale.pending?'unconfirmed':sale.paid?'paid':'later');
+    if (!['buyer','external','unknown'].includes(destinationType)||!['paid','later','unconfirmed'].includes(paymentStatus)) throw Error("販売先・支払状態を確認してください");
+    if (destinationType==='unknown' && (paymentStatus!=='unconfirmed'||sale.buyerId||sale.chargeRoundId)) throw Error("未確認販売を入金・請求扱いにはできません");
+    if (destinationType==='external' && !String(sale.destinationName||sale.buyerName||'').trim()) throw Error("外部販売先の名称が必要です");
+    if (destinationType==='buyer' && (paymentStatus!=='later'||!s.buyers.some((b) => b.id === sale.buyerId)))
       throw Error("購入者を選択してください");
     if (sale.chargeRoundId) {
       const r = s.rounds.find((r) => r.id === sale.chargeRoundId);
@@ -502,6 +542,8 @@ export function validate(s) {
         throw Error("調整日が対象年度の範囲外です");
     }
   }
+  validateCommerce(s);
+  if (!Array.isArray(s.externalDestinations) || new Set(s.externalDestinations).size !== s.externalDestinations.length || s.externalDestinations.some(x=>!String(x).trim())) throw Error("外部販売先候補を確認してください");
   Object.values(s.goals).forEach((v) => integer(v, "目標額"));
   return s;
 }

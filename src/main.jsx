@@ -2,10 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { client, configured, readWorkspace, writeWorkspace } from "./store";
 import { validate } from "./domain";
+import { upgrade } from "./commerce";
 import { AppContext, Button, Field } from "./ui";
 import { Orders } from "./orders";
 import { Sales } from "./sales";
 import { Events } from "./events";
+import { Markets } from './markets';
 import { Reports } from "./reports";
 import { Masters } from "./masters";
 import "./style.css";
@@ -97,6 +99,7 @@ function App() {
     try {
       const next = structuredClone(state);
       change(next);
+      upgrade(next);
       validate(next);
       const rev = await writeWorkspace(revision, next, description);
       setState(next);
@@ -213,6 +216,8 @@ function App() {
                     <Sales />
                   ) : page === "行事" ? (
                     <Events />
+                  ) : page === "マルシェ" ? (
+                    <Markets />
                   ) : page === "集計" ? (
                     <Reports />
                   ) : (
@@ -224,6 +229,7 @@ function App() {
                 {[
                   ["注文", "order"],
                   ["園内販売", "shop"],
+                  ["マルシェ", "market"],
                   ["行事", "event"],
                   ["集計", "report"],
                   ["商品・購入者", "people"],
@@ -372,6 +378,7 @@ function Icon({ type }) {
   const paths = {
     order: "M8 3h8v4H8z M6 5H4v16h16V5h-2 M8 12h8 M8 16h6",
     shop: "M3 10h18l-2-6H5z M5 10v11h14V10 M9 21v-7h6v7",
+    market: "M4 5h16l1 5H3z M5 10v10h14V10 M8 14h3 M14 14h3",
     event: "M4 6h16v15H4z M8 3v6 M16 3v6 M4 11h16 M8 15h2 M14 15h2",
     report: "M4 3v18h17 M8 17v-5 M13 17V8 M18 17V4",
     people:

@@ -460,6 +460,7 @@ function columnName(n) {
 export function Masters() {
   const { state, save } = useApp();
   const [tab, setTab] = useState("商品"),
+    [category,setCategory]=useState('全部'),
     [editor, setEditor] = useState(null),
     [importing, setImporting] = useState(false),
     [query, setQuery] = useState("");
@@ -489,7 +490,9 @@ export function Masters() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          <div className="tabs category-tabs">{['全部','パン','焼き菓子'].map(c=><Button key={c} secondary={category!==c} onClick={()=>setCategory(c)}>{c!=='全部'&&<Cat category={c}/>} {c}</Button>)}</div>
           {state.products
+            .filter(p=>category==='全部'||p.category===category)
             .filter((p) => normalize(p.name).includes(normalize(query)))
             .map((p) => (
               <button
@@ -497,7 +500,6 @@ export function Masters() {
                 key={p.id}
                 onClick={() => setEditor({ type: "product", value: p })}
               >
-                <Cat category={p.category} />
                 <span className="grow">
                   {p.name}
                   <small>

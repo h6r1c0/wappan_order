@@ -9,6 +9,10 @@
   line-height: 1.6;
 }
 .import-product > summary { display: block; padding-right: 12px; }
+.category-tabs .cat, .tabs button .cat { width: 52px; height: 52px; flex-shrink: 0; }
+.tabs button:has(.cat) { display:flex; align-items:center; justify-content:center; gap:8px; min-height:68px; }
+nav button { min-width:0; }
+nav button span { white-space:normal; line-height:1.25; }
 .import-product > summary > span { display: block; font-size: .9rem; font-weight: 500; margin-top: 6px; }
 * {
   box-sizing: border-box;
@@ -184,6 +188,13 @@ small {
   gap: 8px;
   margin: 12px 0;
 }
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin: 10px 0 16px;
+}
+.choice-grid .button { margin: 0; min-height: 52px; }
 .tabs .button {
   flex: 1;
   white-space: nowrap;

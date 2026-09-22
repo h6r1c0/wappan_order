@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { delivery } from './commerce';
 import {
   uid,
   today,
@@ -24,7 +25,7 @@ import {
   Empty,
   Summary,
 } from "./ui";
-export function Events() {
+export function Events({roundId=null}) {
   const { state, save } = useApp();
   const [edit, setEdit] = useState(null),
     [move, setMove] = useState(null);
@@ -37,7 +38,7 @@ export function Events() {
       <p className="lead">
         使った分だけ財政へ請求。余りは園内販売へ振り替えます。
       </p>
-      {[...state.events]
+      {[...state.events].filter(e=>!roundId||e.roundId===roundId)
         .sort((a, b) => b.date.localeCompare(a.date))
         .map((e) => (
           <section className="card" key={e.id}>
@@ -143,6 +144,7 @@ export function Events() {
       )}
       {edit && (
         <EventEditor
+          roundId={roundId}
           event={edit.id ? edit : null}
           onClose={() => setEdit(null)}
         />
@@ -157,7 +159,7 @@ export function Events() {
     </>
   );
 }
-function EventEditor({ event, onClose }) {
+function EventEditor({ event, onClose, roundId=null }) {
   const { state, save } = useApp();
   const [e, set] = useState(
     event
@@ -166,7 +168,8 @@ function EventEditor({ event, onClose }) {
           id: uid(),
           name: "",
           date: today(),
-          test: false,
+          test: state.rounds.find(r=>r.id===roundId)?.test || false,
+          roundId,
           note: "",
           lines: [],
         },
@@ -205,6 +208,8 @@ function EventEditor({ event, onClose }) {
           ev.preventDefault();
           if (
             await save((s) => {
+              e.roundId ||= delivery(s,e.deliveryDate||e.date,e.test).id;
+              e.test=s.rounds.find(r=>r.id===e.roundId).test;
               const i = s.events.findIndex((x) => x.id === e.id);
               if (i < 0) s.events.push(e);
               else s.events[i] = e;
@@ -227,6 +232,7 @@ function EventEditor({ event, onClose }) {
           value={e.date}
           onChange={(ev) => set({ ...e, date: ev.target.value })}
         />
+        {e.roundId ? <p className="notice">納品回：{state.rounds.find(r=>r.id===e.roundId)?.date}（用途：行事用）</p> : <Field label="納品予定日（空欄なら行事日と同じ）" type="date" value={e.deliveryDate||''} onChange={ev=>set({...e,deliveryDate:ev.target.value})}/>}
         {e.lines.map((l, i) => {
           const moved = transferredQty(state, l.id);
           return (
@@ -316,6 +322,7 @@ function EventEditor({ event, onClose }) {
 }
 function TransferEditor({ event, line, onClose }) {
   const { state, save } = useApp();
+  const [marketId,setMarketId]=useState('');
   const remaining = line.qty - line.used - transferredQty(state, line.id);
   const [qty, setQty] = useState(remaining),
     [amount, setAmount] = useState(
@@ -332,6 +339,7 @@ function TransferEditor({ event, line, onClose }) {
       <h3>
         {line.name} ／ 未処理余剰 {remaining}個
       </h3>
+      <Field label="余剰の販売先"><select value={marketId} onChange={e=>setMarketId(e.target.value)}><option value="">園内販売</option>{state.markets.filter(m=>m.roundId===event.roundId).map(m=><option key={m.id} value={m.id}>外部販売：{m.name}</option>)}</select></Field>
       <Field label="振り替える数量">
         <Qty value={qty} onChange={setQty} />
       </Field>
@@ -360,6 +368,7 @@ function TransferEditor({ event, line, onClose }) {
               const e = s.events.find((x) => x.id === event.id),
                 l = e.lines.find((x) => x.id === line.id);
               transfer(s, e, l, qty, amount, date);
+              Object.assign(s.stocks.at(-1),{roundId:e.roundId,channel:marketId?'external':'onsite',marketId:marketId||null});
             }, "行事余剰を園内販売へ振替")
           )
             onClose();
