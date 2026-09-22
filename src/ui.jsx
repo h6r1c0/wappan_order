@@ -1,5 +1,15 @@
 import React, { useState, createContext, useContext } from "react";
 import { yen } from "./domain";
+
+const breadCategoryIcon = new URL(
+  "../wappan_icon_category_bread_final.png",
+  import.meta.url,
+).href;
+const bakedCategoryIcon = new URL(
+  "../wappan_icon_category_gingerbread_final.png",
+  import.meta.url,
+).href;
+
 export const AppContext = createContext(null);
 export const useApp = () => useContext(AppContext);
 export function Button({
@@ -72,12 +82,7 @@ export function Cat({ category }) {
       alt=""
       aria-hidden="true"
       className="cat"
-      src={new URL(
-        cookie
-          ? "../wappan_icon_category_gingerbread_final.png"
-          : "../wappan_icon_category_bread_final.png",
-        import.meta.url,
-      ).href}
+      src={cookie ? bakedCategoryIcon : breadCategoryIcon}
     />
   );
 }

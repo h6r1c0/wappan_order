@@ -145,6 +145,13 @@ test("スマホ: Excel→固定注文→欠品→精算→おやつ余剰振替�
   await page.getByRole("button", { name: "ホリ", exact: true }).click();
   await expect(page.locator('.cat[src*="wappan_icon_category_bread_final"]')).toBeVisible();
   await expect(page.locator('.cat[src*="wappan_icon_category_gingerbread_final"]')).toBeVisible();
+  await expect
+    .poll(() =>
+      page.locator(".cat").evaluateAll((images) =>
+        images.every((image) => image.complete && image.naturalWidth > 0),
+      ),
+    )
+    .toBe(true);
   for(const icon of await page.locator('.cat').all()){
     const size=await icon.evaluate(el=>({w:el.getBoundingClientRect().width,h:el.getBoundingClientRect().height,fit:getComputedStyle(el).objectFit}));
     expect(size.w).toBe(size.h);expect(size.fit).toBe('contain');
