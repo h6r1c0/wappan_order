@@ -125,7 +125,7 @@ export function StockEditor({ stock, onClose,roundId=null,marketId=null }) {
     locked = stock && state.sales.some((x) => x.stockId === stock.id);
   return (
     <Modal
-      title={stock ? "園内販売の商品・販売記録" : "園内販売の商品を追加"}
+      title={stock ? `${marketId?'マルシェ':'園内販売'}の商品・販売記録` : `${marketId?'マルシェ':'園内販売'}の商品を追加`}
       onClose={onClose}
     >
       <form

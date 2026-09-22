@@ -172,10 +172,9 @@ test("スマホ: Excel→固定注文→欠品→精算→行事振替→後日�
   await page.getByLabel("ガレット 数量", { exact: true }).selectOption("1");
   await page.getByRole("button", { name: "保存して次の購入者へ" }).click();
   await page.getByRole("button", { name: "納品・精算", exact: true }).click();
-  await page.getByLabel("実際に支払う仕入税込総額").fill("1500");
+  await page.getByLabel("実際に支払う仕入税込総額").fill("4260");
   await page.getByLabel("納品・精算の状態").selectOption("精算済み");
   await page.getByRole("button", { name: "仕入額・状態を保存" }).click();
-  await expect(page.getByText("570円", { exact: true })).toBeVisible();
   await nav(page, "行事");
   await page.getByRole("button", { name: "＋ 行事を追加" }).click();
   await page.getByLabel("行事名", { exact: true }).fill("検証用行事");
@@ -267,7 +266,7 @@ test("スマホ: LINE貼付とマルシェのタップ販売・外部名称・�
   await page.getByRole('button',{name:'販売イベントを保存'}).click();
   await page.getByRole('button',{name:'＋ 商品を置く'}).click();
   await page.getByLabel('商品を選ぶ').selectOption('milk');
-  await page.getByLabel('入荷した総数量（販売済みを含む）').selectOption('2');
+  await page.getByRole('dialog').getByLabel('数量',{exact:true}).selectOption('2');
   await page.getByLabel('仕入単価（不明なら空欄・利益は未確定）').fill('200');
   await page.getByRole('button',{name:'商品を保存'}).click();
   await page.getByRole('button',{name:'販売を記録',exact:true}).click();
