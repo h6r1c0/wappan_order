@@ -228,7 +228,7 @@ test("スマホ: Excel→固定注文→欠品→精算→おやつ余剰振替�
   await page
     .getByRole("button", { name: "販売を記録して残数を減らす" })
     .click();
-  await expect(page.getByText("残り 1", { exact: true })).toBeVisible();
+  await expect(page.getByText("残り 1個", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "1商品ずつ販売を記録", exact: true }).click();
   await page
     .getByRole("button", { name: "外部販売", exact: true })
@@ -281,7 +281,7 @@ test("スマホ: LINE貼付と共通販売用在庫・販売場所・任意価�
   expect(shared.state.rounds[0].orders.hori.quantities.brown).toBe(1);
   expect(shared.state.sales).toHaveLength(0);
   await page.getByRole('button',{name:'LINE注文を貼り付けて入力を省く'}).click();
-  await page.getByLabel('注文文章').fill('山田花子\nカリカリ1\n黒糖1');
+  await page.getByLabel('注文文章').fill('山田花子\nミルク1\n黒糖1');
   await page.getByRole('button',{name:'注文候補を読み取る'}).click();
   await expect(page.getByLabel('新しい購入者名')).toHaveValue('山田花子');
   await expect(page.getByLabel('取込数量 1')).toHaveValue('1');
