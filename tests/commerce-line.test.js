@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,newRound,addSale,collections,report,stockRemaining,transfer,validate} from '../src/domain.js';
-import {delivery,upgrade,moveStock,sellBundle,marketTotals,deliveryTotals} from '../src/commerce.js';
+import {delivery,upgrade,moveStock,sellBundle,marketTotals,deliveryTotals,salesOrderQuantities,setSalesOrderQuantities,snackOrderQuantities,setSnackOrderQuantities} from '../src/commerce.js';
 import {destinationCandidate,parseLineOrder} from '../src/line-import.js';
 
 function setup(){
@@ -20,6 +20,40 @@ test('1納品回に個人・販売用・おやつ用を統合し、販売場所�
  assert.deepEqual(totals.find(x=>x.name==='ガレット'),{id:'galette',name:'ガレット',personal:0,sales:3,snack:0,onsite:3,event:0,external:0,qty:3});
  assert.equal(totals.find(x=>x.name==='くるみパン').snack,20);
  assert.equal(stockRemaining(s,onsite),1);assert.equal(stockRemaining(s,ext),2);validate(s);
+});
+
+test('3区分の共通数量入力を同じ納品回へ保存し、発注数を一度だけ合算する',()=>{
+ const {s,r}=setup();
+ r.orders.hori={name:'ホリ',quantities:{walnut:8}};
+ setSalesOrderQuantities(s,r.id,{walnut:10,galette:3});
+ setSnackOrderQuantities(s,r.id,{walnut:20,bean:20});
+ assert.deepEqual(salesOrderQuantities(s,r.id),{walnut:10,galette:3});
+ assert.deepEqual(snackOrderQuantities(s,r.id),{walnut:20,bean:20});
+ const walnut=deliveryTotals(s,r).find(x=>x.id==='walnut');
+ assert.deepEqual({personal:walnut.personal,sales:walnut.sales,snack:walnut.snack,qty:walnut.qty},{personal:8,sales:10,snack:20,qty:38});
+ assert.equal(s.events[0].lines.find(x=>x.productId==='walnut').cost,138);
+ assert.equal(s.stocks.find(x=>x.productId==='galette').price,390);
+ setSalesOrderQuantities(s,r.id,{walnut:0,galette:0});
+ setSnackOrderQuantities(s,r.id,{walnut:0,bean:0});
+ assert.equal(deliveryTotals(s,r).find(x=>x.id==='walnut').qty,8);
+ validate(s);
+});
+
+test('共通数量の再編集は販売済み・使用済み・振替済みの数量を壊さない',()=>{
+ const {s,r}=setup();
+ setSalesOrderQuantities(s,r.id,{galette:3});
+ const stock=s.stocks.find(x=>x.productId==='galette');
+ addSale(s,stock,{date:r.date,qty:2,destinationType:'external',destinationName:'園内',paymentStatus:'paid'});
+ assert.throws(()=>setSalesOrderQuantities(s,r.id,{galette:1}),/2個を販売・セット使用済み/);
+ setSalesOrderQuantities(s,r.id,{galette:2});
+ assert.equal(stockRemaining(s,stock),0);
+ setSnackOrderQuantities(s,r.id,{walnut:20});
+ const event=s.events[0],line=event.lines[0];line.used=18;
+ transfer(s,event,line,2,200,r.date);upgrade(s);
+ assert.throws(()=>setSnackOrderQuantities(s,r.id,{walnut:19}),/20個未満/);
+ setSnackOrderQuantities(s,r.id,{walnut:20});
+ assert.equal(deliveryTotals(s,r).find(x=>x.id==='walnut').snack,20);
+ validate(s);
 });
 
 test('販売場所・外部名称・支払状態・任意単価と個人追加請求を分離する',()=>{

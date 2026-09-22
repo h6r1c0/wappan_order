@@ -17,7 +17,6 @@ import {
   collections,
   yen,
   today,
-  normalize,
   invoiceDeductions,
   setTest,
 } from "./domain";
@@ -27,10 +26,9 @@ import {
   Field,
   Money,
   Check,
-  Qty,
   Modal,
   Tag,
-  Cat,
+  ProductQuantityEditor,
   Summary,
   Empty,
   BuyerPicker,
@@ -121,8 +119,6 @@ function Round({ round: r, back }) {
   const [tab, setTab] = useState("個人注文"),
     [buyerId, setBuyerId] = useState(null),
     [draft, setDraft] = useState(null),
-    [query, setQuery] = useState(""),
-    [cat, setCat] = useState("全部"),
     [settings, setSettings] = useState(false),
     [products, setProducts] = useState(false), [lineImport,setLineImport]=useState(false);
   const choose = (id, newBuyer) => {
@@ -143,35 +139,12 @@ function Round({ round: r, back }) {
     setDraft(
       orderDraft(state, r, newBuyer || state.buyers.find((b) => b.id === id)),
     );
-    setQuery("");
     requestAnimationFrame(() => document.querySelector('.order-editor')?.scrollIntoView({block:'start'}));
   };
   const currentBuyer = state.buyers.find((b) => b.id === buyerId);
   const rows = collections(state, "", "", r.id, r.test);
   const total = roundRevenue(r),
     cost = roundCost(state, r);
-  const filtered = r.products.filter(
-    (p) =>
-      (cat === "全部" || p.category === cat) &&
-      normalize(p.name).includes(normalize(query)),
-  );
-  const selected = filtered.filter((p) => draft?.quantities[p.id] > 0),
-    unselected = filtered.filter((p) => !draft?.quantities[p.id]);
-  const productRow = (p) => (
-    <div className="product-row" key={p.id}>
-      <span className="grow">
-        {p.name}
-        <small>{yen(p.price)}</small>
-      </span>
-      <Qty
-        label={`${p.name} 数量`}
-        value={draft.quantities[p.id] || 0}
-        onChange={(q) =>
-          setDraft({ ...draft, quantities: { ...draft.quantities, [p.id]: q } })
-        }
-      />
-    </div>
-  );
   return (
     <>
       <Button
@@ -211,8 +184,8 @@ function Round({ round: r, back }) {
         ))}
       </div>
       {lineImport&&<LineImport round={r} onClose={()=>setLineImport(false)}/>}
-      {tab==='販売用'&&<><Sales roundId={r.id}/><Markets roundId={r.id}/></>}
-      {tab==='おやつ用'&&<Events roundId={r.id}/>}
+      {tab==='販売用'&&<><Sales roundId={r.id} onManageProducts={() => setProducts(true)}/><Markets roundId={r.id}/></>}
+      {tab==='おやつ用'&&<Events roundId={r.id} onManageProducts={() => setProducts(true)}/>}
       {tab === "個人注文" && (
         <>
           <Button secondary onClick={()=>setLineImport(true)}>LINE注文を貼り付け</Button>
@@ -238,43 +211,12 @@ function Round({ round: r, back }) {
                   固定注文のうち、この回にない商品があります。「この回の商品」で追加してください。価格未確認の商品は先に商品管理で価格を設定してください。
                 </p>
               )}
-              <Field
-                label="商品名で絞る"
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
+              <ProductQuantityEditor
+                products={r.products}
+                quantities={draft.quantities}
+                onChange={(quantities) => setDraft({ ...draft, quantities })}
+                emptyMessage="「この回の商品」から、販売価格が分かっている商品を追加してください。"
               />
-              <div className="tabs">
-                {["全部", "パン", "焼き菓子"].map((c) => (
-                  <Button
-                    secondary={cat !== c}
-                    key={c}
-                    onClick={() => setCat(c)}
-                  >
-                    {c !== '全部' && <Cat category={c}/>}
-                    {c}
-                  </Button>
-                ))}
-              </div>
-              {selected.length > 0 && (
-                <>
-                  <h3>入力済み</h3>
-                  {selected.map(productRow)}
-                </>
-              )}
-              {query ? (
-                unselected.map(productRow)
-              ) : (
-                <details open={selected.length === 0}>
-                  <summary>＋ 商品を選ぶ（{unselected.length}品）</summary>
-                  {unselected.map(productRow)}
-                </details>
-              )}
-              {!r.products.length && (
-                <Empty>
-                  「この回の商品」から、販売価格が分かっている商品を追加してください。
-                </Empty>
-              )}
               <div className="sticky-action">
                 <span>
                   合計 <strong>{yen(orderAmount(r, draft))}</strong>
@@ -606,9 +548,17 @@ function RoundProducts({ round: r, onClose }) {
             onClick={() => {
               if (
                 Object.values(r.orders).some((o) => o.quantities[p.id]) ||
-                Object.values(r.planned || {}).some((o) => o.quantities[p.id])
+                Object.values(r.planned || {}).some((o) => o.quantities[p.id]) ||
+                state.stocks.some(
+                  (stock) => stock.roundId === r.id && stock.productId === p.id && stock.qty > 0,
+                ) ||
+                state.events.some(
+                  (event) =>
+                    event.roundId === r.id &&
+                    event.lines.some((line) => line.productId === p.id && line.qty > 0),
+                )
               ) {
-                alert("注文履歴のある商品は取り除けません。");
+                alert("この納品回で数量を入力済みの商品は取り除けません。");
                 return;
               }
               setItems(items.filter((x) => x.id !== p.id));

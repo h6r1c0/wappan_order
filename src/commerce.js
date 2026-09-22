@@ -79,6 +79,165 @@ export function deliveryTotals(s,r){
   for(const e of s.events.filter(e=>e.roundId===r.id))for(const l of e.lines){add(l.productId||l.id,l.name,'snack',l.qty);add(l.productId||l.id,l.name,'event',l.qty);}
   return [...map.values()].map(x=>({...x,qty:x.personal+x.sales+x.snack})).filter(x=>x.qty>0);
 }
+export function salesOrderQuantities(s, roundId) {
+  const quantities = {};
+  for (const stock of s.stocks.filter(
+    (item) =>
+      item.roundId === roundId && !item.sourceStockId && !item.eventId,
+  )) {
+    if (stock.productId)
+      quantities[stock.productId] =
+        (quantities[stock.productId] || 0) + stock.qty;
+  }
+  return quantities;
+}
+export function setSalesOrderQuantities(s, roundId, quantities) {
+  const round = s.rounds.find((item) => item.id === roundId);
+  if (!round) throw Error("納品回が見つかりません");
+  for (const product of round.products) {
+    const target = Number(quantities[product.id] || 0);
+    requireInt(target, `${product.name}の数量`);
+    const stocks = s.stocks.filter(
+      (item) =>
+        item.roundId === roundId &&
+        !item.sourceStockId &&
+        !item.eventId &&
+        item.productId === product.id,
+    );
+    const current = sum(stocks.map((item) => item.qty));
+    const committed = sum(stocks.map((item) => item.qty - remaining(s, item)));
+    if (target < committed)
+      throw Error(
+        `${product.name}は${committed}個を販売・セット使用済みです。先に販売記録を取り消してください`,
+      );
+    let difference = target - current;
+    if (difference > 0) {
+      if (stocks.length) stocks[0].qty += difference;
+      else {
+        const master = s.products.find((item) => item.id === product.id);
+        s.stocks.push({
+          id: crypto.randomUUID(),
+          productId: product.id,
+          name: product.name,
+          category: product.category,
+          qty: difference,
+          price: product.price,
+          cost: master?.cost ?? null,
+          date: round.date,
+          test: round.test,
+          note: "",
+          eventId: null,
+          eventLineId: null,
+          roundId,
+          marketId: null,
+          channel: "sales",
+          depth: 0,
+        });
+      }
+    } else if (difference < 0) {
+      let remove = -difference;
+      for (const stock of [...stocks].reverse()) {
+        const reducible = remaining(s, stock);
+        const amount = Math.min(remove, reducible);
+        stock.qty -= amount;
+        remove -= amount;
+        if (!remove) break;
+      }
+      if (remove) throw Error(`${product.name}の販売済み数量を確認してください`);
+    }
+  }
+  syncDeliveryLinks(s);
+}
+export function snackOrderEvent(s, roundId) {
+  const events = s.events.filter((event) => event.roundId === roundId);
+  return (
+    events.find((event) => event.entryMode === "round") ||
+    (events.length === 1 ? events[0] : null)
+  );
+}
+export function snackOrderQuantities(s, roundId) {
+  const event = snackOrderEvent(s, roundId);
+  if (!event) return {};
+  const quantities = {};
+  for (const line of event.lines) {
+    if (line.productId)
+      quantities[line.productId] =
+        (quantities[line.productId] || 0) + line.qty;
+  }
+  return quantities;
+}
+export function setSnackOrderQuantities(s, roundId, quantities) {
+  const round = s.rounds.find((item) => item.id === roundId);
+  if (!round) throw Error("納品回が見つかりません");
+  let event = snackOrderEvent(s, roundId);
+  const hasQuantity = round.products.some(
+    (product) => Number(quantities[product.id] || 0) > 0,
+  );
+  if (!event && !hasQuantity) return;
+  if (!event) {
+    event = {
+      id: crypto.randomUUID(),
+      name: "おやつ用",
+      date: round.date,
+      test: round.test,
+      roundId,
+      entryMode: "round",
+      note: "",
+      lines: [],
+    };
+    s.events.push(event);
+  }
+  event.entryMode ??= "round";
+  for (const product of round.products) {
+    const target = Number(quantities[product.id] || 0);
+    requireInt(target, `${product.name}の数量`);
+    const lines = event.lines.filter((line) => line.productId === product.id);
+    const current = sum(lines.map((line) => line.qty));
+    const committed = sum(
+      lines.map(
+        (line) =>
+          line.used +
+          sum(s.stocks.filter((stock) => stock.eventLineId === line.id).map((stock) => stock.qty)),
+      ),
+    );
+    if (target < committed)
+      throw Error(
+        `${product.name}はおやつ使用・販売振替済みのため${committed}個未満にできません`,
+      );
+    let difference = target - current;
+    if (difference > 0) {
+      if (lines.length) lines[0].qty += difference;
+      else {
+        const master = s.products.find((item) => item.id === product.id);
+        event.lines.push({
+          id: crypto.randomUUID(),
+          productId: product.id,
+          name: product.name,
+          category: product.category,
+          cost: master?.cost ?? null,
+          qty: difference,
+          used: 0,
+        });
+      }
+    } else if (difference < 0) {
+      let remove = -difference;
+      for (const line of [...lines].reverse()) {
+        const moved = sum(
+          s.stocks
+            .filter((stock) => stock.eventLineId === line.id)
+            .map((stock) => stock.qty),
+        );
+        const reducible = line.qty - line.used - moved;
+        const amount = Math.min(remove, reducible);
+        line.qty -= amount;
+        remove -= amount;
+        if (!remove) break;
+      }
+      if (remove) throw Error(`${product.name}の使用数・振替数を確認してください`);
+    }
+  }
+  syncDeliveryLinks(s);
+}
 export function validateCommerce(s){
   if(s.schema!==2)return;
   const keys=new Set();for(const r of s.rounds){const k=r.date+':'+r.test;if(keys.has(k))throw Error('同じ納品日は既存の注文回を開いてください');keys.add(k);}

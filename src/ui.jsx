@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext } from "react";
-import { yen } from "./domain";
+import { normalize, yen } from "./domain";
 
 const breadCategoryIcon = new URL(
   "../wappan_icon_category_bread_final.png",
@@ -154,6 +154,75 @@ export function Qty({ value = 0, onChange, label = "数量" }) {
         />
       )}
     </div>
+  );
+}
+export function ProductQuantityEditor({
+  products,
+  quantities,
+  onChange,
+  priceLabel = (product) => yen(product.price),
+  emptyMessage = "この回の商品がありません。",
+}) {
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("全部");
+  const filtered = products.filter(
+    (product) =>
+      (category === "全部" || product.category === category) &&
+      normalize(product.name).includes(normalize(query)),
+  );
+  const selected = filtered.filter((product) => quantities[product.id] > 0);
+  const unselected = filtered.filter((product) => !quantities[product.id]);
+  const row = (product) => (
+    <div className="product-row" key={product.id}>
+      <span className="grow">
+        {product.name}
+        {priceLabel(product) && <small>{priceLabel(product)}</small>}
+      </span>
+      <Qty
+        label={`${product.name} 数量`}
+        value={quantities[product.id] || 0}
+        onChange={(quantity) =>
+          onChange({ ...quantities, [product.id]: quantity })
+        }
+      />
+    </div>
+  );
+  if (!products.length) return <Empty>{emptyMessage}</Empty>;
+  return (
+    <>
+      <Field
+        label="商品名で絞る"
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+      <div className="tabs category-tabs">
+        {["全部", "パン", "焼き菓子"].map((value) => (
+          <Button
+            secondary={category !== value}
+            key={value}
+            onClick={() => setCategory(value)}
+          >
+            {value !== "全部" && <Cat category={value} />}
+            {value}
+          </Button>
+        ))}
+      </div>
+      {selected.length > 0 && (
+        <>
+          <h3>入力済み</h3>
+          {selected.map(row)}
+        </>
+      )}
+      {query ? (
+        unselected.map(row)
+      ) : (
+        <details open={selected.length === 0}>
+          <summary>＋ 商品を選ぶ（{unselected.length}品）</summary>
+          {unselected.map(row)}
+        </details>
+      )}
+    </>
   );
 }
 export function Summary({ label, value, note }) {

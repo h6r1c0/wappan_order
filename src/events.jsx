@@ -1,5 +1,9 @@
 import React, { useState } from "react";
-import { delivery } from './commerce';
+import {
+  delivery,
+  setSnackOrderQuantities,
+  snackOrderQuantities,
+} from './commerce';
 import {
   uid,
   today,
@@ -24,23 +28,62 @@ import {
   Tag,
   Empty,
   Summary,
+  ProductQuantityEditor,
 } from "./ui";
-export function Events({roundId=null}) {
+export function Events({roundId=null,onManageProducts=null}) {
   const { state, save } = useApp();
   const [edit, setEdit] = useState(null),
-    [move, setMove] = useState(null);
+    [move, setMove] = useState(null),
+    [orderQuantities, setOrderQuantities] = useState(() =>
+      roundId ? snackOrderQuantities(state, roundId) : {},
+    );
+  const round = state.rounds.find((item) => item.id === roundId);
+  const savedOrderQuantities = roundId
+    ? snackOrderQuantities(state, roundId)
+    : {};
+  const events = [...state.events]
+    .filter((event) => !roundId || event.roundId === roundId)
+    .sort((a, b) => b.date.localeCompare(a.date));
   return (
     <>
       <div className="section-head">
         <h1>おやつ用</h1>
-        <Button onClick={() => setEdit({})}>＋ おやつ予定を追加</Button>
+        {onManageProducts && <Button secondary onClick={onManageProducts}>この回の商品</Button>}
       </div>
       <p className="lead">
-        使った分だけ財政へ請求。余りは販売用へ振り替えます。
+        個人注文と同じ一覧で、おやつ用に注文する数量を続けて入力します。
       </p>
-      {[...state.events].filter(e=>!roundId||e.roundId===roundId)
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .map((e) => (
+      {round && (
+        <section
+          className="card order-editor"
+          data-unsaved={
+            JSON.stringify(orderQuantities) !==
+            JSON.stringify(savedOrderQuantities)
+          }
+        >
+          <h2>おやつ用の注文入力</h2>
+          <ProductQuantityEditor
+            products={round.products}
+            quantities={orderQuantities}
+            onChange={setOrderQuantities}
+            priceLabel={(product) => {
+              const cost = state.products.find((item) => item.id === product.id)?.cost;
+              return cost == null ? "仕入単価 未確認" : `仕入単価 ${yen(cost)}`;
+            }}
+            emptyMessage="「この回の商品」から商品を追加してください。"
+          />
+          <div className="sticky-action">
+            <span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
+            <Button onClick={() => save(
+              (s) => setSnackOrderQuantities(s, roundId, orderQuantities),
+              "おやつ用の注文数量を保存",
+            )}>おやつ用を保存</Button>
+          </div>
+        </section>
+      )}
+      <h2>納品後の使用・財政処理</h2>
+      <p className="muted">納品後に使用数を入力します。使った分だけ財政へ請求し、余りは販売用へ振り替えます。</p>
+      {events.map((e) => (
           <section className="card" key={e.id}>
             <div className="section-head">
               <h2>{e.name}</h2>
@@ -137,9 +180,9 @@ export function Events({roundId=null}) {
             </details>
           </section>
         ))}
-      {!state.events.length && (
+      {!events.length && (
         <Empty>
-          おやつ名と注文数を登録し、使用後に実際の使用数を入力します。
+          上の商品一覧で注文数量を入力して保存します。
         </Empty>
       )}
       {edit && (
@@ -245,10 +288,10 @@ function EventEditor({ event, onClose, roundId=null }) {
               />
               <div className="grid2">
                 <Field label="注文数">
-                  <Qty value={l.qty} onChange={(v) => put(i, "qty", v)} />
+                  <Qty label={`${l.name} 注文数`} value={l.qty} onChange={(v) => put(i, "qty", v)} />
                 </Field>
                 <Field label="実際のおやつ使用数">
-                  <Qty value={l.used} onChange={(v) => put(i, "used", v)} />
+                  <Qty label={`${l.name} おやつ使用数`} value={l.used} onChange={(v) => put(i, "used", v)} />
                 </Field>
               </div>
               {moved ? (

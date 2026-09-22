@@ -1,5 +1,9 @@
 import React, { useState } from "react";
-import {delivery} from './commerce';
+import {
+  delivery,
+  salesOrderQuantities,
+  setSalesOrderQuantities,
+} from './commerce';
 import {
   uid,
   today,
@@ -20,12 +24,20 @@ import {
   Tag,
   Empty,
   BuyerPicker,
+  ProductQuantityEditor,
 } from "./ui";
-export function Sales({roundId=null,marketId=null}) {
+export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
   const { state, save } = useApp();
   const [edit, setEdit] = useState(null),
     [selling, setSelling] = useState(null),
-    [all, setAll] = useState(false);
+    [all, setAll] = useState(false),
+    [orderQuantities, setOrderQuantities] = useState(() =>
+      roundId ? salesOrderQuantities(state, roundId) : {},
+    );
+  const round = state.rounds.find((item) => item.id === roundId);
+  const savedOrderQuantities = roundId
+    ? salesOrderQuantities(state, roundId)
+    : {};
   const stocks = state.stocks.filter(st =>
     (!roundId || st.roundId === roundId) &&
     (!marketId || st.marketId === marketId || st.roundId === roundId)
@@ -34,11 +46,37 @@ export function Sales({roundId=null,marketId=null}) {
     <>
       <div className="section-head">
         <h1>販売用の商品</h1>
-        <Button onClick={() => setEdit({})}>＋ 販売用商品を追加</Button>
+        {onManageProducts && <Button secondary onClick={onManageProducts}>この回の商品</Button>}
       </div>
       <p className="lead">
-        仕入れた商品は場所を分けずに管理します。売れたときだけ販売場所・販売先を記録します。
+        個人注文と同じ一覧で、販売用に仕入れる数量を続けて入力します。
       </p>
+      {round && (
+        <section
+          className="card order-editor"
+          data-unsaved={
+            JSON.stringify(orderQuantities) !==
+            JSON.stringify(savedOrderQuantities)
+          }
+        >
+          <h2>販売用の注文入力</h2>
+          <ProductQuantityEditor
+            products={round.products}
+            quantities={orderQuantities}
+            onChange={setOrderQuantities}
+            emptyMessage="「この回の商品」から、販売価格が分かっている商品を追加してください。"
+          />
+          <div className="sticky-action">
+            <span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
+            <Button onClick={() => save(
+              (s) => setSalesOrderQuantities(s, roundId, orderQuantities),
+              "販売用の注文数量を保存",
+            )}>販売用を保存</Button>
+          </div>
+        </section>
+      )}
+      <h2>納品後の販売・残数</h2>
+      <p className="muted">商品が売れたら、販売先・場所・実際の価格をここで記録します。</p>
       <Check label="売り切れの商品も表示" checked={all} onChange={setAll} />
       {state.sales.some(x => !x.void && x.pending) && <p className="notice">販売先・支払方法が未確認の記録があります。個人請求・入金済みには含めていません。「売り切れの商品も表示」から記録を確認できます。</p>}
       {stocks
@@ -74,7 +112,7 @@ export function Sales({roundId=null,marketId=null}) {
         ))}
       {!stocks.length && (
         <Empty>
-          「販売用商品を追加」から仕入数量を登録します。おやつの余剰は「おやつ用」から振り替えます。
+          上の商品一覧で数量を入力して保存します。おやつの余剰は「おやつ用」から振り替えます。
         </Empty>
       )}
       {edit && (
