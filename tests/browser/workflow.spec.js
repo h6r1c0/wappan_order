@@ -329,6 +329,7 @@ test("スマホ: LINE貼付と共通販売用在庫・販売場所・任意価�
   expect(shared.state.externalDestinations).toContain('手話タイム');
   for(const width of [320,375,430]){await page.setViewportSize({width,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
   await page.setViewportSize({width:375,height:812});
+  await page.getByRole('button',{name:'個人注文',exact:true}).click();
   const buyerColumns=await page.locator('.buyer-grid').first().evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);
   expect(buyerColumns).toBe(3);
 });
