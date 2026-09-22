@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext } from "react";
+import React, { useEffect, useState, createContext, useContext } from "react";
 import { normalize, yen } from "./domain";
 
 const breadCategoryIcon = new URL(
@@ -16,11 +16,12 @@ export function Button({
   children,
   secondary = false,
   danger = false,
+  className = "",
   ...props
 }) {
   return (
     <button
-      className={`button ${secondary ? "secondary" : ""} ${danger ? "danger" : ""}`}
+      className={`button ${secondary ? "secondary" : ""} ${danger ? "danger" : ""} ${className}`}
       type="button"
       {...props}
     >
@@ -234,18 +235,41 @@ export function Summary({ label, value, note }) {
     </div>
   );
 }
-export function BuyerPicker({ value, onChange, allowAdd = true, includeTest = false }) {
+export function BuyerPicker({
+  value,
+  onChange,
+  allowAdd = true,
+  includeTest = false,
+  suggestedName = "",
+}) {
   const { state, save } = useApp();
   const [query, setQuery] = useState("");
-  const [name, setName] = useState(""),
-    [adding, setAdding] = useState(false);
+  const [name, setName] = useState(suggestedName);
+  const [adding, setAdding] = useState(!!suggestedName);
+  useEffect(() => {
+    if (!suggestedName) return;
+    setName(suggestedName);
+    setAdding(true);
+  }, [suggestedName]);
+  const suggestedKey = normalize(suggestedName);
+  const similar = suggestedKey
+    ? state.buyers.filter((buyer) => {
+        const key = normalize(buyer.name);
+        return (
+          key !== suggestedKey &&
+          (key.includes(suggestedKey) ||
+            suggestedKey.includes(key) ||
+            (suggestedKey.length > 1 && key.slice(0, 2) === suggestedKey.slice(0, 2)))
+        );
+      }).slice(0, 4)
+    : [];
   return (
     <>
       {state.buyers.length > 12 && <Field label="購入者を絞り込む" type="search" placeholder="名前の一部（入力しなくても選べます）" value={query} onChange={e => setQuery(e.target.value)} />}
       <div className="buyer-grid">
         {state.buyers
           .filter((b) => b.id === value || (b.testOnly ? includeTest : b.active))
-          .filter(b => b.name.normalize("NFKC").includes(query.normalize("NFKC")))
+          .filter(b => normalize(b.name).includes(normalize(query)))
           .map((b) => (
             <button
               type="button"
@@ -263,40 +287,54 @@ export function BuyerPicker({ value, onChange, allowAdd = true, includeTest = fa
             ＋ 購入者を追加
           </Button>
           {adding && (
-            <div className="inline">
-              <Field
-                label="新しい購入者名"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <Button
-                onClick={async () => {
-                  const id = crypto.randomUUID();
-                  if (
-                    await save(
-                      (s) =>
-                        s.buyers.push({
-                          id,
-                          name: name.trim(),
-                          active: true,
-                          fixed: [],
-                        }),
-                      "購入者を追加",
-                    )
-                  ) {
-                    setName("");
-                    setAdding(false);
-                    onChange(id, {
-                      id,
-                      name: name.trim(),
-                      active: true,
-                      fixed: [],
-                    });
-                  }
-                }}
-              >
-                追加して選ぶ
-              </Button>
+            <div className="buyer-add">
+              {suggestedName && <p className="notice compact-notice">LINEから読み取った名前です。確認・修正してから追加してください。</p>}
+              {similar.length > 0 && (
+                <div className="similar-buyers">
+                  <span>似た登録名があります</span>
+                  {similar.map((buyer) => (
+                    <Button secondary key={buyer.id} onClick={() => onChange(buyer.id)}>
+                      {buyer.name}を選ぶ
+                    </Button>
+                  ))}
+                </div>
+              )}
+              <div className="inline">
+                <Field
+                  label="新しい購入者名"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <Button
+                  disabled={!name.trim()}
+                  onClick={async () => {
+                    const clean = name.trim();
+                    const existing = state.buyers.find(
+                      (buyer) => normalize(buyer.name) === normalize(clean),
+                    );
+                    if (existing) {
+                      setName("");
+                      setAdding(false);
+                      onChange(existing.id, existing);
+                      return;
+                    }
+                    const id = crypto.randomUUID();
+                    const buyer = { id, name: clean, active: true, fixed: [] };
+                    if (
+                      await save(
+                        (s) => s.buyers.push(buyer),
+                        "購入者を追加",
+                      )
+                    ) {
+                      setName("");
+                      setAdding(false);
+                      onChange(id, buyer);
+                    }
+                  }}
+                >
+                  追加して選ぶ
+                </Button>
+              </div>
             </div>
           )}
         </>
