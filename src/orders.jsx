@@ -160,8 +160,8 @@ function Round({ round: r, back }) {
       >
         ‹ 注文回一覧
       </Button>
-      <div className="section-head">
-        <h1>{r.date.replaceAll("-", "/")} 着</h1>
+      <div className="delivery-heading">
+        <div><span className="eyebrow">現在の納品日</span><h1>{r.date.replaceAll("-", "/")} 着</h1></div>
         <Button secondary onClick={() => setSettings(true)}>
           日付・状態
         </Button>
@@ -188,14 +188,14 @@ function Round({ round: r, back }) {
       {tab==='おやつ用'&&<Events roundId={r.id} onManageProducts={() => setProducts(true)}/>}
       {tab === "個人注文" && (
         <>
-          <Button secondary onClick={()=>setLineImport(true)}>LINE注文を貼り付け</Button>
+          <section className="personal-start"><Button className="line-import-entry" secondary onClick={()=>setLineImport(true)}>LINE注文を貼り付けて入力を省く</Button>
           <div className="section-head">
               <h2>購入者を選ぶ</h2>
             <Button secondary onClick={() => setProducts(true)}>
-              この回の商品
+              この納品日の商品
             </Button>
           </div>
-          <BuyerPicker value={buyerId} onChange={choose} includeTest={r.test} />
+          <BuyerPicker value={buyerId} onChange={choose} includeTest={r.test} /></section>
           {!draft && (
             <Empty>
               名前をタップすると、固定注文が入った入力欄が開きます。
@@ -208,14 +208,14 @@ function Round({ round: r, back }) {
                 (f) => !r.products.some((p) => p.id === f.productId),
               ) && (
                 <p className="notice">
-                  固定注文のうち、この回にない商品があります。「この回の商品」で追加してください。価格未確認の商品は先に商品管理で価格を設定してください。
+                  固定注文のうち、この回にない商品があります。「この納品日の商品」で追加してください。価格未確認の商品は先に商品管理で価格を設定してください。
                 </p>
               )}
               <ProductQuantityEditor
                 products={r.products}
                 quantities={draft.quantities}
                 onChange={(quantities) => setDraft({ ...draft, quantities })}
-                emptyMessage="「この回の商品」から、販売価格が分かっている商品を追加してください。"
+                emptyMessage="「この納品日の商品」から、販売価格が分かっている商品を追加してください。"
               />
               <div className="sticky-action">
                 <span>
@@ -529,9 +529,9 @@ function RoundProducts({ round: r, onClose }) {
   const { state, save } = useApp();
   const [items, setItems] = useState(structuredClone(r.products));
   return (
-    <Modal title="この回の商品・価格" onClose={onClose}>
+    <Modal title="この納品日の商品・価格" onClose={onClose}>
       <p className="muted">
-        この回だけの価格を保存します。注文済みの商品価格を変えると集金額も変わります。
+        この納品日だけの商品候補と価格です。ここから外しても商品マスターや過去履歴は消えません。価格を変えると、この納品日の集金額が再計算されます。
       </p>
       {items.map((p) => (
         <div className="card" key={p.id}>
@@ -558,13 +558,13 @@ function RoundProducts({ round: r, onClose }) {
                     event.lines.some((line) => line.productId === p.id && line.qty > 0),
                 )
               ) {
-                alert("この納品回で数量を入力済みの商品は取り除けません。");
+                alert("この納品日で数量を入力済みのため、候補から外せません。数量を0にしてから操作してください。");
                 return;
               }
               setItems(items.filter((x) => x.id !== p.id));
             }}
           >
-            この回から外す
+            この納品日の候補から外す
           </Button>
         </div>
       ))}
@@ -614,7 +614,7 @@ function RoundProducts({ round: r, onClose }) {
             onClose();
         }}
       >
-        この回の商品を保存
+        この納品日の商品を保存
       </Button>
     </Modal>
   );

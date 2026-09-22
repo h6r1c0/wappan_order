@@ -12,6 +12,10 @@ export function destinationCandidate(raw,s){
  if(people.length>1)return {type:'unknown',label:text,confidence:'ambiguous'};
  return {type:'external',label:text,confidence:'candidate'};
 }
+export function looksLikePersonalName(raw){
+ const text=String(raw||'').trim().normalize('NFKC');
+ return /^[^\d]{2,12}$/.test(text)&&!/(タイム|マルシェ|運動会|リズム|保育園|幼稚園|会社|団体|イベント|店舗|ショップ)/.test(text);
+}
 export function parseLineOrder(text,s,r){
  const products=[],buyers=[],unread=[];
  for(const original of text.split(/[\n、,]/).map(x=>x.trim()).filter(Boolean)){
@@ -26,7 +30,9 @@ export function parseLineOrder(text,s,r){
    if(options.length)buyers.push({raw:line,options});else unread.push({raw:original,ignored:false,destinationCandidate:destinationCandidate(line,s)});
   }
  }
- return {products,buyers,unread,buyerId:buyers.length===1&&buyers[0].options.length===1?buyers[0].options[0].id:''};
+ const nameCandidates=unread.filter(x=>looksLikePersonalName(x.raw));
+ const suggestedBuyerName=!buyers.length&&products.length&&nameCandidates.length===1&&unread.length===1?String(nameCandidates[0].raw).replace(/[\s　]+/g,' ').trim():'';
+ return {products,buyers,unread,buyerId:buyers.length===1&&buyers[0].options.length===1?buyers[0].options[0].id:'',suggestedBuyerName};
 }
 export function applyLineOrder(s,r,parsed,buyerId,mode='replace'){
  const b=s.buyers.find(b=>b.id===buyerId);if(!b)throw Error('購入者を選んでください');

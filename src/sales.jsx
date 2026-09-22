@@ -28,12 +28,12 @@ import {
 } from "./ui";
 export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
   const { state, save } = useApp();
-  const [edit, setEdit] = useState(null),
-    [selling, setSelling] = useState(null),
-    [all, setAll] = useState(false),
-    [orderQuantities, setOrderQuantities] = useState(() =>
-      roundId ? salesOrderQuantities(state, roundId) : {},
-    );
+  const [edit, setEdit] = useState(null);
+  const [selling, setSelling] = useState(null);
+  const [batchSelling, setBatchSelling] = useState(false);
+  const [orderQuantities, setOrderQuantities] = useState(() =>
+    roundId ? salesOrderQuantities(state, roundId) : {},
+  );
   const round = state.rounds.find((item) => item.id === roundId);
   const savedOrderQuantities = roundId
     ? salesOrderQuantities(state, roundId)
@@ -42,78 +42,114 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
     (!roundId || st.roundId === roundId) &&
     (!marketId || st.marketId === marketId || st.roundId === roundId)
   );
+  const remainingStocks = stocks.filter((stock) => stockRemaining(state, stock) > 0);
   return (
     <>
-      <div className="section-head">
-        <h1>販売用の商品</h1>
-        {onManageProducts && <Button secondary onClick={onManageProducts}>この回の商品</Button>}
+      <div className="work-title">
+        <span className="eyebrow">販売用</span>
+        <div className="section-head">
+          <h1>注文と販売を記録する</h1>
+          {onManageProducts && <Button secondary onClick={onManageProducts}>この納品日の商品</Button>}
+        </div>
       </div>
-      <p className="lead">
-        個人注文と同じ一覧で、販売用に仕入れる数量を続けて入力します。
-      </p>
       {round && (
         <section
-          className="card order-editor"
+          className="work-section order-editor"
           data-unsaved={
             JSON.stringify(orderQuantities) !==
             JSON.stringify(savedOrderQuantities)
           }
         >
-          <h2>販売用の注文入力</h2>
+          <div className="task-heading">
+            <span>1</span>
+            <div><h2>販売用として注文する</h2><small>納品前：仕入れる商品と数量</small></div>
+          </div>
           <ProductQuantityEditor
             products={round.products}
             quantities={orderQuantities}
             onChange={setOrderQuantities}
-            emptyMessage="「この回の商品」から、販売価格が分かっている商品を追加してください。"
+            emptyMessage="「この納品日の商品」から、販売価格が分かっている商品を追加してください。"
           />
           <div className="sticky-action">
             <span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
             <Button onClick={() => save(
               (s) => setSalesOrderQuantities(s, roundId, orderQuantities),
               "販売用の注文数量を保存",
-            )}>販売用を保存</Button>
+            )}>販売用の注文を保存</Button>
           </div>
         </section>
       )}
-      <h2>納品後の販売・残数</h2>
-      <p className="muted">商品が売れたら、販売先・場所・実際の価格をここで記録します。</p>
-      <Check label="売り切れの商品も表示" checked={all} onChange={setAll} />
-      {state.sales.some(x => !x.void && x.pending) && <p className="notice">販売先・支払方法が未確認の記録があります。個人請求・入金済みには含めていません。「売り切れの商品も表示」から記録を確認できます。</p>}
-      {stocks
-        .filter((st) => all || stockRemaining(state, st) > 0)
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .map((st) => (
-          <section className="card" key={st.id}>
-            <div className="product-row">
-              <div className="grow">
-                <h2>{st.name}</h2>
-                <small>
-                  {st.date} ／ {yen(st.price)}
-                  {st.eventId ? " ／ おやつ余剰から振替" : ""}
-                </small>
-              </div>
-              <strong className="remaining">
-                残り {stockRemaining(state, st)}
-              </strong>
-            </div>
-            {st.test && <Tag>テスト</Tag>}
-            <div className="actions">
-              <Button
-                disabled={stockRemaining(state, st) < 1}
-                onClick={() => setSelling(st)}
-              >
-                販売を記録
-              </Button>
-              <Button secondary onClick={() => setEdit(st)}>
-                数量・記録を見る
-              </Button>
-            </div>
-          </section>
-        ))}
-      {!stocks.length && (
-        <Empty>
-          上の商品一覧で数量を入力して保存します。おやつの余剰は「おやつ用」から振り替えます。
-        </Empty>
+      <section className="work-section sale-action-section">
+        <div className="task-heading">
+          <span>2</span>
+          <div><h2>売れた商品を記録する</h2><small>納品後：購入者を選び、複数商品をまとめて登録</small></div>
+        </div>
+        <Button
+          className="primary-wide"
+          disabled={!remainingStocks.length}
+          onClick={() => setBatchSelling(true)}
+        >
+          購入者を選んでまとめて販売を記録
+        </Button>
+        {!remainingStocks.length && <p className="muted">販売できる残数がある商品はありません。</p>}
+        <p className="muted">外部販売・価格変更・販売先未確認は、下の商品ごとの「1商品ずつ販売を記録」を使います。</p>
+      </section>
+      <section className="work-section history-section">
+        <div className="task-heading">
+          <span>3</span>
+          <div><h2>残数・販売履歴を確認する</h2><small>売り切れた商品も履歴と一緒に表示</small></div>
+        </div>
+        {state.sales.some(x => !x.void && x.pending) && <p className="notice">販売先・支払方法が未確認の記録があります。個人請求・入金済みには含めていません。各商品の販売履歴から確認できます。</p>}
+        {stocks
+          .slice()
+          .sort((a, b) => {
+            const ar=stockRemaining(state,a), br=stockRemaining(state,b);
+            return (br>0)-(ar>0) || b.date.localeCompare(a.date);
+          })
+          .map((st) => {
+            const remaining=stockRemaining(state,st);
+            const salesCount=state.sales.filter((sale)=>sale.stockId===st.id&&!sale.void).length;
+            return (
+              <section className={`card stock-card ${remaining<1?"sold-out":""}`} key={st.id}>
+                <div className="product-row">
+                  <div className="grow">
+                    <h2>{st.name}</h2>
+                    <small>
+                      {yen(st.price)} ／ 販売済み {soldQty(state,st.id)}個・{salesCount}件
+                      {st.eventId ? " ／ おやつ余剰から振替" : ""}
+                    </small>
+                  </div>
+                  <strong className={`remaining ${remaining<1?"sold-out-label":""}`}>
+                    {remaining < 1 ? "売り切れ" : `残り ${remaining}個`}
+                  </strong>
+                </div>
+                {st.test && <Tag>テスト</Tag>}
+                <div className="actions">
+                  <Button
+                    disabled={remaining < 1}
+                    onClick={() => setSelling(st)}
+                  >
+                    1商品ずつ販売を記録
+                  </Button>
+                  <Button secondary onClick={() => setEdit(st)}>
+                    販売履歴・数量を確認
+                  </Button>
+                </div>
+              </section>
+            );
+          })}
+        {!stocks.length && (
+          <Empty>
+            上の商品一覧で数量を入力して保存します。おやつの余剰は「おやつ用」から振り替えます。
+          </Empty>
+        )}
+      </section>
+      {batchSelling && (
+        <BatchSaleEditor
+          stocks={remainingStocks}
+          roundId={roundId}
+          onClose={() => setBatchSelling(false)}
+        />
       )}
       {edit && (
         <StockEditor
@@ -133,6 +169,75 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
         />
       )}
     </>
+  );
+}
+function BatchSaleEditor({stocks,roundId,onClose}) {
+  const {state,save}=useApp();
+  const [buyerId,setBuyerId]=useState("");
+  const [quantities,setQuantities]=useState({});
+  const [date,setDate]=useState(today());
+  const products=stocks.map((stock)=>({
+    id:stock.id,
+    name:stock.name,
+    category:stock.category,
+    price:stock.price,
+  }));
+  const picked=stocks.filter((stock)=>(quantities[stock.id]||0)>0);
+  const total=picked.reduce((sum,stock)=>sum+(quantities[stock.id]||0)*stock.price,0);
+  return (
+    <Modal title="購入者を選んでまとめて販売" onClose={onClose}>
+      <div className="task-heading compact">
+        <span>1</span><div><h3>購入者を選ぶ</h3><small>個人別集金額へ追加します</small></div>
+      </div>
+      <BuyerPicker
+        value={buyerId}
+        includeTest={stocks.some((stock)=>stock.test)}
+        onChange={setBuyerId}
+      />
+      <div className="task-heading compact">
+        <span>2</span><div><h3>売れた商品と数量</h3><small>同じ画面で続けて選べます</small></div>
+      </div>
+      <ProductQuantityEditor
+        products={products}
+        quantities={quantities}
+        onChange={setQuantities}
+        priceLabel={(product)=>{
+          const stock=stocks.find((item)=>item.id===product.id);
+          return `${yen(product.price)} ／ 残り${stockRemaining(state,stock)}個`;
+        }}
+      />
+      <Field label="販売日">
+        <input type="date" value={date} onChange={(event)=>setDate(event.target.value)} />
+      </Field>
+      <div className="sticky-action">
+        <span>{picked.length}商品 ／ <strong>{yen(total)}</strong></span>
+        <Button
+          disabled={!buyerId||!picked.length}
+          onClick={async()=>{
+            if(await save((next)=>{
+              for(const stock of picked){
+                const current=next.stocks.find((item)=>item.id===stock.id);
+                addSale(next,current,{
+                  date,
+                  qty:quantities[stock.id],
+                  destinationType:"buyer",
+                  paymentStatus:"later",
+                  destinationName:"",
+                  buyerId,
+                  chargeRoundId:roundId||current.roundId||null,
+                  price:current.price,
+                  marketId:null,
+                  salePlace:"園内",
+                  note:"",
+                });
+              }
+            },"購入者への複数商品の販売を記録")) onClose();
+          }}
+        >
+          まとめて販売を記録
+        </Button>
+      </div>
+    </Modal>
   );
 }
 export function StockEditor({ stock, onClose,roundId=null,marketId=null }) {
@@ -164,7 +269,7 @@ export function StockEditor({ stock, onClose,roundId=null,marketId=null }) {
     locked = stock && state.sales.some((x) => x.stockId === stock.id);
   return (
     <Modal
-      title={stock ? "販売用商品・販売記録" : "販売用商品を追加"}
+      title={stock ? `${stock.name}の数量・販売履歴` : "販売用商品を追加"}
       onClose={onClose}
     >
       <form
@@ -280,13 +385,13 @@ export function StockEditor({ stock, onClose,roundId=null,marketId=null }) {
       </form>
       {stock && (
         <>
-          <h3>販売記録（販売済み {sold}個）</h3>
+          <h3>販売履歴（販売済み {sold}個／残り {stockRemaining(state, stock)}個）</h3>
           {state.sales
             .filter((x) => x.stockId === stock.id)
             .map((sale) => (
               <div className="card" key={sale.id}>
                 <div className="line">
-                  <strong>{sale.buyerName}</strong>
+                  <span><strong>{sale.buyerName}</strong><small>{stock.name}</small></span>
                   <span>
                     {sale.qty}個 ／ {yen(sale.qty * sale.price)}
                   </span>
