@@ -199,6 +199,7 @@ test("スマホ: Excel→固定注文→欠品→精算→おやつ余剰振替�
   await page.getByLabel("ガレット 数量", { exact: true }).selectOption("other");
   await page.getByLabel("ガレット 数量 その他", { exact: true }).fill("20");
   await page.getByRole("button", { name: "おやつ用を保存" }).click();
+  await expect.poll(()=>shared.state.events.length).toBe(1);
   expect(shared.state.events[0].lines.map(line=>line.qty)).toEqual([20,20]);
   await page.getByRole("button", { name: "注文・使用数を編集" }).click();
   const dialog = page.getByRole("dialog");
