@@ -543,7 +543,7 @@ export function validate(s) {
     }
   }
   validateCommerce(s);
-  if (!Array.isArray(s.externalDestinations) || new Set(s.externalDestinations).size !== s.externalDestinations.length || s.externalDestinations.some(x=>!String(x).trim())) throw Error("外部販売先候補を確認してください");
+  if (s.schema===2 && (!Array.isArray(s.externalDestinations) || new Set(s.externalDestinations).size !== s.externalDestinations.length || s.externalDestinations.some(x=>!String(x).trim()))) throw Error("外部販売先候補を確認してください");
   Object.values(s.goals).forEach((v) => integer(v, "目標額"));
   return s;
 }
