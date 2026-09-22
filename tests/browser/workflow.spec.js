@@ -311,7 +311,7 @@ test("スマホ: LINE貼付と共通販売用在庫・販売場所・任意価�
   expect(shared.state.sales).toHaveLength(1);
   expect(shared.state.sales[0].buyerId).toBe('hori');
   await expect(page.getByText('残り 1個',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'1商品ずつ販売を記録',exact:true}).click();
+  await milkCard.getByRole('button',{name:'1商品ずつ販売を記録',exact:true}).click();
   await page.getByLabel('1個の販売価格（この販売だけ）').fill('420');
   await page.getByLabel('販売場所（任意）').fill('手話タイム');
   await page.getByRole('button',{name:'外部販売',exact:true}).click();
@@ -321,8 +321,8 @@ test("スマホ: LINE貼付と共通販売用在庫・販売場所・任意価�
   expect(shared.state.sales[1].paymentStatus).toBe('unconfirmed');
   expect(shared.state.sales[1].price).toBe(420);
   expect(shared.state.sales[1].salePlace).toBe('手話タイム');
-  await expect(page.getByText('売り切れ',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'販売履歴・数量を確認'}).click();
+  await expect(milkCard.getByText('売り切れ',{exact:true})).toBeVisible();
+  await milkCard.getByRole('button',{name:'販売履歴・数量を確認'}).click();
   await expect(page.getByText('ホリ',{exact:true})).toBeVisible();
   await expect(page.getByText('手話タイム',{exact:true})).toBeVisible();
   await page.getByRole('dialog').getByRole('button',{name:'閉じる'}).click();
