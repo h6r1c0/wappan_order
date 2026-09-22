@@ -307,7 +307,7 @@ test("スマホ: LINE貼付と共通販売用在庫・販売場所・任意価�
   await page.getByRole('button',{name:'購入者を選んでまとめて販売を記録'}).click();
   await page.getByRole('dialog').getByRole('button',{name:'ホリ',exact:true}).click();
   await page.getByRole('dialog').getByLabel('ミルクスティックパン 数量',{exact:true}).selectOption('1');
-  await page.getByRole('button',{name:'まとめて販売を記録'}).click();
+  await page.getByRole('button',{name:'まとめて販売を記録',exact:true}).click();
   expect(shared.state.sales).toHaveLength(1);
   expect(shared.state.sales[0].buyerId).toBe('hori');
   await expect(page.getByText('残り 1個',{exact:true})).toBeVisible();
