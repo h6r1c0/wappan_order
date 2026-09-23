@@ -300,6 +300,7 @@ test("スマホ: LINE貼付と共通販売用在庫・販売場所・任意価�
   expect(shared.state.stocks.filter(stock=>stock.roundId===shared.state.rounds[0].id&&stock.qty>0)).toHaveLength(2);
   const milkCard=page.locator('section.card').filter({has:page.getByRole('heading',{name:'ミルクスティックパン',exact:true})});
   await milkCard.getByRole('button',{name:'販売履歴を確認・修正'}).click();
+  await page.locator('details.stock-settings').click();
   await page.getByLabel('仕入単価（不明なら空欄・利益は未確定）').fill('200');
   await page.getByRole('button',{name:'商品を保存'}).click();
   await page.getByLabel('黒糖ブレッド 数量',{exact:true}).selectOption('0');

@@ -1163,11 +1163,12 @@ header small {
     padding-right: 8px;
   }
   .school-logo {
-    width: 54px;
+    width: 46px;
   }
   .app-title img {
-    width: 158px;
-    height: 58px;
+    width: min(210px, 100%);
+    height: auto;
+    max-height: 64px;
   }
   header small {
     font-size: 11px;
