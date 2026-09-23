@@ -239,6 +239,84 @@ export function addSale(s, stock, entry) {
     if (!s.externalDestinations.includes(buyerName)) s.externalDestinations.push(buyerName);
   }
 }
+export function updateSaleDestination(s, saleId, entry) {
+  const sale = s.sales.find((item) => item.id === saleId);
+  if (!sale || sale.void) throw Error("変更できる販売記録が見つかりません");
+  const stock = s.stocks.find((item) => item.id === sale.stockId);
+  if (!stock) throw Error("販売元の商品が見つかりません");
+  const destinationType = entry.destinationType;
+  if (!['buyer', 'external', 'unknown'].includes(destinationType))
+    throw Error("販売先を確認してください");
+  if (destinationType === 'buyer') {
+    const buyer = s.buyers.find((item) => item.id === entry.buyerId);
+    if (!buyer) throw Error("購入者を選んでください");
+    const chargeRoundId = entry.chargeRoundId || stock.roundId || null;
+    if (chargeRoundId) {
+      const round = s.rounds.find((item) => item.id === chargeRoundId);
+      if (!round || round.test !== stock.test)
+        throw Error("集金する注文回のテスト区分が一致しません");
+    }
+    Object.assign(sale, {
+      destinationType: 'buyer',
+      paymentStatus: 'later',
+      pending: false,
+      paid: false,
+      buyerId: buyer.id,
+      buyerName: buyer.name,
+      chargeRoundId,
+      destinationName: null,
+    });
+    return sale;
+  }
+  if (destinationType === 'external') {
+    const destinationName = String(entry.destinationName || '').trim();
+    if (!destinationName) throw Error("外部販売先の名称を入力してください");
+    const paymentStatus = entry.paymentStatus === 'paid' ? 'paid' : 'unconfirmed';
+    Object.assign(sale, {
+      destinationType: 'external',
+      paymentStatus,
+      pending: false,
+      paid: paymentStatus === 'paid',
+      buyerId: null,
+      buyerName: destinationName,
+      chargeRoundId: null,
+      destinationName,
+    });
+    s.externalDestinations ??= [];
+    if (!s.externalDestinations.includes(destinationName))
+      s.externalDestinations.push(destinationName);
+    return sale;
+  }
+  Object.assign(sale, {
+    destinationType: 'unknown',
+    paymentStatus: 'unconfirmed',
+    pending: true,
+    paid: false,
+    buyerId: null,
+    buyerName: '販売先未確認',
+    chargeRoundId: null,
+    destinationName: null,
+  });
+  return sale;
+}
+export function assignSalesToBuyer(s, saleIds, buyerId, chargeRoundId = null) {
+  const ids = [...new Set(saleIds)];
+  if (!ids.length) throw Error("割り当てる販売記録を選んでください");
+  for (const id of ids) {
+    const sale = s.sales.find((item) => item.id === id);
+    if (
+      !sale ||
+      sale.void ||
+      (!sale.pending && sale.destinationType !== 'unknown')
+    )
+      throw Error("販売先未確認の記録だけを選んでください");
+    updateSaleDestination(s, id, {
+      destinationType: 'buyer',
+      buyerId,
+      chargeRoundId,
+    });
+  }
+}
 export const isSaleTest = (s, sale) =>
   s.stocks.find((x) => x.id === sale.stockId)?.test;
 export function collections(s, from, to, roundId = null, includeTest = false) {

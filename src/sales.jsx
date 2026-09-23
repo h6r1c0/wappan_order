@@ -12,6 +12,8 @@ import {
   stockRemaining,
   addSale,
   soldQty,
+  assignSalesToBuyer,
+  updateSaleDestination,
 } from "./domain";
 import {
   useApp,
@@ -31,6 +33,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
   const [edit, setEdit] = useState(null);
   const [selling, setSelling] = useState(null);
   const [batchSelling, setBatchSelling] = useState(false);
+  const [unconfirmedOpen, setUnconfirmedOpen] = useState(false);
   const [orderQuantities, setOrderQuantities] = useState(() =>
     roundId ? salesOrderQuantities(state, roundId) : {},
   );
@@ -43,6 +46,13 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
     (!marketId || st.marketId === marketId || st.roundId === roundId)
   );
   const remainingStocks = stocks.filter((stock) => stockRemaining(state, stock) > 0);
+  const stockIds = new Set(stocks.map((stock) => stock.id));
+  const unconfirmedSales = state.sales.filter(
+    (sale) =>
+      stockIds.has(sale.stockId) &&
+      !sale.void &&
+      (sale.pending || sale.destinationType === "unknown"),
+  );
   return (
     <>
       <div className="work-title">
@@ -91,7 +101,22 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
         >
           購入者を選んでまとめて販売を記録
         </Button>
-        {!remainingStocks.length && <p className="muted">販売できる残数がある商品はありません。</p>}
+        {!remainingStocks.length && (
+          <p className="sold-out-guidance">
+            すべて売り切れています。新しい販売は登録できません。販売先の確認・変更は下の入口から行えます。
+          </p>
+        )}
+        {unconfirmedSales.length > 0 && (
+          <div className="unconfirmed-shortcut">
+            <div>
+              <strong>販売先未確認：{unconfirmedSales.length}件</strong>
+              <small>売上や在庫はそのまま、購入者だけをまとめて確定できます</small>
+            </div>
+            <Button onClick={() => setUnconfirmedOpen(true)}>
+              購入者を割り当てる
+            </Button>
+          </div>
+        )}
         <p className="muted">外部販売・価格変更・販売先未確認は、下の商品ごとの「1商品ずつ販売を記録」を使います。</p>
       </section>
       <section className="work-section history-section">
@@ -99,7 +124,11 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
           <span>3</span>
           <div><h2>残数・販売履歴を確認する</h2><small>売り切れた商品も履歴と一緒に表示</small></div>
         </div>
-        {state.sales.some(x => !x.void && x.pending) && <p className="notice">販売先・支払方法が未確認の記録があります。個人請求・入金済みには含めていません。各商品の販売履歴から確認できます。</p>}
+        {unconfirmedSales.length > 0 && (
+          <Button className="history-shortcut" secondary onClick={() => setUnconfirmedOpen(true)}>
+            販売先未確認 {unconfirmedSales.length}件を確認する
+          </Button>
+        )}
         {stocks
           .slice()
           .sort((a, b) => {
@@ -132,7 +161,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
                     1商品ずつ販売を記録
                   </Button>
                   <Button secondary onClick={() => setEdit(st)}>
-                    販売履歴・数量を確認
+                    販売履歴を確認・修正
                   </Button>
                 </div>
               </section>
@@ -149,6 +178,13 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
           stocks={remainingStocks}
           roundId={roundId}
           onClose={() => setBatchSelling(false)}
+        />
+      )}
+      {unconfirmedOpen && (
+        <UnconfirmedSalesEditor
+          stocks={stocks}
+          roundId={roundId}
+          onClose={() => setUnconfirmedOpen(false)}
         />
       )}
       {edit && (
@@ -169,6 +205,109 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
         />
       )}
     </>
+  );
+}
+function UnconfirmedSalesEditor({ stocks, roundId, onClose }) {
+  const { state, save } = useApp();
+  const [buyerId, setBuyerId] = useState("");
+  const [selected, setSelected] = useState([]);
+  const [resolving, setResolving] = useState(null);
+  const stockIds = new Set(stocks.map((stock) => stock.id));
+  const sales = state.sales.filter(
+    (sale) =>
+      stockIds.has(sale.stockId) &&
+      !sale.void &&
+      (sale.pending || sale.destinationType === "unknown"),
+  );
+  const picked = sales.filter((sale) => selected.includes(sale.id));
+  const total = picked.reduce((sum, sale) => sum + sale.qty * sale.price, 0);
+  const toggle = (id, checked) =>
+    setSelected(
+      checked ? [...selected, id] : selected.filter((item) => item !== id),
+    );
+  return (
+    <Modal title={`販売先未確認 ${sales.length}件`} onClose={onClose}>
+      {sales.length ? (
+        <>
+          <div className="task-heading compact">
+            <span>1</span>
+            <div><h3>購入者を選ぶ</h3><small>選んだ記録をこの人の集金額へ追加</small></div>
+          </div>
+          <BuyerPicker
+            value={buyerId}
+            includeTest={stocks.some((stock) => stock.test)}
+            onChange={setBuyerId}
+          />
+          <div className="task-heading compact">
+            <span>2</span>
+            <div><h3>この人が買った記録を選ぶ</h3><small>数量・価格は変更しません</small></div>
+          </div>
+          <div className="compact-actions">
+            <Button secondary onClick={() => setSelected(sales.map((sale) => sale.id))}>
+              すべて選ぶ
+            </Button>
+            {selected.length > 0 && (
+              <Button secondary onClick={() => setSelected([])}>選択を外す</Button>
+            )}
+          </div>
+          <div className="unconfirmed-list">
+            {sales.map((sale) => {
+              const stock = state.stocks.find((item) => item.id === sale.stockId);
+              return (
+                <div className={`sale-pick-card ${selected.includes(sale.id) ? "selected" : ""}`} key={sale.id}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(sale.id)}
+                      onChange={(event) => toggle(sale.id, event.target.checked)}
+                    />
+                    <span>
+                      <strong>{stock?.name || "商品不明"}</strong>
+                      <small>{sale.qty}個 ／ {yen(sale.qty * sale.price)} ／ {sale.date}</small>
+                    </span>
+                  </label>
+                  <Button secondary onClick={() => setResolving(sale)}>
+                    個別に設定
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="sticky-action">
+            <span>{picked.length}件 ／ <strong>{yen(total)}</strong></span>
+            <Button
+              disabled={!buyerId || !picked.length}
+              onClick={async () => {
+                const completedAll = picked.length === sales.length;
+                if (
+                  await save(
+                    (next) =>
+                      assignSalesToBuyer(
+                        next,
+                        picked.map((sale) => sale.id),
+                        buyerId,
+                        roundId,
+                      ),
+                    "未確認販売を購入者へまとめて割り当て",
+                  )
+                ) {
+                  setSelected([]);
+                  setBuyerId("");
+                  if (completedAll) onClose();
+                }
+              }}
+            >
+              選んだ記録をまとめて割り当て
+            </Button>
+          </div>
+        </>
+      ) : (
+        <Empty>販売先未確認の記録はありません。</Empty>
+      )}
+      {resolving && (
+        <SaleResolution sale={resolving} onClose={() => setResolving(null)} />
+      )}
+    </Modal>
   );
 }
 function BatchSaleEditor({stocks,roundId,onClose}) {
@@ -272,6 +411,15 @@ export function StockEditor({ stock, onClose,roundId=null,marketId=null }) {
       title={stock ? `${stock.name}の数量・販売履歴` : "販売用商品を追加"}
       onClose={onClose}
     >
+      {stock && (
+        <StockSaleHistory
+          stock={stock}
+          sold={sold}
+          onResolve={setResolve}
+        />
+      )}
+      <details className="stock-settings" open={!stock}>
+        {stock && <summary>商品情報・数量・仕入単価を編集</summary>}
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -383,58 +531,65 @@ export function StockEditor({ stock, onClose,roundId=null,marketId=null }) {
           />}
         <Button type="submit">商品を保存</Button>
       </form>
-      {stock && (
-        <>
-          <h3>販売履歴（販売済み {sold}個／残り {stockRemaining(state, stock)}個）</h3>
-          {state.sales
-            .filter((x) => x.stockId === stock.id)
-            .map((sale) => (
-              <div className="card" key={sale.id}>
-                <div className="line">
-                  <span><strong>{sale.buyerName}</strong><small>{stock.name}</small></span>
-                  <span>
-                    {sale.qty}個 ／ {yen(sale.qty * sale.price)}
-                  </span>
-                </div>
-                <small>
-                  {sale.date} ／ {sale.destinationType==='unknown'||sale.pending ? "販売先・支払方法未確認（請求に含めない）" : sale.destinationType==='external' ? `外部販売・${sale.paymentStatus==='paid'?'入金済み':'入金未確認'}` : "個人請求"}{" "}
-                  {sale.void ? "／ 取消済み" : ""}
-                </small>
-                {sale.note && <p>{sale.note}</p>}
-                {!sale.void && (
-                  <><Button secondary onClick={()=>setResolve(sale)}>販売先・支払を変更</Button><Button
-                    secondary
-                    danger
-                    onClick={async () => {
-                      if (
-                        confirm(
-                          "この販売記録を取り消して、残数と請求額を戻しますか？",
-                        )
-                      ) {
-                        if (
-                          await save((s) => {
-                            s.sales.find((x) => x.id === sale.id).void = true;
-                          }, "販売記録を取消")
-                        )
-                          onClose();
-                      }
-                    }}
-                  >
-                    誤入力を取り消す
-                  </Button></>
-                )}
-              </div>
-            ))}
-        </>
-      )}
+      </details>
       {resolve&&<SaleResolution sale={resolve} onClose={()=>setResolve(null)}/>}
     </Modal>
+  );
+}
+function StockSaleHistory({ stock, sold, onResolve }) {
+  const { state, save } = useApp();
+  const sales = state.sales.filter((sale) => sale.stockId === stock.id);
+  return (
+    <section className="stock-history-first">
+      <h3>販売履歴（販売済み {sold}個／残り {stockRemaining(state, stock)}個）</h3>
+      {sales.map((sale) => {
+        const unconfirmed = sale.destinationType === "unknown" || sale.pending;
+        return (
+          <div className={`card sale-history-row ${unconfirmed ? "unconfirmed" : ""}`} key={sale.id}>
+            <div className="line">
+              <span><strong>{sale.buyerName}</strong><small>{stock.name}</small></span>
+              <span>{sale.qty}個 ／ {yen(sale.qty * sale.price)}</span>
+            </div>
+            <small>
+              {sale.date} ／ {unconfirmed
+                ? "販売先・支払方法未確認（請求に含めない）"
+                : sale.destinationType === "external"
+                  ? `外部販売・${sale.paymentStatus === "paid" ? "入金済み" : "入金未確認"}`
+                  : "個人請求"}{sale.void ? " ／ 取消済み" : ""}
+            </small>
+            {sale.note && <p>{sale.note}</p>}
+            {!sale.void && (
+              <div className="actions">
+                <Button onClick={() => onResolve(sale)}>
+                  {unconfirmed ? "購入者を設定" : "販売先・支払を変更"}
+                </Button>
+                <Button
+                  secondary
+                  danger
+                  onClick={async () => {
+                    if (
+                      confirm("この販売記録を取り消して、残数と請求額を戻しますか？")
+                    ) {
+                      await save((next) => {
+                        next.sales.find((item) => item.id === sale.id).void = true;
+                      }, "販売記録を取消");
+                    }
+                  }}
+                >
+                  誤入力を取り消す
+                </Button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </section>
   );
 }
 function SaleResolution({sale,onClose}){
  const {state,save}=useApp();const stock=state.stocks.find(st=>st.id===sale.stockId);
  const [v,set]=useState({destinationType:sale.destinationType||(sale.pending?'unknown':sale.paid?'external':'buyer'),paymentStatus:sale.paymentStatus||(sale.pending?'unconfirmed':sale.paid?'paid':'later'),destinationName:sale.destinationName||(sale.destinationType==='external'?sale.buyerName:''),buyerId:sale.buyerId||'',chargeRoundId:sale.chargeRoundId||stock.roundId});
- return <Modal title="販売先・支払状態を確認" onClose={onClose}><div className="choice-grid"><Button secondary={v.destinationType!=='buyer'} onClick={()=>set({...v,destinationType:'buyer',paymentStatus:'later'})}>登録済み購入者</Button><Button secondary={v.destinationType!=='external'} onClick={()=>set({...v,destinationType:'external',paymentStatus:'unconfirmed'})}>外部販売</Button><Button secondary={v.destinationType!=='unknown'} onClick={()=>set({...v,destinationType:'unknown',paymentStatus:'unconfirmed'})}>販売先未確認</Button></div>{v.destinationType==='buyer'&&<BuyerPicker includeTest={stock.test} value={v.buyerId} onChange={buyerId=>set({...v,buyerId})}/>} {v.destinationType==='external'&&<><Field label="外部販売先・団体・マルシェ名"><input list="external-destinations-resolve" value={v.destinationName} onChange={e=>set({...v,destinationName:e.target.value})}/></Field><datalist id="external-destinations-resolve">{state.externalDestinations.map(x=><option key={x} value={x}/>)}</datalist><div className="choice-grid"><Button secondary={v.paymentStatus!=='paid'} onClick={()=>set({...v,paymentStatus:'paid'})}>入金済み</Button><Button secondary={v.paymentStatus!=='unconfirmed'} onClick={()=>set({...v,paymentStatus:'unconfirmed'})}>入金未確認</Button></div></>}<Button onClick={async()=>{if(await save(s=>{const x=s.sales.find(x=>x.id===sale.id);x.destinationType=v.destinationType;x.paymentStatus=v.destinationType==='buyer'?'later':v.destinationType==='unknown'?'unconfirmed':v.paymentStatus;x.pending=v.destinationType==='unknown';x.paid=x.paymentStatus==='paid';x.buyerId=v.destinationType==='buyer'?v.buyerId:null;x.chargeRoundId=v.destinationType==='buyer'?v.chargeRoundId:null;x.destinationName=v.destinationType==='external'?v.destinationName.trim():null;x.buyerName=v.destinationType==='buyer'?s.buyers.find(b=>b.id===v.buyerId)?.name:v.destinationType==='external'?v.destinationName.trim():'販売先未確認';if(v.destinationType==='external'&&!s.externalDestinations.includes(x.destinationName))s.externalDestinations.push(x.destinationName);},'販売先・支払状態を更新'))onClose();}}>確認内容を保存</Button></Modal>;
+ return <Modal title="販売先・支払状態を確認" onClose={onClose}><div className="sale-resolution-summary"><strong>{stock.name} ×{sale.qty}</strong><span>{yen(sale.qty*sale.price)}</span></div><div className="choice-grid"><Button secondary={v.destinationType!=='buyer'} onClick={()=>set({...v,destinationType:'buyer',paymentStatus:'later'})}>登録済み購入者</Button><Button secondary={v.destinationType!=='external'} onClick={()=>set({...v,destinationType:'external',paymentStatus:'unconfirmed'})}>外部販売</Button><Button secondary={v.destinationType!=='unknown'} onClick={()=>set({...v,destinationType:'unknown',paymentStatus:'unconfirmed'})}>販売先未確認</Button></div>{v.destinationType==='buyer'&&<BuyerPicker includeTest={stock.test} value={v.buyerId} onChange={buyerId=>set({...v,buyerId})}/>} {v.destinationType==='external'&&<><Field label="外部販売先・団体・マルシェ名"><input list="external-destinations-resolve" value={v.destinationName} onChange={e=>set({...v,destinationName:e.target.value})}/></Field><datalist id="external-destinations-resolve">{state.externalDestinations.map(x=><option key={x} value={x}/>)}</datalist><div className="choice-grid"><Button secondary={v.paymentStatus!=='paid'} onClick={()=>set({...v,paymentStatus:'paid'})}>入金済み</Button><Button secondary={v.paymentStatus!=='unconfirmed'} onClick={()=>set({...v,paymentStatus:'unconfirmed'})}>入金未確認</Button></div></>}<Button disabled={v.destinationType==='buyer'&&!v.buyerId} onClick={async()=>{if(await save(s=>updateSaleDestination(s,sale.id,v),'販売先・支払状態を更新'))onClose();}}>確認内容を保存</Button></Modal>;
 }
 export function SaleEditor({ stock, onClose }) {
   const { state, save } = useApp();
