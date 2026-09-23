@@ -1,4 +1,4 @@
-import React, { useEffect, useState, createContext, useContext } from "react";
+import React, { useEffect, useLayoutEffect, useState, createContext, useContext } from "react";
 import { normalize, yen } from "./domain";
 
 const breadCategoryIcon = new URL(
@@ -90,8 +90,44 @@ export function Cat({ category }) {
 export function Tag({ children }) {
   return <span className="tag">{children}</span>;
 }
+let openModalCount = 0;
+let lockedPageScroll = 0;
+let savedBodyStyle = null;
+function lockPageScroll() {
+  if (openModalCount === 0) {
+    lockedPageScroll = window.scrollY;
+    savedBodyStyle = {
+      position: document.body.style.position,
+      top: document.body.style.top,
+      left: document.body.style.left,
+      right: document.body.style.right,
+      width: document.body.style.width,
+      overflow: document.body.style.overflow,
+    };
+    Object.assign(document.body.style, {
+      position: "fixed",
+      top: `-${lockedPageScroll}px`,
+      left: "0",
+      right: "0",
+      width: "100%",
+      overflow: "hidden",
+    });
+    document.documentElement.classList.add("modal-open");
+  }
+  openModalCount += 1;
+  return () => {
+    openModalCount = Math.max(0, openModalCount - 1);
+    if (openModalCount !== 0 || !savedBodyStyle) return;
+    Object.assign(document.body.style, savedBodyStyle);
+    document.documentElement.classList.remove("modal-open");
+    const restoreTo = lockedPageScroll;
+    savedBodyStyle = null;
+    window.scrollTo(0, restoreTo);
+  };
+}
 export function Modal({ title, children, onClose }) {
   const [dirty, setDirty] = useState(false);
+  useLayoutEffect(() => lockPageScroll(), []);
   const close = () => {
     if (!dirty || confirm("未保存の入力を破棄して閉じますか？")) onClose();
   };

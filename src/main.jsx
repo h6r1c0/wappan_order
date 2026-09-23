@@ -122,7 +122,7 @@ function App() {
         />
         <div className="app-title">
           <img
-            src={new URL("../wappan_title_logo_final.png", import.meta.url).href}
+            src={new URL("../wappan_title_logo_display.png", import.meta.url).href}
             alt="わっぱん"
           />
           <small>注文・集計</small>

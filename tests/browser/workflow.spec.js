@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { initialState, validate } from "../../src/domain.js";
+import { addSale, collections, initialState, newRound, report, stockRemaining, validate } from "../../src/domain.js";
+import { setSalesOrderQuantities, upgrade } from "../../src/commerce.js";
 import * as XLSX from "xlsx";
 import fs from "node:fs/promises";
 async function qaFont(page) {
@@ -139,7 +140,7 @@ test("スマホ: Excel→固定注文→欠品→精算→おやつ余剰振替�
   await page.getByLabel("納品予定日").fill("2026-09-11");
   await page.getByRole("button", { name: "この納品日で注文を始める" }).click();
   await expect(page.locator('header img[src*="ohisama_header_logo"]')).toBeVisible();
-  await expect(page.locator('header img[src*="wappan_title_logo_final"]')).toBeVisible();
+  await expect(page.locator('header img[src*="wappan_title_logo_display"]')).toBeVisible();
   await expect(page.locator('.purpose img')).toHaveCount(3);
   await expect(page.locator('nav button')).toHaveCount(3);
   expect(await page.locator('body').evaluate(el=>getComputedStyle(el).fontFamily)).toContain('M PLUS Rounded 1c');
@@ -298,7 +299,8 @@ test("スマホ: LINE貼付と共通販売用在庫・販売場所・任意価�
   await page.getByRole('button',{name:'販売用の注文を保存'}).click();
   expect(shared.state.stocks.filter(stock=>stock.roundId===shared.state.rounds[0].id&&stock.qty>0)).toHaveLength(2);
   const milkCard=page.locator('section.card').filter({has:page.getByRole('heading',{name:'ミルクスティックパン',exact:true})});
-  await milkCard.getByRole('button',{name:'販売履歴・数量を確認'}).click();
+  await milkCard.getByRole('button',{name:'販売履歴を確認・修正'}).click();
+  await page.locator('details.stock-settings').click();
   await page.getByLabel('仕入単価（不明なら空欄・利益は未確定）').fill('200');
   await page.getByRole('button',{name:'商品を保存'}).click();
   await page.getByLabel('黒糖ブレッド 数量',{exact:true}).selectOption('0');
@@ -322,7 +324,7 @@ test("スマホ: LINE貼付と共通販売用在庫・販売場所・任意価�
   expect(shared.state.sales[1].price).toBe(420);
   expect(shared.state.sales[1].salePlace).toBe('手話タイム');
   await expect(milkCard.getByText('売り切れ',{exact:true})).toBeVisible();
-  await milkCard.getByRole('button',{name:'販売履歴・数量を確認'}).click();
+  await milkCard.getByRole('button',{name:'販売履歴を確認・修正'}).click();
   await expect(page.getByText('ホリ',{exact:true})).toBeVisible();
   await expect(page.getByText('手話タイム',{exact:true})).toBeVisible();
   await page.getByRole('dialog').getByRole('button',{name:'閉じる'}).click();
@@ -332,6 +334,67 @@ test("スマホ: LINE貼付と共通販売用在庫・販売場所・任意価�
   await page.getByRole('button',{name:'個人注文',exact:true}).click();
   const buyerColumns=await page.locator('.buyer-grid').first().evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);
   expect(buyerColumns).toBe(3);
+});
+
+test("スマホ: 売り切れ後の未確認販売を個別・一括で割り当て、モーダル背後を固定",async({page,context})=>{
+  const state=initialState(),round=newRound(state,'2026-09-11',true);
+  state.rounds.push(round);upgrade(state);
+  setSalesOrderQuantities(state,round.id,{milk:2,brown:1});
+  const milk=state.stocks.find(stock=>stock.productId==='milk');
+  const brown=state.stocks.find(stock=>stock.productId==='brown');
+  addSale(state,milk,{date:round.date,qty:1,destinationType:'unknown',paymentStatus:'unconfirmed'});
+  addSale(state,milk,{date:round.date,qty:1,destinationType:'unknown',paymentStatus:'unconfirmed'});
+  addSale(state,brown,{date:round.date,qty:1,destinationType:'unknown',paymentStatus:'unconfirmed'});
+  const beforeReport=structuredClone(report(state,'2026-04-01','2027-03-31',2026));
+  const beforeRemaining=[stockRemaining(state,milk),stockRemaining(state,brown)];
+  const shared={state,revision:4};
+  await backend(context,shared);page.on('dialog',dialog=>dialog.accept());
+  await page.setViewportSize({width:375,height:812});
+  await login(page);
+  const titleBox=await page.locator('header img[src*="wappan_title_logo_display"]').boundingBox();
+  const headerBox=await page.locator('header').boundingBox();
+  expect(titleBox.width).toBeGreaterThanOrEqual(190);
+  expect(headerBox.height).toBeLessThanOrEqual(105);
+  await page.getByText('0人 入力済み').click();
+  await page.getByRole('button',{name:'販売用',exact:true}).click();
+  await expect(page.getByRole('button',{name:'購入者を選んでまとめて販売を記録'})).toBeDisabled();
+  await expect(page.getByText(/すべて売り切れています/)).toBeVisible();
+  await expect(page.getByText('販売先未確認：3件',{exact:true})).toBeVisible();
+  await expect(page.getByText('売り切れ',{exact:true})).toHaveCount(2);
+  const shortcut=page.getByRole('button',{name:'購入者を割り当てる',exact:true});
+  await shortcut.scrollIntoViewIfNeeded();
+  const scrollBefore=await page.evaluate(()=>window.scrollY);
+  await shortcut.click();
+  await expect(page.getByRole('dialog',{name:'販売先未確認 3件'})).toBeVisible();
+  expect(await page.evaluate(()=>document.body.style.position)).toBe('fixed');
+  const firstDialog=page.getByRole('dialog',{name:'販売先未確認 3件'});
+  await firstDialog.getByRole('button',{name:'ホリ',exact:true}).click();
+  const picks=firstDialog.getByRole('checkbox');
+  await picks.nth(0).check();await picks.nth(1).check();
+  await firstDialog.getByRole('button',{name:'選んだ記録をまとめて割り当て'}).click();
+  await expect(page.getByRole('dialog',{name:'販売先未確認 1件'})).toBeVisible();
+  expect(shared.state.sales.filter(sale=>sale.destinationType==='buyer'&&sale.buyerId==='hori')).toHaveLength(2);
+  expect([stockRemaining(shared.state,milk),stockRemaining(shared.state,brown)]).toEqual(beforeRemaining);
+  expect(report(shared.state,'2026-04-01','2027-03-31',2026)).toEqual(beforeReport);
+  const remainingDialog=page.getByRole('dialog',{name:'販売先未確認 1件'});
+  await remainingDialog.getByRole('button',{name:'個別に設定'}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(2);
+  const resolution=page.getByRole('dialog',{name:'販売先・支払状態を確認'});
+  await resolution.getByRole('button',{name:'登録済み購入者',exact:true}).click();
+  await resolution.getByRole('button',{name:'浅野',exact:true}).click();
+  await resolution.getByRole('button',{name:'確認内容を保存'}).click();
+  await expect(page.getByText('販売先未確認の記録はありません。')).toBeVisible();
+  await page.getByRole('dialog',{name:'販売先未確認 0件'}).getByRole('button',{name:'閉じる'}).click();
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(scrollBefore);
+  expect(await page.evaluate(()=>document.body.style.position)).toBe('');
+  expect(shared.state.sales).toHaveLength(3);
+  expect(shared.state.sales.every(sale=>sale.destinationType==='buyer'&&!sale.pending)).toBe(true);
+  expect(collections(shared.state,'','',round.id,true).reduce((sum,row)=>sum+row.onsite,0)).toBe(990);
+  expect([stockRemaining(shared.state,milk),stockRemaining(shared.state,brown)]).toEqual(beforeRemaining);
+  expect(report(shared.state,'2026-04-01','2027-03-31',2026)).toEqual(beforeReport);
+  await page.getByRole('button',{name:'販売履歴を確認・修正'}).first().click();
+  await expect(page.getByText(/販売履歴（販売済み 2個／残り 0個）/)).toBeVisible();
+  await expect(page.locator('details.stock-settings')).not.toHaveAttribute('open','');
 });
 
 test("実Excelの自動読取・今回限りの次回除外・30人の購入者選択", async ({page,context}) => {
@@ -390,7 +453,7 @@ test("9月11日実資料：集金判明分・完売・年度除外・再読込",
   await page.getByText('11人 入力済み').click();
   await page.getByRole('button',{name:'販売用',exact:true}).click();
   await expect(page.getByText('売り切れ',{exact:true})).toHaveCount(11);
-  await page.getByRole('button',{name:'販売履歴・数量を確認'}).first().click();
+  await page.getByRole('button',{name:'販売履歴を確認・修正'}).first().click();
   await expect(page.getByText('販売先・支払方法未確認',{exact:true})).toBeVisible();
   await page.getByRole('dialog').getByRole('button',{name:'閉じる'}).click();
   await nav(page,'集計');

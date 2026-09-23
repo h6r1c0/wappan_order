@@ -741,6 +741,209 @@ details.card summary small {
     gap: 8px;
   }
 }
+
+/* 販売先確認を短い動線で完了する画面と、iPhone向けモーダル */
+header {
+  min-height: 82px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.school-logo {
+  width: 64px;
+}
+.app-title img {
+  width: min(300px, 100%);
+  height: auto;
+  max-height: 76px;
+  object-fit: contain;
+}
+header small {
+  margin-top: -5px;
+}
+html.modal-open {
+  overscroll-behavior: none;
+}
+.overlay {
+  overflow: hidden;
+  padding: 12px;
+  align-items: center;
+  overscroll-behavior: none;
+}
+.modal {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.modal > .section-head {
+  top: -20px;
+}
+.sold-out-guidance {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f1eee8;
+  color: #5e5148;
+  font-size: 14px;
+}
+.unconfirmed-shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 13px;
+  border: 2px solid #d98237;
+  border-radius: 14px;
+  background: #fff4dd;
+}
+.unconfirmed-shortcut strong,
+.unconfirmed-shortcut small {
+  display: block;
+}
+.unconfirmed-shortcut strong {
+  font-size: 18px;
+}
+.unconfirmed-shortcut small {
+  color: #6c5343;
+  line-height: 1.4;
+}
+.history-shortcut {
+  width: 100%;
+  margin-bottom: 10px;
+  border-color: #d98237 !important;
+  color: #7b421d !important;
+  background: #fff8e9 !important;
+}
+.compact-actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+.compact-actions .button {
+  min-height: 40px;
+  padding: 7px 12px;
+}
+.unconfirmed-list {
+  display: grid;
+  gap: 8px;
+}
+.sale-pick-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d9c5a9;
+  border-radius: 12px;
+  background: #fffdf8;
+}
+.sale-pick-card.selected {
+  border-color: #c96f2c;
+  background: #fff1d8;
+  box-shadow: 0 0 0 1px #c96f2c;
+}
+.sale-pick-card > label {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.sale-pick-card input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+}
+.sale-pick-card label span,
+.sale-pick-card label strong,
+.sale-pick-card label small {
+  display: block;
+  min-width: 0;
+}
+.sale-pick-card label small {
+  color: #6d584a;
+}
+.sale-pick-card .button {
+  min-height: 42px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.stock-history-first > h3 {
+  margin-top: 2px;
+}
+.sale-history-row.unconfirmed {
+  border-color: #da843c;
+  background: #fff8e8;
+}
+.sale-history-row .actions {
+  margin-top: 9px;
+}
+.stock-settings {
+  margin-top: 14px;
+  border-top: 1px solid #e0cfb9;
+  padding-top: 10px;
+}
+.stock-settings > summary {
+  padding: 10px 2px;
+  color: #725b4c;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sale-resolution-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f5ecdf;
+}
+@media (max-width: 390px) {
+  header {
+    min-height: 82px;
+    padding: 6px;
+  }
+  .school-logo {
+    width: 46px;
+  }
+  .app-title img {
+    width: min(235px, 100%);
+    height: auto;
+    max-height: 70px;
+  }
+  header small {
+    margin-top: -4px;
+  }
+  .overlay {
+    padding: 8px;
+  }
+  .modal {
+    max-height: calc(100dvh - 16px);
+    padding: 14px;
+    border-radius: 16px;
+  }
+  .modal > .section-head {
+    top: -14px;
+  }
+  .unconfirmed-shortcut {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .unconfirmed-shortcut .button {
+    width: 100%;
+  }
+  .sale-pick-card {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .sale-pick-card > label {
+    flex-basis: calc(100% - 4px);
+  }
+  .sale-pick-card .button {
+    margin-left: 32px;
+  }
+}
 @media print {
   header,
   nav,
@@ -960,11 +1163,12 @@ header small {
     padding-right: 8px;
   }
   .school-logo {
-    width: 54px;
+    width: 46px;
   }
   .app-title img {
-    width: 158px;
-    height: 58px;
+    width: min(210px, 100%);
+    height: auto;
+    max-height: 64px;
   }
   header small {
     font-size: 11px;

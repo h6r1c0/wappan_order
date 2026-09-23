@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialState,newRound,addSale,collections,report,stockRemaining,transfer,validate} from '../src/domain.js';
+import {initialState,newRound,addSale,assignSalesToBuyer,collections,report,stockRemaining,transfer,updateSaleDestination,validate} from '../src/domain.js';
 import {delivery,upgrade,moveStock,sellBundle,marketTotals,deliveryTotals,salesOrderQuantities,setSalesOrderQuantities,snackOrderQuantities,setSnackOrderQuantities} from '../src/commerce.js';
 import {destinationCandidate,looksLikePersonalName,parseLineOrder} from '../src/line-import.js';
 
@@ -103,4 +103,23 @@ test('LINE個人注文は未登録の氏名だけを追加候補にし、団体�
  const external=parseLineOrder('手話タイム\nカリカリ1',s,r);
  assert.equal(external.suggestedBuyerName,'');
  assert.equal(looksLikePersonalName('手話タイム'),false);
+});
+
+test('未確認販売の一括割り当ては在庫・売上・原価を変えず個人請求だけを更新する',()=>{
+ const {s,r}=setup();
+ const st={id:'pending-stock',productId:'galette',name:'ガレット',category:'焼き菓子',qty:3,price:390,cost:250,date:r.date,test:false,roundId:r.id,channel:'sales',depth:0,eventId:null,eventLineId:null};
+ s.stocks.push(st);
+ addSale(s,st,{date:r.date,qty:1,destinationType:'unknown',paymentStatus:'unconfirmed'});
+ addSale(s,st,{date:r.date,qty:1,destinationType:'unknown',paymentStatus:'unconfirmed'});
+ const saleIds=s.sales.map(x=>x.id),beforeReport=report(s,'2026-04-01','2027-03-31',2026),beforeRemaining=stockRemaining(s,st);
+ assignSalesToBuyer(s,saleIds,'hori',r.id);
+ assert.equal(s.sales.length,2);
+ assert.equal(stockRemaining(s,st),beforeRemaining);
+ assert.deepEqual(report(s,'2026-04-01','2027-03-31',2026),beforeReport);
+ assert.equal(collections(s,'','',r.id).find(x=>x.id==='hori').onsite,780);
+ assert.ok(s.sales.every(x=>x.destinationType==='buyer'&&!x.pending&&x.paymentStatus==='later'));
+ updateSaleDestination(s,saleIds[0],{destinationType:'external',destinationName:'手話タイム',paymentStatus:'unconfirmed'});
+ assert.equal(collections(s,'','',r.id).find(x=>x.id==='hori').onsite,390);
+ assert.equal(stockRemaining(s,st),beforeRemaining);
+ validate(s);
 });
