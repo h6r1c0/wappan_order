@@ -101,5 +101,24 @@ test("Postgres: migration/RLS/許可された係だけ保存/競合拒否/振替
   upgrade(state);
   await db.query("select public.wappan_save(4,$1,'schema 2 migration')",[state]);
   assert.equal((await db.query("select data->>'schema' schema from public.wappan_workspace")).rows[0].schema,'2');
+  const pendingRound = newRound(state, '2026-10-16');
+  pendingRound.invoice = 1000;
+  state.rounds.push(pendingRound);
+  const pendingStock = { id: crypto.randomUUID(), roundId: pendingRound.id, productId: 'milk',
+    name: 'ミルクスティックパン', category: 'パン', qty: 2, price: 280, cost: null,
+    date: pendingRound.date, test: false, channel: 'onsite', depth: 0 };
+  state.stocks.push(pendingStock);
+  pendingRound.stockIds.push(pendingStock.id);
+  state.collectionEntries.push({ id: crypto.randomUUID(), roundId: pendingRound.id,
+    buyerId: 'hori', date: pendingRound.date, received: 530, adjustment: 0, note: '受取' });
+  await db.query("select public.wappan_save(5,$1,'pending invoice and collection')",[state]);
+  pendingRound.status = '精算済み';
+  await assert.rejects(() => db.query("select public.wappan_save(6,$1,'early settlement')",[state]),/Unknown stock cost/);
+  pendingRound.status = '入力中';
+  addSale(state,pendingStock,{date:pendingRound.date,qty:1,destinationType:'external',
+    destinationName:'その場販売',paymentStatus:'unconfirmed'});
+  await db.query("select public.wappan_save(6,$1,'external sale pending payment')",[state]);
+  state.collectionEntries[0].received = 1.5;
+  await assert.rejects(() => db.query("select public.wappan_save(7,$1,'invalid collection')",[state]),/Invalid collection entry amount/);
   await db.close();
 });

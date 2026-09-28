@@ -12,6 +12,35 @@ function setup() {
   s.rounds.push(r);
   return { s, r };
 }
+test('納品書総額を用途別原価より先に保存し、精算完了は原価確定後だけ許す', () => {
+  const { s, r } = setup();
+  const stock = { id: d.uid(), roundId: r.id, productId: 'milk', name: 'ミルクスティックパン',
+    category: 'パン', qty: 2, price: 280, cost: null, date: r.date, test: false };
+  s.stocks.push(stock); r.stockIds.push(stock.id); r.invoice = 1000;
+  assert.equal(d.validate(s), s);
+  assert.equal(d.roundCost(s, r), null);
+  r.status = '精算済み';
+  assert.throws(() => d.validate(s), /用途別の仕入単価/);
+  stock.cost = 100;
+  assert.equal(d.roundCost(s, r), 800);
+  assert.equal(d.validate(s), s);
+});
+test('集金の過不足・繰越・返金を販売利益とは別に記録する', () => {
+  const { s, r } = setup();
+  r.orders.hori = { name: 'ホリ', quantities: { brown: 1 } };
+  const next = d.newRound(s, '2026-10-16');
+  next.orders.hori = { name: 'ホリ', quantities: { brown: 1 } };
+  s.rounds.push(next);
+  const profitBefore = d.report(s, '2026-04-01', '2027-03-31', 2026).profit;
+  s.collectionEntries.push({ id: d.uid(), roundId: r.id, buyerId: 'hori', date: r.date,
+    received: 530, adjustment: 0, note: '受取' });
+  assert.equal(d.collectionPosition(s, next.id, 'hori').carry, -100);
+  s.collectionEntries.push({ id: d.uid(), roundId: next.id, buyerId: 'hori', date: next.date,
+    received: -100, adjustment: 0, note: '過払いを返金' });
+  assert.equal(d.collectionPosition(s, next.id, 'hori').balance, 430);
+  assert.equal(d.report(s, '2026-04-01', '2027-03-31', 2026).profit, profitBefore);
+  assert.equal(d.validate(s), s);
+});
 test("価格切捨て・個別指定・過去の価格スナップショット", () => {
   assert.deepEqual(
     [538, 367, 394, 475].map((gross) => d.price({ gross, mode: "auto" })),

@@ -95,6 +95,7 @@ export function initialState() {
     events: [],
     history: [],
     adjustments: [],
+    collectionEntries: [],
     goals: { 2026: 50000 },
   };
 }
@@ -342,15 +343,30 @@ export function assignSalesToBuyer(s, assignments, buyerId, chargeRoundId = null
     });
   }
 }
+export function assignUnknownSale(s, saleId, qty, destination) {
+  const sale = s.sales.find((item) => item.id === saleId);
+  if (!sale || sale.void || (!sale.pending && sale.destinationType !== 'unknown'))
+    throw Error('販売先未確認の記録だけを選んでください');
+  integer(qty, '割り当て数量');
+  if (qty < 1 || qty > sale.qty) throw Error('未確認の残数を超えています');
+  let target = sale;
+  if (qty < sale.qty) {
+    sale.qty -= qty;
+    target = { ...sale, id: uid(), qty };
+    s.sales.push(target);
+  }
+  return updateSaleDestination(s, target.id, destination);
+}
 export const isSaleTest = (s, sale) =>
   s.stocks.find((x) => x.id === sale.stockId)?.test;
 export function collections(s, from, to, roundId = null, includeTest = false) {
   const map = new Map();
-  const add = (id, name, kind, amount, description) => {
+  const add = (id, name, kind, amount, description, category = 'その他') => {
     if (!map.has(id))
-      map.set(id, { id, name, normal: 0, onsite: 0, lines: [] });
+      map.set(id, { id, name, normal: 0, onsite: 0, lines: [], categories: { パン: 0, 焼き菓子: 0, その他: 0 } });
     const row = map.get(id);
     row[kind] += amount;
+    row.categories[category in row.categories ? category : 'その他'] += amount;
     row.lines.push({ description, amount });
   };
   for (const r of s.rounds.filter(
@@ -360,14 +376,11 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
   ))
     for (const [id, o] of Object.entries(r.orders)) {
       const amount = orderAmount(r, o);
-      if (amount)
-        add(
-          id,
-          s.buyers.find((b) => b.id === id)?.name || o.name,
-          "normal",
-          amount,
-          `${r.date} 通常注文`,
-        );
+      if (amount) for (const product of r.products) {
+        const qty = o.quantities[product.id] || 0;
+        if (qty) add(id, s.buyers.find((b) => b.id === id)?.name || o.name,
+          'normal', product.price * qty, `${r.date} ${product.name} ×${qty}`, product.category);
+      }
     }
   for (const sale of s.sales.filter(
     (x) =>
@@ -382,12 +395,32 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
       "onsite",
       sale.price * sale.qty,
       `${sale.date} ${s.stocks.find((st) => st.id === sale.stockId).name} ×${sale.qty}`,
+      s.stocks.find((st) => st.id === sale.stockId)?.category,
     );
   for (const sale of (s.bundleSales||[]).filter(
     (x) => !x.void && x.destinationType === 'buyer' && (includeTest || !s.rounds.find(r=>r.id===x.chargeRoundId)?.test) &&
       (roundId ? x.chargeRoundId === roundId : from <= x.date && x.date <= to),
   )) add(sale.buyerId,s.buyers.find(b=>b.id===sale.buyerId)?.name||sale.destinationName,'onsite',sale.price*sale.qty,`${sale.date} ${sale.name} ×${sale.qty}`);
   return [...map.values()].map((r) => ({ ...r, total: r.normal + r.onsite }));
+}
+export function collectionPosition(s, roundId, buyerId) {
+  const round = s.rounds.find((r) => r.id === roundId);
+  if (!round) throw Error('注文回が見つかりません');
+  const earlier = s.rounds.filter((r) => r.test === round.test &&
+    (r.date < round.date || (r.date === round.date && r.id < round.id)));
+  const billedBefore = sum(earlier.map((r) =>
+    collections(s, '', '', r.id, r.test).find((row) => row.id === buyerId)?.total || 0));
+  const receivedBefore = sum((s.collectionEntries || [])
+    .filter((entry) => earlier.some((r) => r.id === entry.roundId) && entry.buyerId === buyerId)
+    .map((entry) => entry.received + entry.adjustment));
+  const current = collections(s, '', '', roundId, round.test)
+    .find((row) => row.id === buyerId)?.total || 0;
+  const entries = (s.collectionEntries || []).filter((entry) =>
+    entry.roundId === roundId && entry.buyerId === buyerId);
+  const received = sum(entries.map((entry) => entry.received));
+  const adjusted = sum(entries.map((entry) => entry.adjustment));
+  const carry = billedBefore - receivedBefore;
+  return { carry, current, received, adjusted, balance: carry + current - received - adjusted, entries };
 }
 export function report(s, from, to, year) {
   const inRange = (d) => from <= d && d <= to;
@@ -570,13 +603,13 @@ export function validate(s) {
     if (r.invoice != null) {
       integer(r.invoice, "仕入税込総額");
       const d = invoiceDeductions(s, r);
-      if (d == null)
-        throw Error("同じ納品書の行事仕入単価を先に入力してください");
-      if (r.invoice < d)
+      if (d != null && r.invoice < d)
         throw Error("仕入総額が行事・園内販売の仕入額より小さくなっています");
     }
     if (r.status === "精算済み" && r.invoice == null)
       throw Error("精算前に仕入税込総額を入力してください");
+    if (r.status === "精算済み" && invoiceDeductions(s, r) == null)
+      throw Error("精算前に用途別の仕入単価を確認してください");
   }
   if (new Set(links).size !== links.length)
     throw Error("同じ仕入を複数の納品書に含めることはできません");
@@ -649,6 +682,19 @@ export function validate(s) {
       date(a.date);
       if (fiscalYear(a.date) !== a.year)
         throw Error("調整日が対象年度の範囲外です");
+    }
+  }
+  if (s.collectionEntries != null) {
+    if (!Array.isArray(s.collectionEntries)) throw Error('集金履歴を確認してください');
+    unique(s.collectionEntries);
+    for (const entry of s.collectionEntries) {
+      date(entry.date);
+      integer(entry.received, '実際受取額', true);
+      integer(entry.adjustment, '集金調整額', true);
+      const round = s.rounds.find((r) => r.id === entry.roundId);
+      if (!round || !s.buyers.some((b) => b.id === entry.buyerId) ||
+        (!entry.received && !entry.adjustment) || !String(entry.note || '').trim())
+        throw Error('集金履歴の注文回・購入者・金額・理由を確認してください');
     }
   }
   validateCommerce(s);

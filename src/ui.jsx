@@ -384,15 +384,16 @@ export function CollectionList({ rows }) {
             <span>{row.name}<small>入力済み</small></span>
             <strong>{yen(row.total)}</strong>
           </summary>
-          <p>
-            個人注文 {yen(row.normal)} ／ 販売用から追加 {yen(row.onsite)}
-          </p>
-          {row.lines.map((l, i) => (
-            <div className="line" key={i}>
-              <span>{l.description}</span>
-              <b>{yen(l.amount)}</b>
-            </div>
-          ))}
+          <details className="collection-breakdown"><summary>種類別を見る</summary>
+            {Object.entries(row.categories || {}).filter(([, amount]) => amount > 0)
+              .map(([name, amount]) => <p key={name}>{name} {yen(amount)}</p>)}
+          </details>
+          <details className="collection-breakdown"><summary>内訳を見る</summary>
+            <p>個人注文 {yen(row.normal)} ／ 販売用から追加 {yen(row.onsite)}</p>
+            {row.lines.map((l, i) => (
+              <div className="line" key={i}><span>{l.description}</span><b>{yen(l.amount)}</b></div>
+            ))}
+          </details>
         </details>
       ))}
     </div>

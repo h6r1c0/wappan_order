@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { SalesWorkspace } from "./sales-workspace";
 import {
   delivery,
   salesOrderQuantities,
@@ -13,6 +14,7 @@ import {
   addSale,
   soldQty,
   assignSalesToBuyer,
+  assignUnknownSale,
   updateSaleDestination,
 } from "./domain";
 import {
@@ -30,6 +32,9 @@ import {
 } from "./ui";
 export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
   const { state, save } = useApp();
+  const titleRef = useRef(null);
+  useEffect(() => { titleRef.current?.scrollIntoView({ block: 'start' }); }, []);
+  const [mode, setMode] = useState(null);
   const [edit, setEdit] = useState(null);
   const [selling, setSelling] = useState(null);
   const [batchSelling, setBatchSelling] = useState(false);
@@ -38,174 +43,69 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
     roundId ? salesOrderQuantities(state, roundId) : {},
   );
   const round = state.rounds.find((item) => item.id === roundId);
-  const savedOrderQuantities = roundId
-    ? salesOrderQuantities(state, roundId)
-    : {};
+  const savedOrderQuantities = roundId ? salesOrderQuantities(state, roundId) : {};
   const stocks = state.stocks.filter(st =>
     (!roundId || st.roundId === roundId) &&
     (!marketId || st.marketId === marketId || st.roundId === roundId)
   );
   const remainingStocks = stocks.filter((stock) => stockRemaining(state, stock) > 0);
   const stockIds = new Set(stocks.map((stock) => stock.id));
-  const unconfirmedSales = state.sales.filter(
-    (sale) =>
-      stockIds.has(sale.stockId) &&
-      !sale.void &&
-      (sale.pending || sale.destinationType === "unknown"),
-  );
-  return (
-    <>
-      <div className="work-title">
-        <span className="eyebrow">販売用</span>
-        <div className="section-head">
-          <h1>注文と販売を記録する</h1>
-          {onManageProducts && <Button secondary onClick={onManageProducts}>この納品日の商品</Button>}
-        </div>
-      </div>
-      {round && (
-        <section
-          className="work-section order-editor"
-          data-unsaved={
-            JSON.stringify(orderQuantities) !==
-            JSON.stringify(savedOrderQuantities)
-          }
-        >
-          <div className="task-heading">
-            <span>1</span>
-            <div><h2>販売用として注文する</h2><small>納品前：仕入れる商品と数量</small></div>
-          </div>
-          <ProductQuantityEditor
-            products={round.products}
-            quantities={orderQuantities}
-            onChange={setOrderQuantities}
-            emptyMessage="「この納品日の商品」から、販売価格が分かっている商品を追加してください。"
-          />
-          <div className="sticky-action">
-            <span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
-            <Button onClick={() => save(
-              (s) => setSalesOrderQuantities(s, roundId, orderQuantities),
-              "販売用の注文数量を保存",
-            )}>販売用の注文を保存</Button>
-          </div>
-        </section>
-      )}
-      <section className="work-section sale-action-section">
-        <div className="task-heading">
-          <span>2</span>
-          <div><h2>売れた商品を記録する</h2><small>納品後：購入者を選び、複数商品をまとめて登録</small></div>
-        </div>
-        <Button
-          className="primary-wide"
-          disabled={!remainingStocks.length}
-          onClick={() => setBatchSelling(true)}
-        >
-          購入者を選んでまとめて販売を記録
-        </Button>
-        {!remainingStocks.length && (
-          <p className="sold-out-guidance">
-            すべて売り切れています。新しい販売は登録できません。販売先の確認・変更は下の入口から行えます。
-          </p>
-        )}
-        {unconfirmedSales.length > 0 && (
-          <div className="unconfirmed-shortcut">
-            <div>
-              <strong>販売先未確認：{unconfirmedSales.length}件</strong>
-              <small>売上や在庫はそのまま、購入者だけをまとめて確定できます</small>
-            </div>
-            <Button onClick={() => setUnconfirmedOpen(true)}>
-              購入者を割り当てる
-            </Button>
-          </div>
-        )}
-        <p className="muted">外部販売・価格変更・販売先未確認は、下の商品ごとの「1商品ずつ販売を記録」を使います。</p>
-      </section>
-      <section className="work-section history-section">
-        <div className="task-heading">
-          <span>3</span>
-          <div><h2>残数・販売履歴を確認する</h2><small>売り切れた商品も履歴と一緒に表示</small></div>
-        </div>
-        {unconfirmedSales.length > 0 && (
-          <Button className="history-shortcut" secondary onClick={() => setUnconfirmedOpen(true)}>
-            販売先未確認 {unconfirmedSales.length}件を確認する
-          </Button>
-        )}
-        {stocks
-          .slice()
-          .sort((a, b) => {
-            const ar=stockRemaining(state,a), br=stockRemaining(state,b);
-            return (br>0)-(ar>0) || b.date.localeCompare(a.date);
-          })
-          .map((st) => {
-            const remaining=stockRemaining(state,st);
-            const salesCount=state.sales.filter((sale)=>sale.stockId===st.id&&!sale.void).length;
-            return (
-              <section className={`card stock-card ${remaining<1?"sold-out":""}`} key={st.id}>
-                <div className="product-row">
-                  <div className="grow">
-                    <h2>{st.name}</h2>
-                    <small>
-                      {yen(st.price)} ／ 販売済み {soldQty(state,st.id)}個・{salesCount}件
-                      {st.eventId ? " ／ おやつ余剰から振替" : ""}
-                    </small>
-                  </div>
-                  <strong className={`remaining ${remaining<1?"sold-out-label":""}`}>
-                    {remaining < 1 ? "売り切れ" : `残り ${remaining}個`}
-                  </strong>
-                </div>
-                {st.test && <Tag>テスト</Tag>}
-                <div className="actions">
-                  <Button
-                    disabled={remaining < 1}
-                    onClick={() => setSelling(st)}
-                  >
-                    1商品ずつ販売を記録
-                  </Button>
-                  <Button secondary onClick={() => setEdit(st)}>
-                    販売履歴を確認・修正
-                  </Button>
-                </div>
-              </section>
-            );
-          })}
-        {!stocks.length && (
-          <Empty>
-            上の商品一覧で数量を入力して保存します。おやつの余剰は「おやつ用」から振り替えます。
-          </Empty>
-        )}
-      </section>
-      {batchSelling && (
-        <BatchSaleEditor
-          stocks={remainingStocks}
-          roundId={roundId}
-          onClose={() => setBatchSelling(false)}
-        />
-      )}
-      {unconfirmedOpen && (
-        <UnconfirmedSalesEditor
-          stocks={stocks}
-          roundId={roundId}
-          onClose={() => setUnconfirmedOpen(false)}
-        />
-      )}
-      {edit && (
-        <StockEditor
-          roundId={roundId} marketId={marketId}
-          stock={edit.id ? edit : null}
-          onClose={() => setEdit(null)}
-          onSale={() => {
-            setSelling(edit);
-            setEdit(null);
-          }}
-        />
-      )}
-      {selling && (
-        <SaleEditor
-          stock={state.stocks.find((s) => s.id === selling.id)}
-          onClose={() => setSelling(null)}
-        />
-      )}
-    </>
-  );
+  const unconfirmedSales = state.sales.filter((sale) => stockIds.has(sale.stockId) &&
+    !sale.void && (sale.pending || sale.destinationType === "unknown"));
+  return <>
+    <div className="work-title" ref={titleRef}><span className="eyebrow">販売用 {round?.date ? `・${round.date.replaceAll('-', '/')} 着` : ''}</span>
+      <h1>今、何をしますか</h1></div>
+    <div className="sales-mode-grid">
+      {[["buyer", "購入者から入力"], ["product", "商品から入力"],
+        ["order", "販売用として注文する"], ["history", "残数・販売履歴"]].map(([key, label]) =>
+        <Button key={key} secondary={mode !== key} onClick={() => {
+          if (document.querySelector('.sales-workspace[data-unsaved="true"], .work-section.order-editor[data-unsaved="true"]') &&
+            !confirm('未保存の入力があります。画面を閉じますか？')) return;
+          setMode(mode === key ? null : key);
+        }}
+          aria-expanded={mode === key}>{mode === key ? `${label}を閉じる` : label}</Button>)}
+    </div>
+    {unconfirmedSales.length > 0 && !mode && <p className="sales-summary">販売先未確認 {unconfirmedSales.reduce((n, sale) => n + sale.qty, 0)}個</p>}
+    {(mode === 'buyer' || mode === 'product') &&
+      <SalesWorkspace key={mode} stocks={stocks} roundId={roundId} mode={mode}/>}
+    {mode === 'order' && round && <section className="work-section order-editor"
+      data-unsaved={JSON.stringify(orderQuantities) !== JSON.stringify(savedOrderQuantities)}>
+      <h2>販売用として注文する</h2>
+      <ProductQuantityEditor products={round.products} quantities={orderQuantities}
+        onChange={setOrderQuantities} startCollapsed
+        emptyMessage="「この納品日の商品」から、販売価格が分かっている商品を追加してください。"/>
+      <div className="sticky-action"><span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
+        <Button onClick={() => save((s) => setSalesOrderQuantities(s, roundId, orderQuantities),
+          "販売用の注文数量を保存")}>販売用の注文を保存</Button></div>
+    </section>}
+    {mode === 'history' && <section className="work-section history-section">
+      <h2>残数・販売履歴</h2>
+      {unconfirmedSales.length > 0 && <Button secondary onClick={() => setUnconfirmedOpen(true)}>
+        販売先未確認 {unconfirmedSales.length}件をまとめて確認
+      </Button>}
+      {remainingStocks.length > 0 && <Button secondary onClick={() => setBatchSelling(true)}>
+        購入者を選んでまとめて販売を記録
+      </Button>}
+      {stocks.slice().sort((a,b) => (stockRemaining(state,b)>0)-(stockRemaining(state,a)>0) ||
+        b.date.localeCompare(a.date)).map((st) => {
+        const remaining = stockRemaining(state, st);
+        return <details className={`card stock-card ${remaining<1?'sold-out':''}`} key={st.id}>
+          <summary className="product-row"><span className="grow"><strong>{st.name}</strong>
+            <small>{yen(st.price)} ／ 販売済み {soldQty(state,st.id)}個</small></span>
+            <strong>{remaining<1?'売り切れ':`残り ${remaining}個`}</strong></summary>
+          <div className="actions"><Button disabled={remaining<1} onClick={() => setSelling(st)}>1商品ずつ販売を記録</Button>
+            <Button secondary onClick={() => setEdit(st)}>販売履歴を確認・修正</Button></div>
+        </details>;
+      })}
+      {!stocks.length && <Empty>販売用として注文すると商品が表示されます。</Empty>}
+    </section>}
+    {onManageProducts && mode === 'order' && <Button secondary onClick={onManageProducts}>この納品日の商品</Button>}
+    {batchSelling && <BatchSaleEditor stocks={remainingStocks} roundId={roundId} onClose={() => setBatchSelling(false)}/>}
+    {unconfirmedOpen && <UnconfirmedSalesEditor stocks={stocks} roundId={roundId} onClose={() => setUnconfirmedOpen(false)}/>}
+    {edit && <StockEditor roundId={roundId} marketId={marketId} stock={edit.id ? edit : null}
+      onClose={() => setEdit(null)} onSale={() => { setSelling(edit); setEdit(null); }}/>}
+    {selling && <SaleEditor stock={state.stocks.find((s) => s.id === selling.id)} onClose={() => setSelling(null)}/>}
+  </>;
 }
 function UnconfirmedSalesEditor({ stocks, roundId, onClose }) {
   const { state, save } = useApp();

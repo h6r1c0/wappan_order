@@ -1118,6 +1118,27 @@ header small {
   background: #41744c;
   border-color: #35653f;
 }
+.sales-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin: 8px 0 16px;
+}
+.sales-mode-grid .button { min-width: 0; min-height: 58px; padding: 9px; line-height: 1.35; }
+.sales-summary { margin: 0 0 12px; font-weight: 700; }
+.sales-workspace { margin-top: 6px; }
+.sales-product-list { display: grid; gap: 8px; max-height: 350px; overflow-y: auto; }
+.sales-product-list .button { min-height: 48px; text-align: left; white-space: normal; }
+.sales-allocation { padding: 12px; margin: 8px 0; }
+.sale-status { display: grid; gap: 3px; }
+.sale-status > span { color: #654c3d; }
+.assignment-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.assignment-chips span { background: #f3ead9; border-radius: 12px; padding: 2px 9px; }
+.collection-entry { padding: 13px 16px; }
+.collection-entry > .collection-person { display: flex; justify-content: space-between; gap: 12px; }
+.collection-entry > .button { min-height: 44px; }
+.collection-entry .collection-breakdown { margin: 8px 0; }
+.collection-balance { margin: 5px 0 8px; }
 .stock-card {
   background: white;
   padding: 15px;

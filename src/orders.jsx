@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { deliveryTotals } from './commerce';
 import {LineImport} from './line-import.jsx';
 import {Sales} from './sales';
+import {RoundCollections} from './collections';
 import {Events} from './events';
 import {Markets} from './markets';
 import {ExcelImport} from './masters';
@@ -278,7 +279,7 @@ function Round({ round: r, back }) {
             value={yen(rows.reduce((a, b) => a + b.total, 0))}
             note="個人注文＋販売用からの追加購入。外部売上は含みません。"
           />
-          <CollectionList rows={rows} />
+          <RoundCollections round={r} rows={rows} />
           <Button
             secondary
             onClick={async () => {
@@ -411,6 +412,12 @@ function Invoice({ round: r }) {
     [status, setStatus] = useState(r.status);
   const preview = { ...r, invoice, eventIds, stockIds },
     ded = invoiceDeductions(state, preview);
+  const snackRows = state.events.filter(e => eventIds.includes(e.id));
+  const salesRows = state.stocks.filter(st => stockIds.includes(st.id));
+  const snackKnown = snackRows.every(e => e.lines.every(line => line.cost != null));
+  const salesKnown = salesRows.every(st => st.cost != null);
+  const snackCost = snackKnown ? snackRows.reduce((n,e) => n + e.lines.reduce((m,line) => m + line.qty * line.cost,0),0) : null;
+  const salesCost = salesKnown ? salesRows.reduce((n,st) => n + st.qty * st.cost,0) : null;
   return (
     <form
       className="card"
@@ -439,11 +446,12 @@ function Invoice({ round: r }) {
       <details open={eventIds.length > 0 || stockIds.length > 0}>
         <summary>同じ納品回の用途別仕入（自動で区分）</summary>
         <p className="muted">販売用・おやつ用は、この納品回への登録から自動で区分します。販売場所の変更や余剰振替は追加仕入に数えません。</p>
-        {state.events.filter(e=>e.roundId===r.id).map(e=><p key={e.id}>おやつ用：{e.name}</p>)}
-        {state.stocks.filter(st=>r.stockIds.includes(st.id)).map(st=><p key={st.id}>販売用：{st.name} ×{st.qty} ／ {yen(st.cost==null?null:st.cost*st.qty)}</p>)}
+        {snackRows.map(e=><p key={e.id}>おやつ用：{e.name} ／ {yen(e.lines.every(line=>line.cost!=null) ? e.lines.reduce((n,line)=>n+line.qty*line.cost,0) : null)}</p>)}
+        {salesRows.map(st=><p key={st.id}>販売用：{st.name} ×{st.qty} ／ {yen(st.cost==null?null:st.cost*st.qty)}</p>)}
       </details>
-      <p>販売用・おやつ用の仕入：{yen(ded)}</p>
+      <p>おやつ用仕入 {yen(snackCost)} ／ 販売用仕入 {yen(salesCost)}</p>
       <p className="total">個人注文の仕入：{yen(roundCost(state, preview))}</p>
+      {invoice != null && ded == null && <p className="notice">納品書総額は先に保存できます。用途別の仕入単価を確認してから精算済みにしてください。</p>}
       <Field label="納品・精算の状態">
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           {["入力中", "注文確定", "納品済み", "精算済み"].map((v) => (
