@@ -1030,6 +1030,37 @@ header small {
   margin-top: 18px;
   padding-top: 18px;
 }
+.monthly-import-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 14px 0 18px;
+  padding: 16px;
+  border: 2px solid #d98237;
+  border-radius: 16px;
+  background: #fff4dd;
+}
+.monthly-import-callout strong,
+.monthly-import-callout small { display: block; }
+.monthly-import-callout small { margin-top: 4px; color: #6c5343; }
+.product-collapsed { margin: 8px 0 14px; }
+.quantity-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.quantity-stepper .button {
+  min-width: 42px;
+  min-height: 42px;
+  padding: 6px 10px;
+  font-size: 20px;
+}
+.quantity-stepper strong { min-width: 24px; text-align: center; font-size: 18px; }
+@media (max-width: 560px) {
+  .monthly-import-callout { align-items: stretch; flex-direction: column; }
+  .monthly-import-callout .button { width: 100%; }
+}
 .line-import-entry {
   border-color: #86ad91 !important;
   background: #f2fbf2 !important;

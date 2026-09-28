@@ -21,8 +21,12 @@ export default defineConfig({
       : {},
   },
   webServer: {
-    command:
-      "VITE_SUPABASE_URL=https://test.supabase.co VITE_SUPABASE_ANON_KEY=test-public-key npm run dev -- --port 5173 --host 127.0.0.1",
+    command: `"${process.execPath}" node_modules/vite/bin/vite.js --port 5173 --host 127.0.0.1`,
+    env: {
+      ...process.env,
+      VITE_SUPABASE_URL: "https://test.supabase.co",
+      VITE_SUPABASE_ANON_KEY: "test-public-key",
+    },
     url: "http://127.0.0.1:5173",
     reuseExistingServer: !process.env.CI,
   },

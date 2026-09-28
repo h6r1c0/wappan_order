@@ -4,6 +4,7 @@ import {LineImport} from './line-import.jsx';
 import {Sales} from './sales';
 import {Events} from './events';
 import {Markets} from './markets';
+import {ExcelImport} from './masters';
 import {
   newRound,
   productAvailable,
@@ -19,6 +20,7 @@ import {
   today,
   invoiceDeductions,
   setTest,
+  monthProductsImported,
 } from "./domain";
 import {
   useApp,
@@ -120,7 +122,7 @@ function Round({ round: r, back }) {
     [buyerId, setBuyerId] = useState(null),
     [draft, setDraft] = useState(null),
     [settings, setSettings] = useState(false),
-    [products, setProducts] = useState(false), [lineImport,setLineImport]=useState(false);
+    [products, setProducts] = useState(false), [lineImport,setLineImport]=useState(false), [excelImport,setExcelImport]=useState(false);
   const choose = (id, newBuyer) => {
     if (
       draft &&
@@ -145,6 +147,7 @@ function Round({ round: r, back }) {
   const rows = collections(state, "", "", r.id, r.test);
   const total = roundRevenue(r),
     cost = roundCost(state, r);
+  const needsMonthlyProducts = r.productImportPending && !monthProductsImported(state, r.date);
   return (
     <>
       <Button
@@ -169,6 +172,15 @@ function Round({ round: r, back }) {
       <p>
         <Tag>{r.status}</Tag> {r.test && <Tag>テスト・集計対象外</Tag>}
       </p>
+      {needsMonthlyProducts && (
+        <section className="monthly-import-callout">
+          <div>
+            <strong>今月の商品情報を確認してください</strong>
+            <small>{r.date.slice(0, 7).replace("-", "年")}月の商品・価格を取り込んでから注文入力へ進みます。</small>
+          </div>
+          <Button onClick={() => setExcelImport(true)}>今月のExcel注文表を取り込む</Button>
+        </section>
+      )}
       {r.note && (r.reconciliationPending ? <details className="notice"><summary>実資料の照合中：表示金額は判明分です（詳細・未確認事項）</summary><p>{r.note}</p></details> : <p className="notice">{r.note}</p>)}
       <div className="purpose-grid" aria-label="注文の用途を選ぶ">
         {PURPOSES.map(([label, image, note]) => (
@@ -184,6 +196,7 @@ function Round({ round: r, back }) {
         ))}
       </div>
       {lineImport&&<LineImport round={r} onClose={()=>setLineImport(false)}/>}
+      {excelImport&&<ExcelImport targetRoundId={r.id} onClose={()=>setExcelImport(false)}/>}
       {tab==='販売用'&&<><Sales roundId={r.id} onManageProducts={() => setProducts(true)}/><Markets roundId={r.id}/></>}
       {tab==='おやつ用'&&<Events roundId={r.id} onManageProducts={() => setProducts(true)}/>}
       {tab === "個人注文" && (
@@ -191,9 +204,10 @@ function Round({ round: r, back }) {
           <section className="personal-start"><Button className="line-import-entry" secondary onClick={()=>setLineImport(true)}>LINE注文を貼り付けて入力を省く</Button>
           <div className="section-head">
               <h2>購入者を選ぶ</h2>
-            <Button secondary onClick={() => setProducts(true)}>
-              この納品日の商品
-            </Button>
+            <div className="compact-actions">
+              {!needsMonthlyProducts && <Button secondary onClick={() => setExcelImport(true)}>今月の商品を更新</Button>}
+              <Button secondary onClick={() => setProducts(true)}>この納品日の商品</Button>
+            </div>
           </div>
           <BuyerPicker value={buyerId} onChange={choose} includeTest={r.test} /></section>
           {!draft && (
@@ -215,6 +229,7 @@ function Round({ round: r, back }) {
                 products={r.products}
                 quantities={draft.quantities}
                 onChange={(quantities) => setDraft({ ...draft, quantities })}
+                startCollapsed
                 emptyMessage="「この納品日の商品」から、販売価格が分かっている商品を追加してください。"
               />
               <div className="sticky-action">

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { uid, price, yen, normalize, snapshot, newRound, today, productAvailable } from "./domain";
+import { uid, price, yen, normalize, snapshot, newRound, today, productAvailable, monthKey } from "./domain";
 import {
   useApp,
   Button,
@@ -13,7 +13,7 @@ import {
   Empty,
 } from "./ui";
 import { readExcel, detectColumns, extractRows, analyzeSheet, permanentProduct } from "./excel";
-const lifecycleLabels = { staple: "定番", once: "今回限り", seasonal: "期間商品", permanent: "常設定番" };
+const lifecycleLabels = { staple: "定番", once: "今回限り／月内", seasonal: "期間商品", permanent: "常設定番" };
 const importIdentity = name => normalize(name).replace(/^ミルクスティックパン$/, "ミルクスティック");
 function Lifecycle({ value, onChange }) {
   return <Field label="商品区分"><select aria-label="商品区分" value={value || ""} onChange={e => onChange(e.target.value)}><option value="">区分を確認してください</option>{Object.entries(lifecycleLabels).map(([key, text]) => <option key={key} value={key}>{text}</option>)}</select></Field>;
@@ -124,10 +124,11 @@ export function ProductEditor({ product, onClose }) {
     </Modal>
   );
 }
-export function ExcelImport({ onClose }) {
+export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
   const { state, save, notify } = useApp();
-  const [analysis, setAnalysis] = useState(null), [target, setTarget] = useState("");
-  const [delivery, setDelivery] = useState(today()), [testRound, setTestRound] = useState(false);
+  const fixedRound = state.rounds.find((round) => round.id === targetRoundId);
+  const [analysis, setAnalysis] = useState(null), [target, setTarget] = useState(targetRoundId);
+  const [delivery, setDelivery] = useState(fixedRound?.date || today()), [testRound, setTestRound] = useState(fixedRound?.test || false);
   const [sheets, setSheets] = useState([]),
     [sheet, setSheet] = useState(0),
     [mapping, setMapping] = useState({ start: 0, pairs: [] }),
@@ -175,10 +176,11 @@ export function ExcelImport({ onClose }) {
     );
   };
   return (
-    <Modal title="Excelから商品を取り込む" onClose={onClose}>
+    <Modal title="今月のExcel注文表を取り込む" onClose={onClose}>
       <p>① Excelを選ぶ → ② 読取結果を確認 → ③ 登録</p>
-      <Field label="Excel注文表（.xlsx / .xls）">
+      <Field label="Excelファイルを選ぶ">
         <input
+          aria-label="Excelファイルを選ぶ"
           type="file"
           accept=".xlsx,.xls"
           disabled={busy}
@@ -196,6 +198,7 @@ export function ExcelImport({ onClose }) {
             }
           }}
         />
+        <small>iPhoneの「ファイル」に保存した、わっぱん注文書（.xlsx / .xls）を選びます。カメラは使いません。</small>
       </Field>
       {analysis && <p className="notice">{analysis.label}{analysis.format !== "unknown" ? "として読み取りました" : "です。詳細設定から読み取り範囲を指定してください"}。{analysis.warnings.map((w, i) => <span key={i}><br />{w}</span>)}</p>}
       {sheets.length > 0 && !rows && (
@@ -301,7 +304,7 @@ export function ExcelImport({ onClose }) {
             商品を読み取りました。名前・価格・区分を確認してください。修正する商品はタップして開けます。
           </p>
           <p>{Object.entries(lifecycleLabels).map(([key, label]) => `${label} ${rows.filter(r => r.include && r.lifecycle === key).length}件`).join(" ／ ")}</p>
-          <Field label="商品を使う注文回（今回限りの商品は選択必須）"><select value={target} onChange={e => setTarget(e.target.value)}><option value="">商品マスターのみ登録</option><option value="new">新しい納品日で注文回も作る</option>{state.rounds.map(r => <option key={r.id} value={r.id}>{r.date}{r.test ? "（テスト）" : ""}</option>)}</select></Field>
+          {fixedRound ? <p className="notice">取り込み先：<strong>{fixedRound.date.replaceAll("-", "/")} 着</strong>（この注文回へ自動で反映します）</p> : <Field label="商品を使う注文回（今回限りの商品は選択必須）"><select value={target} onChange={e => setTarget(e.target.value)}><option value="">商品マスターのみ登録</option><option value="new">新しい納品日で注文回も作る</option>{state.rounds.map(r => <option key={r.id} value={r.id}>{r.date}{r.test ? "（テスト）" : ""}</option>)}</select></Field>}
           {target === "new" && <><Field label="納品予定日" type="date" value={delivery} onChange={e => setDelivery(e.target.value)} /><Check label="テスト入力（年度実績へ含めない）" checked={testRound} onChange={setTestRound} /></>}
           {rows.map((r, i) => {
             const put = (k, v) =>
@@ -390,6 +393,8 @@ export function ExcelImport({ onClose }) {
                 if (
                   await save((s) => {
                     const targetId = target === "new" ? uid() : target;
+                    const targetDate = target === "new" ? delivery : s.rounds.find(x => x.id === targetId)?.date || "";
+                    const importedMonth = monthKey(targetDate);
                     const names = new Set(),
                       ids = new Set();
                     for (const r of rows.filter((r) => r.include)) {
@@ -423,6 +428,7 @@ export function ExcelImport({ onClose }) {
                         manual: r.manual,
                         lifecycle: permanentProduct(r.name) ? "permanent" : r.lifecycle,
                         roundId: r.lifecycle === "once" ? targetId : "",
+                        importMonth: r.lifecycle === "once" && importedMonth ? importedMonth : "",
                         start: r.lifecycle === "seasonal" ? r.start : "",
                         end: r.lifecycle === "seasonal" ? r.end : "",
                       };
@@ -430,7 +436,11 @@ export function ExcelImport({ onClose }) {
                         s.products[s.products.indexOf(existing)] = p;
                       else s.products.push(p);
                       const round = s.rounds.find(x => x.id === targetId);
-                      if (round && !round.products.some(x => x.id === p.id)) round.products.push(snapshot(p));
+                      if (round) {
+                        const index = round.products.findIndex(x => x.id === p.id);
+                        if (index >= 0) round.products[index] = snapshot(p);
+                        else round.products.push(snapshot(p));
+                      }
                     }
                     if (target === "new") {
                       const round = newRound(s, delivery, testRound);
@@ -438,9 +448,17 @@ export function ExcelImport({ onClose }) {
                       round.products = s.products.filter(p => productAvailable(p, delivery, targetId) && price(p) != null).map(snapshot);
                       s.rounds.push(round);
                     }
+                    if (importedMonth) {
+                      s.productImports ??= [];
+                      if (!s.productImports.includes(importedMonth)) s.productImports.push(importedMonth);
+                      const round = s.rounds.find(x => x.id === targetId);
+                      if (round) round.productImportPending = false;
+                    }
                   }, "Excel商品取り込み")
-                )
+                ) {
+                  onImported?.();
                   onClose();
+                }
               }}
             >
               確認した商品を登録

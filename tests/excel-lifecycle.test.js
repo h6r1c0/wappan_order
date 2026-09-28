@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { analyzeSheet, displayedPrice, permanentProduct, readExcel } from "../src/excel.js";
-import { initialState, newRound, productAvailable, snapshot, price, addSale, stockRemaining, collections, report, validate } from "../src/domain.js";
+import { initialState, newRound, productAvailable, snapshot, price, addSale, stockRemaining, collections, report, validate, monthProductsImported } from "../src/domain.js";
+import { upgrade } from "../src/commerce.js";
 
 test("表示された整数税込価格を使い、不明な小数は確定しない", () => {
   assert.equal(displayedPrice({v:394.20000000000005,w:"394 "}),394);
@@ -32,6 +33,32 @@ test("商品ライフサイクルと価格履歴、例外定番", () => {
   for (const id of ["milk","brown","donut","galette"]) assert.ok(next.products.some(p=>p.id===id));
   assert.ok(!next.products.some(p=>["once","seasonal"].includes(p.id)));
   for(const name of ["ミルクスティック","ミルクスティックパン","ツイストドーナツ","黒糖ブレッド"]) assert.equal(permanentProduct(name),true);
+});
+test("一度取り込んだ月内商品を同じ月の複数納品日で再利用する", () => {
+  const s=initialState();
+  const monthly={...s.products[0],id:"oct-only",name:"10月限定パン",gross:320,manual:null,mode:"auto",lifecycle:"once",roundId:"first",importMonth:"2026-10"};
+  s.products.push(monthly);s.productImports.push("2026-10");
+  assert.equal(monthProductsImported(s,"2026-10-16"),true);
+  assert.equal(productAvailable(monthly,"2026-10-16","first"),true);
+  assert.equal(productAvailable(monthly,"2026-10-30","second"),true);
+  assert.equal(productAvailable(monthly,"2026-11-01","third"),false);
+  const first=newRound(s,"2026-10-16"),second=newRound(s,"2026-10-30");
+  assert.equal(first.productImportPending,false);assert.equal(second.productImportPending,false);
+  assert.ok(first.products.some(product=>product.id===monthly.id));
+  assert.ok(second.products.some(product=>product.id===monthly.id));
+});
+test("月管理導入前の注文回がある月は既存の商品情報を再利用する", () => {
+  const s=initialState();for(const product of s.products)product.gross=390;
+  const legacyRound=newRound(s,"2026-09-11");delete legacyRound.productImportPending;s.rounds.push(legacyRound);
+  assert.equal(monthProductsImported(s,"2026-09-30"),true);
+  assert.equal(newRound(s,"2026-09-30").productImportPending,false);
+});
+test("既存データへ月管理を追加しても配列件数とレコードを保持する", () => {
+  const legacy=initialState();delete legacy.productImports;
+  const before=Object.fromEntries(["buyers","products","rounds","stocks","sales","events","markets"].map(key=>[key,legacy[key].length]));
+  upgrade(legacy);validate(legacy);
+  assert.deepEqual(Object.fromEntries(Object.keys(before).map(key=>[key,legacy[key].length])),before);
+  assert.deepEqual(legacy.productImports,[]);
 });
 test("未確認の販売先・原価を0円や入金済みにせず、残数だけ減らす", () => {
   const s=initialState(), st={id:"stock",name:"確認資料商品",qty:2,price:390,cost:null,date:"2026-09-11",test:true};

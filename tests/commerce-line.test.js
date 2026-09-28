@@ -96,9 +96,10 @@ test('行事余剰を販売へ移しても財政請求と仕入原価を二重�
 
 test('LINE個人注文は未登録の氏名だけを追加候補にし、団体名は購入者にしない',()=>{
  const {s,r}=setup();
- const personal=parseLineOrder('山田　花子\nカリカリ1\n黒糖1',s,r);
+ const personal=parseLineOrder('山田　花子\nくるみパン\n黒糖ブレッド2',s,r);
  assert.equal(personal.suggestedBuyerName,'山田 花子');
  assert.equal(personal.products.length,2);
+ assert.deepEqual(personal.products.map(product=>product.qty),[1,2]);
  assert.equal(looksLikePersonalName('山田花子'),true);
  const external=parseLineOrder('手話タイム\nカリカリ1',s,r);
  assert.equal(external.suggestedBuyerName,'');
@@ -121,5 +122,48 @@ test('未確認販売の一括割り当ては在庫・売上・原価を変え�
  updateSaleDestination(s,saleIds[0],{destinationType:'external',destinationName:'手話タイム',paymentStatus:'unconfirmed'});
  assert.equal(collections(s,'','',r.id).find(x=>x.id==='hori').onsite,390);
  assert.equal(stockRemaining(s,st),beforeRemaining);
+ validate(s);
+});
+
+test('未確認2個から1個だけ割り当て、残りを別の購入者へ割り当てても会計を変えない',()=>{
+ const {s,r}=setup();
+ const st={id:'split-stock',productId:'galette',name:'ガレット',category:'焼き菓子',qty:2,price:390,cost:250,date:r.date,test:false,roundId:r.id,channel:'sales',depth:0,eventId:null,eventLineId:null};
+ s.stocks.push(st);addSale(s,st,{date:r.date,qty:2,destinationType:'unknown',paymentStatus:'unconfirmed'});
+ const unknownId=s.sales[0].id,beforeReport=report(s,'2026-04-01','2027-03-31',2026),beforeRemaining=stockRemaining(s,st);
+ assignSalesToBuyer(s,[{saleId:unknownId,qty:1}],'hori',r.id);
+ assert.equal(s.sales.reduce((sum,sale)=>sum+sale.qty,0),2);
+ assert.equal(s.sales.find(sale=>sale.id===unknownId).qty,1);
+ assert.equal(s.sales.find(sale=>sale.buyerId==='hori').qty,1);
+ assert.equal(stockRemaining(s,st),beforeRemaining);
+ const afterReport=report(s,'2026-04-01','2027-03-31',2026);
+ for(const key of ['revenue','cost','salesProfit','profit'])assert.equal(afterReport[key],beforeReport[key]);
+ assignSalesToBuyer(s,[{saleId:unknownId,qty:1}],'asano',r.id);
+ assert.equal(s.sales.filter(sale=>sale.destinationType==='unknown').length,0);
+ assert.equal(s.sales.find(sale=>sale.buyerId==='hori').qty,1);
+ assert.equal(s.sales.find(sale=>sale.buyerId==='asano').qty,1);
+ validate(s);
+});
+
+test('未確認3個から同じ購入者へ2個を割り当て、1個を未確認に残す',()=>{
+ const {s,r}=setup();
+ const st={id:'three-stock',productId:'milk',name:'ミルクスティックパン',category:'パン',qty:3,price:280,cost:180,date:r.date,test:false,roundId:r.id,channel:'sales',depth:0,eventId:null,eventLineId:null};
+ s.stocks.push(st);addSale(s,st,{date:r.date,qty:3,destinationType:'unknown',paymentStatus:'unconfirmed'});
+ assignSalesToBuyer(s,[{saleId:s.sales[0].id,qty:2}],'hori',r.id);
+ assert.equal(s.sales.find(sale=>sale.destinationType==='unknown').qty,1);
+ assert.equal(s.sales.find(sale=>sale.buyerId==='hori').qty,2);
+ assert.equal(stockRemaining(s,st),0);
+ validate(s);
+});
+
+test('複数商品を同じ購入者へまとめて割り当て、後から1件だけ直しても他へ影響しない',()=>{
+ const {s,r}=setup();
+ const milk={id:'multi-milk',productId:'milk',name:'ミルクスティックパン',category:'パン',qty:1,price:280,cost:180,date:r.date,test:false,roundId:r.id,channel:'sales',depth:0,eventId:null,eventLineId:null};
+ const sweet={id:'multi-sweet',productId:'galette',name:'ガレット',category:'焼き菓子',qty:1,price:390,cost:250,date:r.date,test:false,roundId:r.id,channel:'sales',depth:0,eventId:null,eventLineId:null};
+ s.stocks.push(milk,sweet);addSale(s,milk,{date:r.date,qty:1,destinationType:'unknown',paymentStatus:'unconfirmed'});addSale(s,sweet,{date:r.date,qty:1,destinationType:'unknown',paymentStatus:'unconfirmed'});
+ const ids=s.sales.map(sale=>sale.id);assignSalesToBuyer(s,ids.map(saleId=>({saleId,qty:1})),'hori',r.id);
+ assert.equal(s.sales.filter(sale=>sale.buyerId==='hori').length,2);
+ updateSaleDestination(s,ids[0],{destinationType:'buyer',buyerId:'asano',chargeRoundId:r.id});
+ assert.equal(s.sales.find(sale=>sale.id===ids[0]).buyerId,'asano');
+ assert.equal(s.sales.find(sale=>sale.id===ids[1]).buyerId,'hori');
  validate(s);
 });

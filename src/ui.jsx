@@ -199,11 +199,13 @@ export function ProductQuantityEditor({
   onChange,
   priceLabel = (product) => yen(product.price),
   emptyMessage = "この回の商品がありません。",
+  startCollapsed = false,
 }) {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("全部");
+  const [category, setCategory] = useState(startCollapsed ? "閉じる" : "全部");
   const filtered = products.filter(
     (product) =>
+      category !== "閉じる" &&
       (category === "全部" || product.category === category) &&
       normalize(product.name).includes(normalize(query)),
   );
@@ -227,38 +229,33 @@ export function ProductQuantityEditor({
   if (!products.length) return <Empty>{emptyMessage}</Empty>;
   return (
     <>
-      <Field
-        label="商品名で絞る"
-        type="search"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-      />
       <div className="tabs category-tabs">
-        {["全部", "パン", "焼き菓子"].map((value) => (
+        {[(startCollapsed ? "閉じる" : null), "パン", "焼き菓子", "全部"].filter(Boolean).map((value) => (
           <Button
             secondary={category !== value}
             key={value}
             onClick={() => setCategory(value)}
           >
-            {value !== "全部" && <Cat category={value} />}
+            {["パン", "焼き菓子"].includes(value) && <Cat category={value} />}
             {value}
           </Button>
         ))}
       </div>
+      {category === "閉じる" ? (
+        <p className="muted product-collapsed">商品は閉じています。パン・焼き菓子・全部から表示する範囲を選んでください。</p>
+      ) : <Field
+        label="商品名で絞る"
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />}
       {selected.length > 0 && (
         <>
           <h3>入力済み</h3>
           {selected.map(row)}
         </>
       )}
-      {query ? (
-        unselected.map(row)
-      ) : (
-        <details open>
-          <summary>＋ 商品を選ぶ（{unselected.length}品）</summary>
-          {unselected.map(row)}
-        </details>
-      )}
+      {category !== "閉じる" && unselected.map(row)}
     </>
   );
 }
@@ -302,21 +299,6 @@ export function BuyerPicker({
   return (
     <>
       {state.buyers.length > 12 && <Field label="購入者を絞り込む" type="search" placeholder="名前の一部（入力しなくても選べます）" value={query} onChange={e => setQuery(e.target.value)} />}
-      <div className="buyer-grid">
-        {state.buyers
-          .filter((b) => b.id === value || (b.testOnly ? includeTest : b.active))
-          .filter(b => normalize(b.name).includes(normalize(query)))
-          .map((b) => (
-            <button
-              type="button"
-              className={`buyer ${value === b.id ? "selected" : ""}`}
-              key={b.id}
-              onClick={() => onChange(b.id)}
-            >
-              <span>{b.name}</span>
-            </button>
-          ))}
-      </div>
       {allowAdd && (
         <>
           <Button secondary onClick={() => setAdding(!adding)}>
@@ -375,6 +357,21 @@ export function BuyerPicker({
           )}
         </>
       )}
+      <div className="buyer-grid">
+        {state.buyers
+          .filter((b) => b.id === value || (b.testOnly ? includeTest : b.active))
+          .filter(b => normalize(b.name).includes(normalize(query)))
+          .map((b) => (
+            <button
+              type="button"
+              className={`buyer ${value === b.id ? "selected" : ""}`}
+              key={b.id}
+              onClick={() => onChange(b.id)}
+            >
+              <span>{b.name}</span>
+            </button>
+          ))}
+      </div>
     </>
   );
 }

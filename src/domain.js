@@ -1,7 +1,17 @@
 import { permanentProduct } from "./excel.js";
 import { bundleUsed, movedOut, bundleCost, validateCommerce } from "./commerce.js";
 export const uid = () => crypto.randomUUID();
-export const productAvailable = (p, date, roundId = "") => p.active && (permanentProduct(p.name) || p.lifecycle === "permanent" || (p.lifecycle !== "once" || (roundId && p.roundId === roundId)) && (!p.start || p.start <= date) && (!p.end || date <= p.end));
+export const monthKey = (date) => String(date || "").slice(0, 7);
+export const monthProductsImported = (state, date) => {
+  const month = monthKey(date);
+  return (state.productImports || []).includes(month) || (state.rounds || []).some(
+    (round) =>
+      round.productImportPending == null &&
+      monthKey(round.date) === month &&
+      round.products?.length > 0,
+  );
+};
+export const productAvailable = (p, date, roundId = "") => p.active && (permanentProduct(p.name) || p.lifecycle === "permanent" || (p.lifecycle !== "once" || (p.importMonth ? p.importMonth === monthKey(date) : roundId && p.roundId === roundId)) && (!p.start || p.start <= date) && (!p.end || date <= p.end));
 export const today = () =>
   new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(
     new Date(),
@@ -57,7 +67,7 @@ export function initialState() {
   }));
   return {
     schema: 1,
-    markets: [], bundles: [], bundleSales: [], externalDestinations: [], aliases: {products:{},buyers:{}},
+    markets: [], bundles: [], bundleSales: [], externalDestinations: [], aliases: {products:{},buyers:{}}, productImports: [],
     products,
     buyers: [
       {
@@ -113,6 +123,7 @@ export function newRound(state, date, test = false) {
     invoice: null,
     eventIds: [],
     stockIds: [],
+    productImportPending: !monthProductsImported(state, date),
   };
 }
 export const orderAmount = (round, order) =>
@@ -299,18 +310,32 @@ export function updateSaleDestination(s, saleId, entry) {
   });
   return sale;
 }
-export function assignSalesToBuyer(s, saleIds, buyerId, chargeRoundId = null) {
-  const ids = [...new Set(saleIds)];
-  if (!ids.length) throw Error("割り当てる販売記録を選んでください");
-  for (const id of ids) {
-    const sale = s.sales.find((item) => item.id === id);
+export function assignSalesToBuyer(s, assignments, buyerId, chargeRoundId = null) {
+  const rows = assignments.map((item) =>
+    typeof item === "string" ? { saleId: item, qty: null } : item,
+  );
+  if (!rows.length) throw Error("割り当てる販売記録を選んでください");
+  if (new Set(rows.map((row) => row.saleId)).size !== rows.length)
+    throw Error("同じ販売記録が重複しています");
+  for (const row of rows) {
+    const sale = s.sales.find((item) => item.id === row.saleId);
     if (
       !sale ||
       sale.void ||
       (!sale.pending && sale.destinationType !== 'unknown')
     )
       throw Error("販売先未確認の記録だけを選んでください");
-    updateSaleDestination(s, id, {
+    const qty = row.qty == null ? sale.qty : integer(row.qty, "割り当て数量");
+    if (qty < 1 || qty > sale.qty)
+      throw Error("割り当て数量が販売先未確認の残数を超えています");
+    let assignedId = sale.id;
+    if (qty < sale.qty) {
+      sale.qty -= qty;
+      const assigned = { ...sale, id: uid(), qty };
+      s.sales.push(assigned);
+      assignedId = assigned.id;
+    }
+    updateSaleDestination(s, assignedId, {
       destinationType: 'buyer',
       buyerId,
       chargeRoundId,
@@ -479,6 +504,12 @@ export function validate(s) {
     s.buyers.map((p) => ({ name: normalize(p.name) })),
     "name",
   );
+  if (
+    !Array.isArray(s.productImports) ||
+    new Set(s.productImports).size !== s.productImports.length ||
+    s.productImports.some((month) => !/^\d{4}-\d{2}$/.test(month))
+  )
+    throw Error("Excel取り込み月を確認してください");
   const date = (d) => {
     if (
       !/^\d{4}-\d{2}-\d{2}$/.test(d) ||

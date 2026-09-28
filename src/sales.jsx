@@ -210,7 +210,8 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
 function UnconfirmedSalesEditor({ stocks, roundId, onClose }) {
   const { state, save } = useApp();
   const [buyerId, setBuyerId] = useState("");
-  const [selected, setSelected] = useState([]);
+  const [quantities, setQuantities] = useState({});
+  const [category, setCategory] = useState("全部");
   const [resolving, setResolving] = useState(null);
   const stockIds = new Set(stocks.map((stock) => stock.id));
   const sales = state.sales.filter(
@@ -219,14 +220,28 @@ function UnconfirmedSalesEditor({ stocks, roundId, onClose }) {
       !sale.void &&
       (sale.pending || sale.destinationType === "unknown"),
   );
-  const picked = sales.filter((sale) => selected.includes(sale.id));
-  const total = picked.reduce((sum, sale) => sum + sale.qty * sale.price, 0);
-  const toggle = (id, checked) =>
-    setSelected(
-      checked ? [...selected, id] : selected.filter((item) => item !== id),
-    );
+  const visibleSales = sales.filter((sale) => {
+    const stock = state.stocks.find((item) => item.id === sale.stockId);
+    return category === "全部" || stock?.category === category;
+  });
+  const picked = sales
+    .map((sale) => ({ sale, qty: quantities[sale.id] || 0 }))
+    .filter((row) => row.qty > 0);
+  const total = picked.reduce((sum, row) => sum + row.qty * row.sale.price, 0);
+  const buyerName = state.buyers.find((buyer) => buyer.id === buyerId)?.name;
+  const toggle = (sale, checked) => setQuantities((current) => {
+    const next = { ...current };
+    if (checked) next[sale.id] = current[sale.id] || 1;
+    else delete next[sale.id];
+    return next;
+  });
+  const changeQuantity = (sale, quantity) => setQuantities((current) => ({
+    ...current,
+    [sale.id]: Math.max(1, Math.min(sale.qty, quantity)),
+  }));
+  const remainingCount = sales.reduce((sum, sale) => sum + sale.qty, 0);
   return (
-    <Modal title={`販売先未確認 ${sales.length}件`} onClose={onClose}>
+    <Modal title={`販売先未確認 ${remainingCount}個`} onClose={onClose}>
       {sales.length ? (
         <>
           <div className="task-heading compact">
@@ -240,64 +255,64 @@ function UnconfirmedSalesEditor({ stocks, roundId, onClose }) {
           />
           <div className="task-heading compact">
             <span>2</span>
-            <div><h3>この人が買った記録を選ぶ</h3><small>数量・価格は変更しません</small></div>
+            <div><h3>この人が買った商品と数量</h3><small>1個から、未確認の残り数量まで割り当てられます</small></div>
           </div>
-          <div className="compact-actions">
-            <Button secondary onClick={() => setSelected(sales.map((sale) => sale.id))}>
-              すべて選ぶ
-            </Button>
-            {selected.length > 0 && (
-              <Button secondary onClick={() => setSelected([])}>選択を外す</Button>
-            )}
+          <div className="tabs category-tabs" aria-label="未確認商品を絞り込む">
+            {["全部", "パン", "焼き菓子"].map((value) => <Button key={value} secondary={category !== value} onClick={() => setCategory(value)}>{value}</Button>)}
           </div>
           <div className="unconfirmed-list">
-            {sales.map((sale) => {
+            {visibleSales.map((sale) => {
               const stock = state.stocks.find((item) => item.id === sale.stockId);
+              const quantity = quantities[sale.id] || 0;
               return (
-                <div className={`sale-pick-card ${selected.includes(sale.id) ? "selected" : ""}`} key={sale.id}>
+                <div className={`sale-pick-card ${quantity ? "selected" : ""}`} key={sale.id}>
                   <label>
                     <input
                       type="checkbox"
-                      checked={selected.includes(sale.id)}
-                      onChange={(event) => toggle(sale.id, event.target.checked)}
+                      checked={quantity > 0}
+                      onChange={(event) => toggle(sale, event.target.checked)}
                     />
                     <span>
                       <strong>{stock?.name || "商品不明"}</strong>
-                      <small>{sale.qty}個 ／ {yen(sale.qty * sale.price)} ／ {sale.date}</small>
+                      <small>未確認 {sale.qty}個 ／ {yen(sale.qty * sale.price)} ／ {sale.date}</small>
                     </span>
                   </label>
+                  {quantity > 0 && <div className="quantity-stepper" aria-label={`${stock?.name || "商品"} 割り当て数量`}>
+                    <Button secondary aria-label={`${stock?.name || "商品"} 割り当て数量を減らす`} disabled={quantity <= 1} onClick={() => changeQuantity(sale, quantity - 1)}>−</Button>
+                    <strong>{quantity}</strong>
+                    <Button secondary aria-label={`${stock?.name || "商品"} 割り当て数量を増やす`} disabled={quantity >= sale.qty} onClick={() => changeQuantity(sale, quantity + 1)}>＋</Button>
+                  </div>}
                   <Button secondary onClick={() => setResolving(sale)}>
-                    個別に設定
+                    全数を個別に設定
                   </Button>
                 </div>
               );
             })}
           </div>
           <div className="sticky-action">
-            <span>{picked.length}件 ／ <strong>{yen(total)}</strong></span>
+            <span>{picked.length}商品・{picked.reduce((sum, row) => sum + row.qty, 0)}個 ／ <strong>{yen(total)}</strong></span>
             <Button
               disabled={!buyerId || !picked.length}
               onClick={async () => {
-                const completedAll = picked.length === sales.length;
+                const completedAll = picked.length === sales.length && picked.every((row) => row.qty === row.sale.qty);
                 if (
                   await save(
                     (next) =>
                       assignSalesToBuyer(
                         next,
-                        picked.map((sale) => sale.id),
+                        picked.map((row) => ({ saleId: row.sale.id, qty: row.qty })),
                         buyerId,
                         roundId,
                       ),
                     "未確認販売を購入者へまとめて割り当て",
                   )
                 ) {
-                  setSelected([]);
-                  setBuyerId("");
+                  setQuantities({});
                   if (completedAll) onClose();
                 }
               }}
             >
-              選んだ記録をまとめて割り当て
+              選んだ商品を{buyerName ? `${buyerName}に` : "購入者に"}割り当て
             </Button>
           </div>
         </>
