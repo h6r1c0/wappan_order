@@ -176,6 +176,10 @@ test("スマホ: Excel→固定注文→欠品→精算→おやつ余剰振替�
   });
   for (const width of [320, 375, 430]) {
     await page.setViewportSize({ width, height: 812 });
+    const tabTops = await page.locator('.work-tabs .button').evaluateAll(
+      buttons => buttons.map(button => Math.round(button.getBoundingClientRect().top)),
+    );
+    expect(new Set(tabTops).size).toBe(1);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { SalesWorkspace } from "./sales-workspace";
+import { TaskIcon } from "./task-icon";
 import {
   delivery,
   salesOrderQuantities,
@@ -62,7 +63,8 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
   };
   const step = (key, label) => <button type="button" className={`sales-step ${mode === key ? 'selected' : ''}`}
     onClick={() => toggleStep(key)} aria-expanded={mode === key}>
-    <span>{label}{key === 'assign' && <small>販売先未確認 {unconfirmedQty}個</small>}</span>
+    <span className={`step-icon step-icon-${key}`}><TaskIcon type={{order:'basket',assign:'assign',history:'history'}[key]}/></span>
+    <span className="step-label">{label}{key === 'assign' && <small>販売先未確認 {unconfirmedQty}個</small>}</span>
     <span aria-hidden="true">{mode === key ? '閉じる' : '開く'}</span>
   </button>;
   return <>
@@ -92,7 +94,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
                     if (document.querySelector('.sales-workspace[data-unsaved="true"]') &&
                       !confirm('未保存の入力があります。切り替えますか？')) return;
                     setInputMode(inputMode === input ? null : input);
-                  }}>{text}</Button>)}
+                  }}><TaskIcon type={input === 'buyer' ? 'buyer' : 'bread'}/>{text}</Button>)}
             </div>
             {inputMode && <SalesWorkspace key={inputMode} stocks={stocks} roundId={roundId} mode={inputMode}/>}
       </section>}

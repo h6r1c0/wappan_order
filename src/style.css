@@ -944,6 +944,7 @@ html.modal-open {
     margin-left: 32px;
   }
 }
+
 @media print {
   header,
   nav,
@@ -1270,4 +1271,114 @@ header small {
     flex-basis: 30px;
     height: 30px;
   }
+}
+
+/* 明るいベーカリーの配色。操作寸法は維持する。 */
+@media screen {
+  :root { color: #493b35; background: #fff9f4; }
+  body {
+    background: radial-gradient(circle at 95% 110px, #fce9dc 0, transparent 230px),
+      linear-gradient(180deg, #fffaf5 0%, #fffdf8 50%, #fff8f1 100%);
+  }
+  header {
+    background: linear-gradient(105deg, #fff6ee, #ffece8 54%, #fff8e9);
+    border-bottom-color: #f1d7cb;
+  }
+  header small { color: #865748; }
+  h1, h2, h3 { color: #49342d; }
+  .eyebrow { color: #9b5f4e; }
+  .button:not(.secondary):not(.danger) {
+    background: #b94f62;
+    border-color: #a84458;
+    color: #fff;
+  }
+  .button.secondary {
+    background: #fffdf9;
+    color: #654838;
+    border-color: #e7c9ae;
+  }
+  .button:hover:not(:disabled), .sales-step:hover, .purpose:hover { filter: brightness(.98); }
+  .button:focus-visible, .sales-step:focus-visible, .purpose:focus-visible {
+    outline-color: #32806a;
+  }
+  .card, .work-section, .modal { background: #fffefb; border-color: #efddd0; }
+  .card, .work-section { box-shadow: 0 4px 14px #a9655e0d; }
+  .card.clickable:hover { background: #fff5ef; border-color: #e8ad9e; }
+  .field input, .field select, .field textarea, .qty select, .qty input {
+    border-color: #cbb4a4; background: #fffefa;
+  }
+  .check input { accent-color: #b94f62; }
+  .purpose {
+    background: #fffefa;
+    border-color: #efdcc8;
+    box-shadow: 0 3px 10px #af775f10;
+  }
+  .purpose:nth-child(2) { background: #fff5f4; }
+  .purpose:nth-child(3) { background: #fff9ed; }
+  .purpose.selected {
+    background: #ffedf0;
+    border-color: #df8894;
+    box-shadow: 0 0 0 3px #f9dce1, 0 4px 12px #b9647519;
+  }
+  .purpose strong { color: #593c34; }
+  .tabs.work-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+  .tabs.work-tabs .button {
+    min-width: 0; min-height: 64px; padding: 7px 3px;
+    flex-direction: column; gap: 2px; white-space: normal;
+    font-size: 14px; line-height: 1.2;
+  }
+  .work-tab-label { white-space: nowrap; }
+  .tabs.work-tabs .button:not(.secondary) { background: #b94f62; }
+  .tabs.work-tabs .button.secondary { background: #fffdf8; }
+  .task-icon { width: 23px; height: 23px; flex: none; }
+  .work-tabs .task-icon { width: 20px; height: 20px; }
+  .delivery-heading {
+    background: linear-gradient(105deg, #fff2de, #fff9ed 65%, #f1f8ef);
+    border-left-color: #e99677;
+  }
+  .monthly-import-callout {
+    background: #fff2e7;
+    border-color: #e5a477;
+  }
+  .monthly-import-ready { background: #f4faf1; border-color: #c6dfbf; }
+  .personal-start { border-top-color: #eadbd0; }
+  .buyer { background: #fffefa; border-color: #e9d4c1; }
+  .buyer.selected { background: #b94f62; border-color: #a84458; }
+  .sales-step {
+    border-color: #e9d5c0;
+    background: #fffefa;
+    box-shadow: 0 3px 10px #ab756012;
+    color: #503b32;
+    gap: 11px;
+  }
+  .sales-step:nth-of-type(2) { background: #f8fbf5; }
+  .sales-step.selected { border-color: #df9299; background: #fff3f2; }
+  .sales-step .step-label { flex: 1; font-size: 17px; }
+  .sales-step .step-label small { color: #805d55; }
+  .sales-step > span:last-child { color: #9b6270; }
+  .step-icon {
+    display: grid; place-items: center; flex: 0 0 42px; height: 42px;
+    border-radius: 50%; background: #ffe3c5; color: #9c5b42;
+  }
+  .step-icon-assign { background: #e2f0df; color: #50785a; }
+  .step-icon-history { background: #f9e1e7; color: #a65769; }
+  .sales-mode-grid .button { gap: 7px; }
+  .sales-mode-grid .button.secondary:first-child { background: #fff2f4; border-color: #edc4cb; }
+  .sales-mode-grid .button.secondary:last-child { background: #f2f9f0; border-color: #cde1c7; }
+  .sales-confirm { background: #fff3f1; border-radius: 14px; padding: 10px; }
+  .sales-tools h2 .task-icon { vertical-align: -4px; color: #b25d62; }
+  .sale-saved, .toast.success { background: #edf8ed; color: #326541; }
+  .assignment-chips span { background: #f4eae3; }
+  .notice, .sticky-action { background: #fff4e3; }
+  nav {
+    background: #fffbf8;
+    border-top-color: #eed8c9;
+    box-shadow: 0 -3px 16px #ad6a5812;
+  }
+  nav button { color: #765b50; }
+  nav button.active { background: #ffe8ed; color: #a64258; }
+  .summary { background: #fff0df; }
+  .hero { background: linear-gradient(135deg, #b45866, #d78867); }
+  .tag { background: #f9e9d8; }
+  .sale-resolution-summary, .count-grid span { background: #f8eee5; }
 }

@@ -6,6 +6,7 @@ import {RoundCollections} from './collections';
 import {Events} from './events';
 import {Markets} from './markets';
 import {ExcelImport} from './masters';
+import {TaskIcon} from './task-icon';
 import {
   newRound,
   productAvailable,
@@ -180,7 +181,7 @@ function Round({ round: r, back }) {
             <strong>② {monthLabel}の商品を準備する</strong>
             <small>{monthLabel}の注文票を読み込みます。</small>
           </div>
-          <Button onClick={() => setExcelImport(true)}>{monthLabel}のExcel注文表を取り込む</Button>
+          <Button onClick={() => setExcelImport(true)}><TaskIcon type="excel"/>{monthLabel}のExcel注文表を取り込む</Button>
         </section>
       ) : <details className="monthly-import-ready">
         <summary>② {monthLabel}の商品情報は登録済み</summary>
@@ -197,7 +198,9 @@ function Round({ round: r, back }) {
       </div>
       <div className="tabs work-tabs">
         {[["発注数", "④"], ["納品・精算", "⑤"], ["集金額", "⑥"]].map(([t, number]) => (
-          <Button key={t} secondary={tab !== t} onClick={() => setTab(t)}><span aria-hidden="true">{number} </span>{t}</Button>
+          <Button key={t} secondary={tab !== t} onClick={() => setTab(t)}>
+            <TaskIcon type={{'発注数':'totals','納品・精算':'delivery','集金額':'coins'}[t]}/>
+            <span className="work-tab-label"><span aria-hidden="true">{number} </span>{t}</span></Button>
         ))}
       </div>
       {lineImport&&<LineImport round={r} onClose={()=>setLineImport(false)}/>}
