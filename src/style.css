@@ -1419,6 +1419,14 @@ header small {
     border-color: #da8792;
     box-shadow: inset 0 0 0 1px #da8792;
   }
+  .buyer.selected,
+  .category-tabs .button:not(.secondary),
+  .sales-workspace .tabs .button:not(.secondary) {
+    background: #ffedf0;
+    border-color: #d78693;
+    color: #984155;
+    box-shadow: inset 0 0 0 1px #d78693;
+  }
   .tabs.work-tabs {
     gap: 0;
     margin: 2px 0 16px;
