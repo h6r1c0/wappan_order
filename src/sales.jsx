@@ -35,6 +35,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
   const titleRef = useRef(null);
   useEffect(() => { titleRef.current?.scrollIntoView({ block: 'start' }); }, []);
   const [mode, setMode] = useState(null);
+  const [inputMode, setInputMode] = useState(null);
   const [edit, setEdit] = useState(null);
   const [selling, setSelling] = useState(null);
   const [batchSelling, setBatchSelling] = useState(false);
@@ -52,32 +53,51 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
   const stockIds = new Set(stocks.map((stock) => stock.id));
   const unconfirmedSales = state.sales.filter((sale) => stockIds.has(sale.stockId) &&
     !sale.void && (sale.pending || sale.destinationType === "unknown"));
+  const unconfirmedQty = unconfirmedSales.reduce((n, sale) => n + sale.qty, 0);
+  const toggleStep = (key) => {
+    if (document.querySelector('.sales-workspace[data-unsaved="true"], .work-section.order-editor[data-unsaved="true"]') &&
+      !confirm('未保存の入力があります。画面を閉じますか？')) return;
+    setMode(mode === key ? null : key);
+    setInputMode(null);
+  };
+  const step = (key, label) => <button type="button" className={`sales-step ${mode === key ? 'selected' : ''}`}
+    onClick={() => toggleStep(key)} aria-expanded={mode === key}>
+    <span>{label}{key === 'assign' && <small>販売先未確認 {unconfirmedQty}個</small>}</span>
+    <span aria-hidden="true">{mode === key ? '閉じる' : '開く'}</span>
+  </button>;
   return <>
     <div className="work-title" ref={titleRef}><span className="eyebrow">販売用 {round?.date ? `・${round.date.replaceAll('-', '/')} 着` : ''}</span>
-      <h1>今、何をしますか</h1></div>
-    <div className="sales-mode-grid">
-      {[["buyer", "購入者から入力"], ["product", "商品から入力"],
-        ["order", "販売用として注文する"], ["history", "残数・販売履歴"]].map(([key, label]) =>
-        <Button key={key} secondary={mode !== key} onClick={() => {
-          if (document.querySelector('.sales-workspace[data-unsaved="true"], .work-section.order-editor[data-unsaved="true"]') &&
-            !confirm('未保存の入力があります。画面を閉じますか？')) return;
-          setMode(mode === key ? null : key);
-        }}
-          aria-expanded={mode === key}>{mode === key ? `${label}を閉じる` : label}</Button>)}
+      <h1>販売用の作業</h1></div>
+    <div className="sales-steps">
+      {step('order', '① 販売用として注文する')}
+      {mode === 'order' && !round && <p>納品回を選んでください。</p>}
+      {mode === 'order' && round && <section className="work-section order-editor"
+        data-unsaved={JSON.stringify(orderQuantities) !== JSON.stringify(savedOrderQuantities)}>
+        <h2>販売用として注文する</h2>
+        <ProductQuantityEditor products={round.products} quantities={orderQuantities}
+          onChange={setOrderQuantities} startCollapsed
+          emptyMessage="「この納品日の商品」から、販売価格が分かっている商品を追加してください。"/>
+        <div className="sticky-action"><span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
+          <Button onClick={() => save((s) => setSalesOrderQuantities(s, roundId, orderQuantities),
+            "販売用の注文数量を保存")}>販売用の注文を保存</Button></div>
+        {onManageProducts && <Button secondary onClick={onManageProducts}>この納品日の商品</Button>}
+      </section>}
+      {step('assign', '② 売れた商品の販売先を割り当てる')}
+      {mode === 'assign' && <section className="work-section sales-step-body">
+            <h2>入力方法を選ぶ</h2>
+            <div className="sales-mode-grid">
+              {[["buyer", "購入者から入力"], ["product", "商品から入力"]].map(([input, text]) =>
+                <Button key={input} secondary={inputMode !== input} aria-expanded={inputMode === input}
+                  onClick={() => {
+                    if (document.querySelector('.sales-workspace[data-unsaved="true"]') &&
+                      !confirm('未保存の入力があります。切り替えますか？')) return;
+                    setInputMode(inputMode === input ? null : input);
+                  }}>{text}</Button>)}
+            </div>
+            {inputMode && <SalesWorkspace key={inputMode} stocks={stocks} roundId={roundId} mode={inputMode}/>}
+      </section>}
+      {step('history', '③ 残数・販売履歴を確認する')}
     </div>
-    {unconfirmedSales.length > 0 && !mode && <p className="sales-summary">販売先未確認 {unconfirmedSales.reduce((n, sale) => n + sale.qty, 0)}個</p>}
-    {(mode === 'buyer' || mode === 'product') &&
-      <SalesWorkspace key={mode} stocks={stocks} roundId={roundId} mode={mode}/>}
-    {mode === 'order' && round && <section className="work-section order-editor"
-      data-unsaved={JSON.stringify(orderQuantities) !== JSON.stringify(savedOrderQuantities)}>
-      <h2>販売用として注文する</h2>
-      <ProductQuantityEditor products={round.products} quantities={orderQuantities}
-        onChange={setOrderQuantities} startCollapsed
-        emptyMessage="「この納品日の商品」から、販売価格が分かっている商品を追加してください。"/>
-      <div className="sticky-action"><span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
-        <Button onClick={() => save((s) => setSalesOrderQuantities(s, roundId, orderQuantities),
-          "販売用の注文数量を保存")}>販売用の注文を保存</Button></div>
-    </section>}
     {mode === 'history' && <section className="work-section history-section">
       <h2>残数・販売履歴</h2>
       {unconfirmedSales.length > 0 && <Button secondary onClick={() => setUnconfirmedOpen(true)}>
@@ -99,7 +119,6 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
       })}
       {!stocks.length && <Empty>販売用として注文すると商品が表示されます。</Empty>}
     </section>}
-    {onManageProducts && mode === 'order' && <Button secondary onClick={onManageProducts}>この納品日の商品</Button>}
     {batchSelling && <BatchSaleEditor stocks={remainingStocks} roundId={roundId} onClose={() => setBatchSelling(false)}/>}
     {unconfirmedOpen && <UnconfirmedSalesEditor stocks={stocks} roundId={roundId} onClose={() => setUnconfirmedOpen(false)}/>}
     {edit && <StockEditor roundId={roundId} marketId={marketId} stock={edit.id ? edit : null}

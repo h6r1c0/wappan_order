@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialState,newRound,addSale,assignSalesToBuyer,collections,report,stockRemaining,transfer,updateSaleDestination,validate} from '../src/domain.js';
+import {initialState,newRound,addSale,assignSalesToBuyer,assignUnknownSale,collections,report,stockRemaining,transfer,updateSaleDestination,validate} from '../src/domain.js';
 import {delivery,upgrade,moveStock,sellBundle,marketTotals,deliveryTotals,salesOrderQuantities,setSalesOrderQuantities,snackOrderQuantities,setSnackOrderQuantities} from '../src/commerce.js';
 import {destinationCandidate,looksLikePersonalName,parseLineOrder} from '../src/line-import.js';
 
@@ -141,6 +141,22 @@ test('未確認2個から1個だけ割り当て、残りを別の購入者へ割
  assert.equal(s.sales.filter(sale=>sale.destinationType==='unknown').length,0);
  assert.equal(s.sales.find(sale=>sale.buyerId==='hori').qty,1);
  assert.equal(s.sales.find(sale=>sale.buyerId==='asano').qty,1);
+ validate(s);
+});
+
+test('販売先名なしの外部入金済みへ割り当てても販売利益と個人請求を変えない',()=>{
+ const {s,r}=setup();
+ const st={id:'unnamed-external',productId:'galette',name:'ガレット',category:'焼き菓子',qty:1,price:390,cost:250,date:r.date,test:false,roundId:r.id,channel:'sales',depth:0,eventId:null,eventLineId:null};
+ s.stocks.push(st);
+ addSale(s,st,{date:r.date,qty:1,destinationType:'unknown',paymentStatus:'unconfirmed'});
+ const before=report(s,'2026-04-01','2027-03-31',2026);
+ assignUnknownSale(s,s.sales[0].id,1,{destinationType:'external',destinationName:'',paymentStatus:'paid'});
+ assert.equal(s.sales[0].destinationName,'外部販売（名称未入力）');
+ assert.equal(s.sales[0].paymentStatus,'paid');
+ assert.equal(s.sales[0].chargeRoundId,null);
+ assert.equal(s.externalDestinations.includes('外部販売（名称未入力）'),false);
+ assert.deepEqual(report(s,'2026-04-01','2027-03-31',2026),before);
+ assert.equal(collections(s,'','',r.id).find(row=>row.id==='hori')?.onsite || 0,0);
  validate(s);
 });
 

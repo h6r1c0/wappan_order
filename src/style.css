@@ -1044,6 +1044,15 @@ header small {
 .monthly-import-callout strong,
 .monthly-import-callout small { display: block; }
 .monthly-import-callout small { margin-top: 4px; color: #6c5343; }
+.monthly-import-ready {
+  margin: 12px 0;
+  border: 1px solid #c4d8bc;
+  border-radius: 12px;
+  background: #f4f9f0;
+  padding: 10px 14px;
+}
+.monthly-import-ready summary { cursor: pointer; font-weight: 700; min-height: 32px; }
+.monthly-import-ready .button { margin-top: 10px; }
 .product-collapsed { margin: 8px 0 14px; }
 .quantity-stepper {
   display: inline-flex;
@@ -1125,12 +1134,30 @@ header small {
   margin: 8px 0 16px;
 }
 .sales-mode-grid .button { min-width: 0; min-height: 58px; padding: 9px; line-height: 1.35; }
+.sales-steps { display: grid; gap: 8px; }
+.sales-step {
+  width: 100%; min-height: 62px; padding: 12px 16px;
+  border: 1px solid #d6bfa1; border-radius: 14px;
+  background: #fffaf0; color: #4d3627;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; text-align: left; font: inherit; font-weight: 750; cursor: pointer;
+}
+.sales-step.selected { border-color: #a55e32; background: #fff2dc; }
+.sales-step span:first-child { font-size: 17px; }
+.sales-step small { display: block; margin-top: 2px; font-weight: 500; color: #6b5142; }
+.sales-step span:last-child { flex: none; color: #6e513b; font-size: 14px; }
+.sales-step-body { margin: 0 0 6px; }
+.sales-step-body > h2 { margin-top: 0; }
+.sales-step-body .sales-workspace { border: 0; box-shadow: none; padding: 8px 0 0; margin-bottom: 0; }
+.sales-confirm { display: grid; gap: 7px; margin-top: 10px; }
+.sales-confirm .button { width: 100%; min-height: 54px; }
+.sale-saved { margin: 10px 0 0; border-radius: 10px; padding: 10px; background: #eff8ed; color: #2d6237; font-weight: 700; }
 .sales-summary { margin: 0 0 12px; font-weight: 700; }
 .sales-workspace { margin-top: 6px; }
 .sales-product-list { display: grid; gap: 8px; max-height: 350px; overflow-y: auto; }
 .sales-product-list .button { min-height: 48px; text-align: left; white-space: normal; }
 .sales-allocation { padding: 12px; margin: 8px 0; }
-.sale-status { display: grid; gap: 3px; }
+.sale-status { display: grid; gap: 3px; scroll-margin-top: 92px; }
 .sale-status > span { color: #654c3d; }
 .assignment-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .assignment-chips span { background: #f3ead9; border-radius: 12px; padding: 2px 9px; }

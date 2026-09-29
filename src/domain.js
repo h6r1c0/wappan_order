@@ -248,7 +248,8 @@ export function addSale(s, stock, entry) {
   });
   if (destinationType === 'external') {
     s.externalDestinations ??= [];
-    if (!s.externalDestinations.includes(buyerName)) s.externalDestinations.push(buyerName);
+    if (buyerName !== '外部販売（名称未入力）' && !s.externalDestinations.includes(buyerName))
+      s.externalDestinations.push(buyerName);
   }
 }
 export function updateSaleDestination(s, saleId, entry) {
@@ -281,8 +282,7 @@ export function updateSaleDestination(s, saleId, entry) {
     return sale;
   }
   if (destinationType === 'external') {
-    const destinationName = String(entry.destinationName || '').trim();
-    if (!destinationName) throw Error("外部販売先の名称を入力してください");
+    const destinationName = String(entry.destinationName || '').trim() || '外部販売（名称未入力）';
     const paymentStatus = entry.paymentStatus === 'paid' ? 'paid' : 'unconfirmed';
     Object.assign(sale, {
       destinationType: 'external',
@@ -295,7 +295,7 @@ export function updateSaleDestination(s, saleId, entry) {
       destinationName,
     });
     s.externalDestinations ??= [];
-    if (!s.externalDestinations.includes(destinationName))
+    if (destinationName !== '外部販売（名称未入力）' && !s.externalDestinations.includes(destinationName))
       s.externalDestinations.push(destinationName);
     return sale;
   }

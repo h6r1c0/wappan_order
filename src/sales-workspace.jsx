@@ -13,7 +13,8 @@ function StockStatus({ stock }) {
   const groups = new Map();
   for (const sale of sales) {
     const name = sale.destinationType === 'unknown' || sale.pending ? '未確認' :
-      sale.destinationType === 'buyer' ? sale.buyerName : `外部：${sale.destinationName || sale.buyerName}`;
+      sale.destinationType === 'buyer' ? sale.buyerName :
+      sale.destinationName === '外部販売（名称未入力）' ? '外部' : `外部：${sale.destinationName || sale.buyerName}`;
     groups.set(name, (groups.get(name) || 0) + sale.qty);
   }
   const inSets = bundleUsed(state, stock.id);
@@ -35,6 +36,7 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
   const [paymentStatus, setPaymentStatus] = useState('unconfirmed');
   const [quantities, setQuantities] = useState({});
   const [touchedIds, setTouchedIds] = useState([]);
+  const [lastSaved, setLastSaved] = useState('');
   const [category, setCategory] = useState(mode === 'buyer' ? '閉じる' : '全部');
   const [query, setQuery] = useState('');
   const [date, setDate] = useState(today());
@@ -83,10 +85,32 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
       }
     }, '販売先と数量を割り当て');
     if (ok) {
+      setLastSaved(`${picked.map((stock) => stock.name).join('・')}を${destinationType === 'external' ? '外部販売' : destinationType === 'buyer' ? state.buyers.find((buyer) => buyer.id === buyerId)?.name : '未確認'}として登録しました`);
       setTouchedIds((ids) => [...new Set([...ids, ...picked.map((stock) => stock.id)])]);
       setQuantities({});
+      if (mode === 'product') requestAnimationFrame(() =>
+        document.querySelector('.sales-workspace .sale-status')?.scrollIntoView({block:'start'}));
     }
   };
+  const destinationFields = <>
+      <div className="choice-grid" aria-label="販売先種別">
+        <Button secondary={destinationType !== 'buyer'} onClick={() => setDestinationType('buyer')}>登録済み購入者</Button>
+        <Button secondary={destinationType !== 'external'} onClick={() => setDestinationType('external')}>外部購入者</Button>
+        <Button secondary={destinationType !== 'unknown'} onClick={() => setDestinationType('unknown')}>未確認</Button>
+      </div>
+      {destinationType === 'buyer' && <BuyerPicker value={buyerId} onChange={setBuyerId}
+        includeTest={stocks.some((stock) => stock.test)}/>}
+      {destinationType === 'external' && <>
+        <Field label="外部販売先（任意）"><input list="sales-destinations" value={destinationName}
+          onChange={(e) => setDestinationName(e.target.value)}/></Field>
+        <datalist id="sales-destinations">{state.externalDestinations.map((name) =>
+          <option key={name} value={name}/>)}</datalist>
+        <div className="choice-grid">
+          <Button secondary={paymentStatus !== 'paid'} onClick={() => setPaymentStatus('paid')}>入金済み</Button>
+          <Button secondary={paymentStatus !== 'unconfirmed'} onClick={() => setPaymentStatus('unconfirmed')}>入金未確認</Button>
+        </div>
+      </>}
+  </>;
   return <section className="work-section sales-workspace" data-unsaved={picked.length > 0}>
     <h2>{mode === 'buyer' ? '購入者から入力' : '商品から入力'}</h2>
     {mode === 'product' && <>
@@ -100,36 +124,42 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
         .map((stock) => <Button key={stock.id} secondary onClick={() => { setStockId(stock.id); setQuantities({}); }}>
           {stock.name}　未確認 {pendingFor(state, stock).reduce((n, sale) => n + sale.qty, 0)}・在庫 {stockRemaining(state, stock)}
         </Button>)}</div>}
-      {selectedStock && <Button secondary onClick={() => { setStockId(''); setQuantities({}); }}>別の商品を選ぶ</Button>}
+      {selectedStock && <Button secondary onClick={() => { setStockId(''); setQuantities({}); setLastSaved(''); }}>別の商品を選ぶ</Button>}
     </>}
     {(mode === 'buyer' || selectedStock) && <>
-      <div className="choice-grid" aria-label="販売先種別">
-        <Button secondary={destinationType !== 'buyer'} onClick={() => setDestinationType('buyer')}>登録済み購入者</Button>
-        <Button secondary={destinationType !== 'external'} onClick={() => setDestinationType('external')}>外部購入者</Button>
-        <Button secondary={destinationType !== 'unknown'} onClick={() => setDestinationType('unknown')}>未確認</Button>
-      </div>
-      {destinationType === 'buyer' && <BuyerPicker value={buyerId} onChange={setBuyerId}
-        includeTest={stocks.some((stock) => stock.test)}/>}
-      {destinationType === 'external' && <>
-        <Field label="外部販売先"><input list="sales-destinations" value={destinationName}
-          onChange={(e) => setDestinationName(e.target.value)}/></Field>
-        <datalist id="sales-destinations">{state.externalDestinations.map((name) =>
-          <option key={name} value={name}/>)}</datalist>
-        <div className="choice-grid">
-          <Button secondary={paymentStatus !== 'paid'} onClick={() => setPaymentStatus('paid')}>入金済み</Button>
-          <Button secondary={paymentStatus !== 'unconfirmed'} onClick={() => setPaymentStatus('unconfirmed')}>入金未確認</Button>
-        </div>
+      {mode === 'buyer' && <>
+      {destinationFields}
       </>}
-      {mode === 'buyer' && <div className="tabs category-tabs" aria-label="販売商品を絞り込む">
+      {mode === 'product' && <div className="sales-allocation-list">
+        {selectedStock && <StockStatus stock={selectedStock}/>}
+        {lastSaved && <p className="sale-saved" role="status">{lastSaved}</p>}
+      </div>}
+      {mode === 'product' && <div className="sales-allocation-list">
+        {selectedStock && (() => {
+          const pending = pendingFor(state, selectedStock).reduce((n, sale) => n + sale.qty, 0);
+          const max = stockRemaining(state, selectedStock) + (destinationType === 'unknown' ? 0 : pending);
+          return max > 0 && <Field label={`${selectedStock.name} 割当数量（最大${max}個）`}>
+            <input type="number" inputMode="numeric" min="0" max={max} step="1"
+              value={quantities[selectedStock.id] || ''} placeholder="0"
+              onChange={(e) => { setLastSaved(''); setQuantities({[selectedStock.id]: e.target.value}); }}/>
+          </Field>;
+        })()}
+      </div>}
+      {mode === 'product' && selectedStock &&
+        stockRemaining(state, selectedStock) + pendingFor(state, selectedStock).reduce((n, sale) => n + sale.qty, 0) > 0 && <>
+      {destinationFields}
+      </>}
+      {mode === 'buyer' && <>
+      <div className="tabs category-tabs" aria-label="販売商品を絞り込む">
         {(category === '閉じる' ? ['商品を選ぶ', 'パン', '焼き菓子'] : ['閉じる', 'パン', '焼き菓子', '全部'])
           .map((item) => <Button key={item} secondary={item === '閉じる' ||
             (item !== '商品を選ぶ' && category !== item)}
             onClick={() => setCategory(item === '商品を選ぶ' ? '全部' : item)}>{item}</Button>)}
-      </div>}
-      {mode === 'buyer' && category !== '閉じる' && <Field label="商品を探す"><input type="search" value={query}
+      </div>
+      {category !== '閉じる' && <Field label="商品を探す"><input type="search" value={query}
         onChange={(e) => setQuery(e.target.value)}/></Field>}
       <div className="sales-allocation-list">
-        {shown.filter((stock) => mode === 'product' || touchedIds.includes(stock.id) ||
+        {shown.filter((stock) => touchedIds.includes(stock.id) ||
           eligible.some((x) => x.id === stock.id)).map((stock) => {
           const pending = pendingFor(state, stock).reduce((n, sale) => n + sale.qty, 0);
           const max = stockRemaining(state, stock) + (destinationType === 'unknown' ? 0 : pending);
@@ -144,14 +174,15 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
         })}
         {!stocks.length && <Empty>販売用の在庫はまだありません。</Empty>}
       </div>
+      </>}
       {picked.length > 0 && <>
         <Field label="販売日"><input type="date" value={date} onChange={(e) => setDate(e.target.value)}/></Field>
-        <div className="sticky-action"><span>{picked.length}商品・{picked.reduce((n, stock) => n + Number(quantities[stock.id]), 0)}個</span>
-          <Button disabled={(destinationType === 'buyer' && !buyerId) ||
-            (destinationType === 'external' && !destinationName.trim())} onClick={saveAssignments}>
-            割当を保存
+        <div className="sales-confirm"><span>{picked.length}商品・{picked.reduce((n, stock) => n + Number(quantities[stock.id]), 0)}個</span>
+          <Button disabled={destinationType === 'buyer' && !buyerId} onClick={saveAssignments}>
+            {mode === 'product' && selectedStock ? `この${quantities[selectedStock.id]}個を${destinationType === 'external' ? '外部販売' : destinationType === 'buyer' ? '購入者' : '未確認'}として確定` : `この${picked.length}商品の割当を確定`}
           </Button></div>
       </>}
+      {mode === 'buyer' && lastSaved && <p className="sale-saved" role="status">{lastSaved}</p>}
     </>}
   </section>;
 }

@@ -230,7 +230,7 @@ test("スマホ: Excel→固定注文→欠品→精算→おやつ余剰振替�
     fullPage: true,
   });
   await page.getByRole("button", { name: "販売用", exact: true }).click();
-  await page.getByRole('button',{name:'残数・販売履歴'}).click();
+  await page.getByRole('button',{name:/③ 残数・販売履歴を確認する/}).click();
   await page.locator('.stock-card summary').first().click();
   await page.getByRole("button", { name: "1商品ずつ販売を記録", exact: true }).click();
   await page.getByRole("button", { name: "ホリ", exact: true }).click();
@@ -306,28 +306,28 @@ test("スマホ: LINE貼付と共通販売用在庫・販売場所・任意価�
   expect(shared.state.buyers.some(buyer=>buyer.name==='山田花子')).toBe(true);
   expect(Object.values(shared.state.rounds[0].orders).some(order=>order.name==='山田花子')).toBe(true);
   await page.getByRole('button',{name:'販売用',exact:true}).click();
-  await page.getByRole('button',{name:'販売用として注文する'}).click();
+  await page.getByRole('button',{name:/① 販売用として注文する/}).click();
   await page.locator('.order-editor').getByRole('button',{name:'全部',exact:true}).click();
   await page.getByLabel('ミルクスティックパン 数量',{exact:true}).selectOption('2');
   await page.getByLabel('黒糖ブレッド 数量',{exact:true}).selectOption('1');
   await page.getByRole('button',{name:'販売用の注文を保存'}).click();
   expect(shared.state.stocks.filter(stock=>stock.roundId===shared.state.rounds[0].id&&stock.qty>0)).toHaveLength(2);
-  await page.getByRole('button',{name:'販売用として注文するを閉じる'}).click();
-  await page.getByRole('button',{name:'残数・販売履歴'}).click();
+  await page.getByRole('button',{name:/① 販売用として注文する/}).click();
+  await page.getByRole('button',{name:/③ 残数・販売履歴を確認する/}).click();
   const milkCard=page.locator('.stock-card').filter({hasText:'ミルクスティックパン'});
   await milkCard.locator('summary').click();
   await milkCard.getByRole('button',{name:'販売履歴を確認・修正'}).click();
   await page.locator('details.stock-settings').click();
   await page.getByLabel('仕入単価（不明なら空欄・利益は未確定）').fill('200');
   await page.getByRole('button',{name:'商品を保存'}).click();
-  await page.getByRole('button',{name:'残数・販売履歴を閉じる'}).click();
-  await page.getByRole('button',{name:'販売用として注文する'}).click();
+  await page.getByRole('button',{name:/③ 残数・販売履歴を確認する/}).click();
+  await page.getByRole('button',{name:/① 販売用として注文する/}).click();
   await page.locator('.order-editor').getByRole('button',{name:'全部',exact:true}).click();
   await page.getByLabel('黒糖ブレッド 数量',{exact:true}).selectOption('0');
   await page.getByRole('button',{name:'販売用の注文を保存'}).click();
   expect(shared.state.stocks.find(stock=>stock.productId==='brown').qty).toBe(0);
-  await page.getByRole('button',{name:'販売用として注文するを閉じる'}).click();
-  await page.getByRole('button',{name:'残数・販売履歴'}).click();
+  await page.getByRole('button',{name:/① 販売用として注文する/}).click();
+  await page.getByRole('button',{name:/③ 残数・販売履歴を確認する/}).click();
   await milkCard.locator('summary').click();
   await page.getByRole('button',{name:'購入者を選んでまとめて販売を記録'}).click();
   await page.getByRole('dialog').getByRole('button',{name:'ホリ',exact:true}).click();
@@ -375,37 +375,40 @@ test("販売: 商品から分割・まとめ割当・購入者から複数商品
   await page.getByRole('button',{name:'販売用',exact:true}).click();
   for(const width of [320,375,430]){
     await page.setViewportSize({width,height:812});
-    await expect(page.getByRole('button',{name:'購入者から入力'})).toBeVisible();
-    await expect(page.getByRole('button',{name:'商品から入力'})).toBeVisible();
-    const entryBottom = await page.getByRole('button',{name:'販売用として注文する'}).evaluate((el) => el.getBoundingClientRect().bottom);
+    for (const name of ['① 販売用として注文する','② 売れた商品の販売先を割り当てる','③ 残数・販売履歴を確認する'])
+      await expect(page.getByRole('button',{name:new RegExp(name)})).toBeVisible();
+    await expect(page.getByRole('button',{name:'商品から入力'})).toHaveCount(0);
+    const entryBottom = await page.getByRole('button',{name:/③ 残数・販売履歴を確認する/}).evaluate((el) => el.getBoundingClientRect().bottom);
     expect(entryBottom).toBeLessThan(812);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }
   await page.setViewportSize({width:375,height:812});
   await page.screenshot({path:'test-results/mobile-sales-start.png'});
+  await page.getByRole('button',{name:/② 売れた商品の販売先を割り当てる/}).click();
+  await expect(page.getByRole('button',{name:/② 売れた商品の販売先を割り当てる/})).toContainText('販売先未確認 12個');
   await page.getByRole('button',{name:'商品から入力'}).click();
   await page.getByRole('button',{name:/ミルクスティックパン.*未確認 10/}).click();
   await expect(page.getByLabel('ミルクスティックパンの割当状況')).toContainText('未確認 10');
   await page.getByRole('button',{name:'登録済み購入者'}).click();
   await page.getByRole('button',{name:'ホリ',exact:true}).click();
   await page.getByLabel('ミルクスティックパン 割当数量（最大10個）').fill('1');
-  await page.getByRole('button',{name:'割当を保存'}).click();
+  await page.getByRole('button',{name:/として確定$|商品の割当を確定$/}).click();
   await expect(page.getByLabel('ミルクスティックパンの割当状況')).toContainText('ホリ 1');
   await expect(page.getByLabel('ミルクスティックパンの割当状況')).toContainText('未確認 9');
   await page.getByRole('button',{name:'外部購入者'}).click();
   await page.getByLabel('外部販売先').fill('その場販売');
   await page.getByLabel('ミルクスティックパン 割当数量（最大9個）').fill('6');
-  await page.getByRole('button',{name:'割当を保存'}).click();
+  await page.getByRole('button',{name:/として確定$|商品の割当を確定$/}).click();
   await expect(page.getByLabel('ミルクスティックパンの割当状況')).toContainText('外部：その場販売 6');
   await expect(page.getByLabel('ミルクスティックパンの割当状況')).toContainText('未確認 3');
   await page.screenshot({path:'test-results/mobile-assignment.png'});
-  await page.getByRole('button',{name:'商品から入力を閉じる'}).click();
+  await page.getByRole('button',{name:'商品から入力'}).click();
   await page.getByRole('button',{name:'購入者から入力'}).click();
   await page.getByRole('button',{name:'浅野',exact:true}).click();
   await page.getByRole('button',{name:'商品を選ぶ'}).click();
   await page.getByLabel('ミルクスティックパン 割当数量（最大3個）').fill('3');
   await page.getByLabel('黒糖ブレッド 割当数量（最大2個）').fill('2');
-  await page.getByRole('button',{name:'割当を保存'}).click();
+  await page.getByRole('button',{name:/として確定$|商品の割当を確定$/}).click();
   await expect(page.getByLabel('ミルクスティックパンの割当状況')).toContainText('未確認 0');
   await expect(page.getByLabel('黒糖ブレッドの割当状況')).toContainText('浅野 2');
   expect(shared.state.sales.filter(sale=>sale.destinationType==='external').reduce((n,sale)=>n+sale.qty,0)).toBe(6);
@@ -413,6 +416,45 @@ test("販売: 商品から分割・まとめ割当・購入者から複数商品
   const after=report(shared.state,'2026-04-01','2027-03-31',2026);
   for(const key of ['revenue','cost','profit']) expect(after[key]).toBe(before[key]);
   expect(stockRemaining(shared.state,milk)).toBe(0);
+});
+
+test('販売: 同じ商品を購入者と販売先名なしの入金済み外部へ続けて確定', async ({page,context}) => {
+  const state=initialState(), round=newRound(state,'2026-09-11',true);
+  state.rounds.push(round); upgrade(state);
+  setSalesOrderQuantities(state,round.id,{brown:2});
+  const stock=state.stocks.find(item=>item.productId==='brown');
+  addSale(state,stock,{date:round.date,qty:2,destinationType:'unknown',paymentStatus:'unconfirmed'});
+  const shared={state,revision:1};
+  await backend(context,shared); await login(page);
+  await page.getByText('0人 入力済み').click();
+  await page.getByRole('button',{name:'販売用',exact:true}).click();
+  await page.getByRole('button',{name:/② 売れた商品の販売先を割り当てる/}).click();
+  await page.getByRole('button',{name:'商品から入力'}).click();
+  await page.getByRole('button',{name:/黒糖ブレッド.*未確認 2/}).click();
+  await page.getByLabel('黒糖ブレッド 割当数量（最大2個）').fill('1');
+  await page.getByRole('button',{name:'浅野',exact:true}).click();
+  await expect(page.getByRole('button',{name:'この1個を購入者として確定'})).toBeEnabled();
+  await page.getByRole('button',{name:'この1個を購入者として確定'}).click();
+  const status=page.getByLabel('黒糖ブレッドの割当状況');
+  await expect(status).toContainText('浅野 1');
+  await expect(status).toContainText('未確認 1');
+  await expect(page.getByRole('status')).toContainText('登録しました');
+  await page.getByLabel('黒糖ブレッド 割当数量（最大1個）').fill('1');
+  await page.getByRole('button',{name:'外部購入者'}).click();
+  await expect(page.getByLabel('外部販売先（任意）')).toHaveValue('');
+  await page.getByRole('button',{name:'入金済み'}).click();
+  await expect(page.getByRole('button',{name:'この1個を外部販売として確定'})).toBeEnabled();
+  for(const width of [320,375,430]) {
+    await page.setViewportSize({width,height:812});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await expect(status).toBeVisible();
+  }
+  await page.getByRole('button',{name:'この1個を外部販売として確定'}).click();
+  await expect(status).toContainText('外部');
+  await expect(status).toContainText('未確認 0');
+  await expect(page.getByRole('status')).toContainText('外部販売として登録しました');
+  expect(shared.state.sales.filter(sale=>sale.destinationType==='external').map(sale=>[sale.qty,sale.paymentStatus,sale.chargeRoundId])).toEqual([[1,'paid',null]]);
+  await page.screenshot({path:'test-results/mobile-external-complete.png'});
 });
 
 test('集金差額を繰り越し、用途別原価未確認でも納品書総額を保存する', async ({page,context}) => {
@@ -453,8 +495,10 @@ test("新しい月は注文回からExcelへ進み、取り込み後は同じ月
   await page.getByRole('button',{name:'＋ 注文回を作る'}).click();
   await page.getByLabel('納品予定日').fill('2026-10-16');
   await page.getByRole('button',{name:'この納品日で注文を始める'}).click();
-  await expect(page.getByRole('button',{name:'今月のExcel注文表を取り込む',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'今月のExcel注文表を取り込む',exact:true}).click();
+  await expect(page.getByRole('button',{name:'10月のExcel注文表を取り込む',exact:true})).toBeVisible();
+  expect(await page.getByRole('button',{name:'10月のExcel注文表を取り込む'}).evaluate((el) =>
+    el.getBoundingClientRect().top < document.querySelector('.buyer-grid').getBoundingClientRect().top)).toBe(true);
+  await page.getByRole('button',{name:'10月のExcel注文表を取り込む',exact:true}).click();
   const book=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet([["商品名","税込価格"],["10月限定パン",324]]),'10月');
   await page.getByLabel('Excelファイルを選ぶ').setInputFiles({name:'october.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:XLSX.write(book,{type:'buffer',bookType:'xlsx'})});
@@ -465,15 +509,18 @@ test("新しい月は注文回からExcelへ進み、取り込み後は同じ月
   expect(shared.state.productImports).toContain('2026-10');
   expect(shared.state.rounds[0].productImportPending).toBe(false);
   expect(shared.state.rounds[0].products.some(product=>product.name==='10月限定パン')).toBe(true);
-  await expect(page.getByRole('button',{name:'今月の商品を更新',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'今月のExcel注文表を取り込む',exact:true})).toHaveCount(0);
+  await expect(page.getByText('② 10月の商品情報は登録済み')).toBeVisible();
+  await page.getByText('② 10月の商品情報は登録済み').click();
+  await expect(page.getByRole('button',{name:'10月の商品を更新',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'10月のExcel注文表を取り込む',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'‹ 注文回一覧'}).click();
   await page.getByRole('button',{name:'＋ 注文回を作る'}).click();
   await page.getByLabel('納品予定日').fill('2026-10-30');
   await page.getByRole('button',{name:'この納品日で注文を始める'}).click();
   expect(shared.state.rounds[1].products.some(product=>product.name==='10月限定パン')).toBe(true);
   expect(shared.state.rounds[1].productImportPending).toBe(false);
-  await expect(page.getByRole('button',{name:'今月のExcel注文表を取り込む',exact:true})).toHaveCount(0);
+  await expect(page.getByText('② 10月の商品情報は登録済み')).toBeVisible();
+  await expect(page.getByRole('button',{name:'10月のExcel注文表を取り込む',exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 

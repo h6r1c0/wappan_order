@@ -149,6 +149,7 @@ function Round({ round: r, back }) {
   const total = roundRevenue(r),
     cost = roundCost(state, r);
   const needsMonthlyProducts = r.productImportPending && !monthProductsImported(state, r.date);
+  const monthLabel = `${Number(r.date.slice(5, 7))}月`;
   return (
     <>
       <Button
@@ -165,7 +166,7 @@ function Round({ round: r, back }) {
         ‹ 注文回一覧
       </Button>
       <div className="delivery-heading">
-        <div><span className="eyebrow">現在の納品日</span><h1>{r.date.replaceAll("-", "/")} 着</h1></div>
+        <div><span className="eyebrow">① 注文回を作る・現在の納品日</span><h1>{r.date.replaceAll("-", "/")} 着</h1></div>
         <Button secondary onClick={() => setSettings(true)}>
           日付・状態
         </Button>
@@ -173,15 +174,18 @@ function Round({ round: r, back }) {
       <p>
         <Tag>{r.status}</Tag> {r.test && <Tag>テスト・集計対象外</Tag>}
       </p>
-      {needsMonthlyProducts && (
+      {needsMonthlyProducts ? (
         <section className="monthly-import-callout">
           <div>
-            <strong>今月の商品情報を確認してください</strong>
-            <small>{r.date.slice(0, 7).replace("-", "年")}月の商品・価格を取り込んでから注文入力へ進みます。</small>
+            <strong>② {monthLabel}の商品を準備する</strong>
+            <small>{monthLabel}の注文票を読み込みます。</small>
           </div>
-          <Button onClick={() => setExcelImport(true)}>今月のExcel注文表を取り込む</Button>
+          <Button onClick={() => setExcelImport(true)}>{monthLabel}のExcel注文表を取り込む</Button>
         </section>
-      )}
+      ) : <details className="monthly-import-ready">
+        <summary>② {monthLabel}の商品情報は登録済み</summary>
+        <Button secondary onClick={() => setExcelImport(true)}>{monthLabel}の商品を更新</Button>
+      </details>}
       {r.note && (r.reconciliationPending ? <details className="notice"><summary>実資料の照合中：表示金額は判明分です（詳細・未確認事項）</summary><p>{r.note}</p></details> : <p className="notice">{r.note}</p>)}
       <div className="purpose-grid" aria-label="注文の用途を選ぶ">
         {PURPOSES.map(([label, image, note]) => (
@@ -192,8 +196,8 @@ function Round({ round: r, back }) {
         ))}
       </div>
       <div className="tabs work-tabs">
-        {["集金額", "発注数", "納品・精算"].map((t) => (
-          <Button key={t} secondary={tab !== t} onClick={() => setTab(t)}>{t}</Button>
+        {[["発注数", "④"], ["納品・精算", "⑤"], ["集金額", "⑥"]].map(([t, number]) => (
+          <Button key={t} secondary={tab !== t} onClick={() => setTab(t)}><span aria-hidden="true">{number} </span>{t}</Button>
         ))}
       </div>
       {lineImport&&<LineImport round={r} onClose={()=>setLineImport(false)}/>}
@@ -204,9 +208,8 @@ function Round({ round: r, back }) {
         <>
           <section className="personal-start"><Button className="line-import-entry" secondary onClick={()=>setLineImport(true)}>LINE注文を貼り付けて入力を省く</Button>
           <div className="section-head">
-              <h2>購入者を選ぶ</h2>
+              <h2>③ 購入者ごとの注文を入力する</h2>
             <div className="compact-actions">
-              {!needsMonthlyProducts && <Button secondary onClick={() => setExcelImport(true)}>今月の商品を更新</Button>}
               <Button secondary onClick={() => setProducts(true)}>この納品日の商品</Button>
             </div>
           </div>
