@@ -1382,3 +1382,124 @@ header small {
   .tag { background: #f9e9d8; }
   .sale-resolution-summary, .count-grid span { background: #f8eee5; }
 }
+
+/* 業務の階層: 用途は低いタブ、工程は一列、補助操作は軽く。 */
+@media screen {
+  :root { color: #493c37; background: #fffaf5; }
+  body { background: #fffaf5; }
+  main { padding-top: 12px; }
+  h1 { font-size: 23px; font-weight: 750; letter-spacing: -.02em; }
+  h2 { font-size: 18px; font-weight: 750; }
+  h3 { font-size: 16px; font-weight: 700; }
+  small, .muted { color: #75665f; }
+  .button { box-shadow: none; border-radius: 14px; }
+  .button.secondary { border-color: #e6d6ca; }
+  .field input, .field select, .field textarea, .qty select, .qty input {
+    border-radius: 14px;
+  }
+  .tag, .assignment-chips span, .sold-out-label { border-radius: 999px; }
+  .card, .work-section { border-radius: 20px; box-shadow: 0 2px 10px #7757460a; }
+  .purpose-grid { gap: 7px; margin: 12px 0 4px; }
+  .purpose, .purpose:nth-child(2), .purpose:nth-child(3) {
+    flex-direction: row;
+    min-height: 66px;
+    padding: 8px 7px;
+    gap: 5px;
+    text-align: left;
+    border: 1px solid #eadbd0;
+    border-radius: 20px;
+    background: #fffefa;
+    box-shadow: none;
+  }
+  .purpose img { width: 30px; height: 30px; }
+  .purpose strong { font-size: 14px; font-weight: 750; white-space: nowrap; }
+  .purpose small { display: none; }
+  .purpose.selected {
+    background: #ffedf0;
+    border-color: #da8792;
+    box-shadow: inset 0 0 0 1px #da8792;
+  }
+  .tabs.work-tabs {
+    gap: 0;
+    margin: 2px 0 16px;
+    border-bottom: 1px solid #eadbd0;
+  }
+  .tabs.work-tabs .button,
+  .tabs.work-tabs .button.secondary,
+  .tabs.work-tabs .button:not(.secondary) {
+    min-height: 43px;
+    margin: 0;
+    padding: 6px 2px;
+    flex-direction: row;
+    gap: 4px;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    color: #74665f;
+    font-size: 13px;
+    font-weight: 650;
+  }
+  .tabs.work-tabs .button:not(.secondary) {
+    border-bottom-color: #c75c70;
+    color: #a13f55;
+    font-weight: 750;
+  }
+  .work-tabs .task-icon { width: 17px; height: 17px; }
+  .work-title { margin: 18px 0 12px; }
+  .work-title h1 { margin: 1px 0 0; }
+  .sales-steps { gap: 7px; }
+  .sales-step, .sales-step:nth-of-type(2) {
+    min-height: 76px;
+    padding: 11px 12px;
+    gap: 10px;
+    border: 1px solid #eadbd0;
+    border-radius: 20px;
+    background: #fffefa;
+    box-shadow: 0 2px 9px #7757460a;
+  }
+  .sales-step.selected {
+    border-color: #d8a1a2;
+    background: #fff4f3;
+    box-shadow: inset 3px 0 #d17681;
+  }
+  .sales-step .step-label { font-size: 16px; font-weight: 750; line-height: 1.35; }
+  .sales-step .step-label small { margin-top: 3px; color: #a13f55; font-size: 13px; font-weight: 650; }
+  .sales-step > span:last-child { font-size: 13px; white-space: nowrap; }
+  .step-icon { flex-basis: 38px; height: 38px; }
+  .step-icon .task-icon { width: 21px; height: 21px; }
+  .sales-steps > .work-section, .history-section {
+    margin: 0 0 8px;
+    padding: 10px 2px 16px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .sales-step-body > h2 { margin: 3px 0 8px; font-size: 16px; }
+  .sales-mode-grid { margin: 4px 0 12px; }
+  .sales-mode-grid .button { min-height: 52px; border-radius: 16px; }
+  .sales-mode-grid .button:not(.secondary) {
+    background: #ffedf0;
+    border-color: #d78693;
+    color: #9e4054;
+  }
+  .monthly-import-ready {
+    border: 0;
+    border-bottom: 1px solid #dbe9d6;
+    border-radius: 0;
+    padding: 9px 2px;
+    background: transparent;
+  }
+  .delivery-heading { margin: 10px 0; padding: 12px 14px; border-radius: 20px; }
+  .personal-start { margin-top: 14px; padding-top: 14px; }
+  .sticky-action { border-color: #ead6d0; border-radius: 16px; }
+  .compact-actions .button { border-radius: 999px; }
+  nav button.active { background: #ffedf0; color: #a13f55; }
+}
+@media screen and (max-width: 390px) {
+  .purpose, .purpose:nth-child(2), .purpose:nth-child(3) { padding: 7px 5px; gap: 3px; }
+  .purpose img { width: 25px; height: 25px; }
+  .purpose strong { font-size: 13px; }
+  .sales-step { padding-left: 10px; padding-right: 10px; }
+}

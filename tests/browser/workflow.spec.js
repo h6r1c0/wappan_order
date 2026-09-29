@@ -176,6 +176,10 @@ test("スマホ: Excel→固定注文→欠品→精算→おやつ余剰振替�
   });
   for (const width of [320, 375, 430]) {
     await page.setViewportSize({ width, height: 812 });
+    const purposeBoxes = await page.locator('.purpose').evaluateAll(buttons =>
+      buttons.map(button => ({top: Math.round(button.getBoundingClientRect().top), height: button.getBoundingClientRect().height})));
+    expect(new Set(purposeBoxes.map(box => box.top)).size).toBe(1);
+    expect(purposeBoxes.every(box => box.height >= 44 && box.height <= 84)).toBe(true);
     const tabTops = await page.locator('.work-tabs .button').evaluateAll(
       buttons => buttons.map(button => Math.round(button.getBoundingClientRect().top)),
     );
@@ -379,6 +383,9 @@ test("販売: 商品から分割・まとめ割当・購入者から複数商品
   await page.getByRole('button',{name:'販売用',exact:true}).click();
   for(const width of [320,375,430]){
     await page.setViewportSize({width,height:812});
+    const stepBoxes = await page.locator('.sales-step').evaluateAll(buttons =>
+      buttons.map(button => ({height:button.getBoundingClientRect().height, width:button.getBoundingClientRect().width})));
+    expect(stepBoxes.every(box => box.height >= 70 && box.height <= 100 && box.width > width * .8)).toBe(true);
     for (const name of ['① 販売用として注文する','② 売れた商品の販売先を割り当てる','③ 残数・販売履歴を確認する'])
       await expect(page.getByRole('button',{name:new RegExp(name)})).toBeVisible();
     await expect(page.getByRole('button',{name:'商品から入力'})).toHaveCount(0);
