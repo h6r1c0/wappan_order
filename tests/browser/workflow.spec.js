@@ -9,7 +9,9 @@ async function qaFont(page) {
       const name=new URL(route.request().url()).pathname.split('/').pop();
       await route.fulfill({contentType:'font/woff2',body:await fs.readFile(process.env.QA_FONT_DIR+'/files/'+name),headers:{'access-control-allow-origin':'*'}});
     });
-    const css=(await fs.readFile(process.env.QA_FONT_DIR+'/400.css','utf8')).replaceAll('./files/','https://qa-fonts.test/files/');
+    const css=(await Promise.all([400,500,600,700].map(weight =>
+      fs.readFile(process.env.QA_FONT_DIR+`/${weight}.css`,'utf8'))))
+      .join('\n').replaceAll('./files/','https://qa-fonts.test/files/');
     await page.addStyleTag({content:css+"\n* { font-family: 'Noto Sans JP', sans-serif !important; }"});
     await page.evaluate(()=>document.fonts.ready);
   }
@@ -144,7 +146,7 @@ test("スマホ: Excel→固定注文→欠品→精算→おやつ余剰振替�
   await expect(page.locator('.purpose img')).toHaveCount(3);
   await expect(page.locator('nav button')).toHaveCount(3);
   if (!process.env.QA_FONT_DIR && !process.env.QA_FONT_CSS)
-    expect(await page.locator('body').evaluate(el=>getComputedStyle(el).fontFamily)).toContain('M PLUS Rounded 1c');
+    expect(await page.locator('body').evaluate(el=>getComputedStyle(el).fontFamily)).toContain('Noto Sans JP');
   await page.getByRole("button", { name: "ホリ", exact: true }).click();
   await expect(page.getByText('商品は閉じています。パン・焼き菓子・全部から表示する範囲を選んでください。')).toBeVisible();
   await expect(page.getByLabel("ガレット 数量", { exact: true })).toHaveCount(0);
@@ -176,6 +178,7 @@ test("スマホ: Excel→固定注文→欠品→精算→おやつ余剰振替�
   });
   for (const width of [320, 375, 430]) {
     await page.setViewportSize({ width, height: 812 });
+    await page.screenshot({path:`test-results/mobile-order-${width}.png`});
     const purposeBoxes = await page.locator('.purpose').evaluateAll(buttons =>
       buttons.map(button => ({top: Math.round(button.getBoundingClientRect().top), height: button.getBoundingClientRect().height})));
     expect(new Set(purposeBoxes.map(box => box.top)).size).toBe(1);
@@ -383,6 +386,7 @@ test("販売: 商品から分割・まとめ割当・購入者から複数商品
   await page.getByRole('button',{name:'販売用',exact:true}).click();
   for(const width of [320,375,430]){
     await page.setViewportSize({width,height:812});
+    await page.screenshot({path:`test-results/mobile-sales-${width}.png`});
     const stepBoxes = await page.locator('.sales-step').evaluateAll(buttons =>
       buttons.map(button => ({height:button.getBoundingClientRect().height, width:button.getBoundingClientRect().width})));
     expect(stepBoxes.every(box => box.height >= 70 && box.height <= 100 && box.width > width * .8)).toBe(true);

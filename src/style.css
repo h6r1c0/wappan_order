@@ -1511,3 +1511,133 @@ header small {
   .purpose strong { font-size: 13px; }
   .sales-step { padding-left: 10px; padding-right: 10px; }
 }
+
+/* 秋カフェ: 色の役割と文字の強弱を画面全体で共有する。 */
+@media screen {
+  :root {
+    font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+    color: #40352e;
+    background: #faf6ee;
+    --paper: #faf6ee;
+    --milk: #fffdf8;
+    --line: #e7dbcd;
+    --ink: #40352e;
+    --muted: #766b62;
+    --terra: #a3533b;
+    --camel: #8d6041;
+    --selected: #f4e8d5;
+    --sage: #4e7258;
+    --sage-light: #edf4eb;
+    --apricot: #f9ead7;
+  }
+  body { background: var(--paper); }
+  header { background: #f7efe3; border-bottom-color: var(--line); }
+  header small, .eyebrow { color: var(--camel); }
+  h1, h2, h3 { color: var(--ink); letter-spacing: -.015em; }
+  h1 { font-weight: 700; }
+  h2 { font-weight: 600; }
+  h3 { font-weight: 600; }
+  small, .muted, .lead { color: var(--muted); }
+  .field { font-weight: 500; }
+  .field > span { font-weight: 500; }
+  .field input, .field select, .field textarea, .qty select, .qty input {
+    color: var(--ink); border-color: #cfc0b0; background: var(--milk);
+  }
+  button:focus-visible, input:focus-visible, select:focus-visible,
+  textarea:focus-visible, a:focus-visible, summary:focus-visible { outline-color: var(--sage); }
+  .button { font-weight: 600; border-radius: 13px; }
+  .button:not(.secondary):not(.danger) {
+    background: var(--terra);
+    border-color: var(--terra);
+    color: white;
+  }
+  .button.secondary { background: var(--milk); color: #624b3b; border-color: var(--line); }
+  .button.danger { border-color: #d7aaa0; }
+  .primary-wide, .sales-confirm .button, .sticky-action .button { min-height: 54px; }
+  .card, .work-section, .modal {
+    background: var(--milk); border-color: var(--line);
+  }
+  .card, .work-section { box-shadow: 0 2px 8px #7553390a; }
+  .card.clickable:hover { background: #f8f0e3; border-color: #d9bfa2; }
+  .purpose, .purpose:nth-child(2), .purpose:nth-child(3) {
+    background: var(--milk); border-color: var(--line);
+  }
+  .purpose strong { color: var(--ink); font-weight: 500; }
+  .purpose.selected {
+    background: var(--selected); border-color: #bb9975;
+    box-shadow: inset 0 0 0 1px #bb9975;
+  }
+  .tabs.work-tabs { border-bottom-color: var(--line); }
+  .tabs.work-tabs .button:not(.secondary) {
+    color: var(--camel); border-bottom-color: var(--camel); font-weight: 600;
+  }
+  .tabs.work-tabs .button.secondary { color: var(--muted); }
+  .delivery-heading {
+    background: #f6eddf; border-left-color: #bd8760;
+  }
+  .monthly-import-callout {
+    background: var(--apricot); border-color: #ddb98e; border-width: 1px;
+  }
+  .monthly-import-ready { border-bottom-color: #cbdcca; }
+  .personal-start { border-top-color: var(--line); }
+  .buyer-grid { gap: 7px; margin: 12px 0; }
+  .buyer {
+    min-height: 44px; padding: 7px 8px; border-radius: 13px;
+    background: var(--milk); border-color: var(--line);
+    color: var(--ink); font-size: 16px; font-weight: 500;
+  }
+  .buyer.selected { font-weight: 500; }
+  .buyer.selected,
+  .category-tabs .button:not(.secondary),
+  .sales-workspace .tabs .button:not(.secondary),
+  .sales-mode-grid .button:not(.secondary) {
+    background: var(--selected);
+    border-color: #bb9975;
+    color: #69462f;
+    box-shadow: inset 0 0 0 1px #bb9975;
+  }
+  .product-row { padding: 10px 0; border-bottom-color: #eee5da; }
+  .product-row strong { font-size: 15px; font-weight: 500; }
+  .cat { width: 42px; height: 42px; }
+  .completed-buyer { min-height: 56px; }
+  .completed-buyer-name, .collection-person > span { font-size: 16px; font-weight: 600; }
+  .completed-buyer > b, .collection-person > strong { font-size: 18px; font-weight: 700; }
+  .sales-step, .sales-step:nth-of-type(2) {
+    background: var(--milk); border-color: var(--line);
+    box-shadow: 0 2px 8px #7553390a; font-weight: 500;
+  }
+  .sales-step.selected {
+    background: var(--selected); border-color: #c8a883;
+    box-shadow: inset 3px 0 #ad7651;
+  }
+  .sales-step .step-label { color: var(--ink); font-weight: 600; }
+  .sales-step .step-label small { color: #97613d; font-weight: 500; }
+  .sales-step > span:last-child { color: var(--camel); }
+  .step-icon { background: #f7e7d4; color: #96613d; }
+  .step-icon-assign { background: #e8f0e4; color: var(--sage); }
+  .step-icon-history { background: #eee9dd; color: var(--camel); }
+  .sales-steps > .work-section, .history-section {
+    background: transparent; border: 0; box-shadow: none;
+  }
+  .sales-mode-grid .button.secondary:first-child,
+  .sales-mode-grid .button.secondary:last-child { background: var(--milk); border-color: var(--line); }
+  .sales-confirm { background: var(--apricot); }
+  .sales-tools h2 .task-icon { color: var(--camel); }
+  .assignment-chips span, .tag, .sale-resolution-summary, .count-grid span {
+    background: #f3ecdf; color: #654d3b;
+  }
+  .notice, .sticky-action { background: var(--apricot); border-color: #e7d1b5; }
+  .notice { border-left-color: #be8460; }
+  .sale-saved, .toast.success, .monthly-import-ready, .line-import-entry {
+    background: var(--sage-light); color: #365f43;
+  }
+  .summary { background: #f5ead7; }
+  .hero { background: linear-gradient(135deg, #89523a, #b27752); }
+  nav { background: var(--milk); border-top-color: var(--line); box-shadow: 0 -2px 10px #7553390a; }
+  nav button { color: var(--muted); }
+  nav button.active { background: var(--selected); color: #775039; }
+  .check input { accent-color: var(--sage); }
+}
+@media screen and (max-width: 390px) {
+  .buyer { font-size: 15px; }
+}
