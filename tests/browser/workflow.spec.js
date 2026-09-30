@@ -301,6 +301,7 @@ test('複数端末: 古いrevisionの保存は拒否して最新データを守�
     await b.getByRole('button',{name:'この納品日で注文を始める'}).click();
     await expect(b.getByRole('alert')).toContainText('別の係が先に保存しました');
     expect(shared.state.rounds.map(r=>r.date)).toEqual(['2026-09-11']);
+    await b.getByRole('button',{name:'お知らせを閉じる'}).click();
     await b.getByRole('dialog').getByRole('button',{name:'閉じる'}).click();
     await b.getByRole('button',{name:'最新を読込'}).click();
     await expect(b.locator('.round-list-item')).toContainText('2026/09/11');

@@ -1726,7 +1726,7 @@ header small {
   .work-tabs { position: sticky; top: 0; z-index: 8; background: #faf6ef; }
   .tabs.work-tabs .button, .tabs.work-tabs .button.secondary { min-height: 48px; }
   .toast {
-    position: fixed; top: 92px; left: 50%; transform: translateX(-50%);
+    position: fixed; top: 136px; left: 50%; transform: translateX(-50%);
     width: max-content; max-width: calc(100vw - 24px); border: 1px solid #cdb293;
     border-radius: 13px; box-shadow: 0 5px 22px #35261b26; padding: 3px 7px 3px 15px;
   }
