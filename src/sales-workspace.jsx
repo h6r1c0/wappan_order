@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { addSale, assignUnknownSale, stockRemaining, soldQty, today, yen } from './domain';
+import { addSale, assignUnknownSale, stockRemaining, soldQty, today, yen, normalize } from './domain';
 import { bundleUsed } from './commerce';
 import { useApp, Button, BuyerPicker, Field, Empty } from './ui';
 
@@ -21,7 +21,7 @@ function StockStatus({ stock }) {
   if (inSets) groups.set('セット販売で使用', inSets);
   return <div className="sale-status" aria-label={`${stock.name}の割当状況`}>
     <strong>{stock.name}</strong>
-    <span>販売済 {soldQty(state, stock.id)} ／ 未確認 {pendingFor(state, stock).reduce((n, x) => n + x.qty, 0)} ／ 在庫 {stockRemaining(state, stock)}</span>
+    <span>割当済 {soldQty(state, stock.id) - pendingFor(state, stock).reduce((n, x) => n + x.qty, 0)} ／ 未確認 {pendingFor(state, stock).reduce((n, x) => n + x.qty, 0)} ／ 残り {stockRemaining(state, stock)}</span>
     {groups.size > 0 && <div className="assignment-chips">{[...groups].map(([name, qty]) =>
       <span key={name}>{name} {qty}</span>)}</div>}
   </div>;
@@ -37,14 +37,14 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
   const [quantities, setQuantities] = useState({});
   const [touchedIds, setTouchedIds] = useState([]);
   const [lastSaved, setLastSaved] = useState('');
-  const [category, setCategory] = useState(mode === 'buyer' ? '閉じる' : '全部');
+  const [category, setCategory] = useState(mode === 'buyer' ? '閉じる' : 'パン');
   const [query, setQuery] = useState('');
   const [date, setDate] = useState(today());
   const selectedStock = stocks.find((stock) => stock.id === stockId);
   const shown = stocks.filter((stock) =>
     (mode === 'product' ? stock.id === stockId : true) &&
     (Number(quantities[stock.id]) > 0 || (category !== '閉じる' &&
-      (category === '全部' || stock.category === category) && stock.name.includes(query))));
+      (query.trim() || category === 'ALL' || stock.category === category) && normalize(stock.name).includes(normalize(query)))));
   const eligible = stocks.filter((stock) => stockRemaining(state, stock) +
     pendingFor(state, stock).reduce((n, sale) => n + sale.qty, 0) > 0);
   const picked = stocks.filter((stock) => Number(quantities[stock.id]) > 0);
@@ -115,12 +115,12 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
     <h2>{mode === 'buyer' ? '購入者から入力' : '商品から入力'}</h2>
     {mode === 'product' && <>
       <div className="tabs category-tabs" aria-label="販売商品を絞り込む">
-        {['全部', 'パン', '焼き菓子'].map((item) =>
+        {['パン', '焼き菓子', 'ALL'].map((item) =>
           <Button key={item} secondary={category !== item} onClick={() => setCategory(item)}>{item}</Button>)}
       </div>
       <Field label="商品を探す"><input type="search" value={query} onChange={(e) => setQuery(e.target.value)}/></Field>
       {!selectedStock && <div className="sales-product-list">{stocks.filter((stock) =>
-        (category === '全部' || stock.category === category) && stock.name.includes(query))
+        (query.trim() || category === 'ALL' || stock.category === category) && normalize(stock.name).includes(normalize(query)))
         .map((stock) => <Button key={stock.id} secondary onClick={() => { setStockId(stock.id); setQuantities({}); }}>
           {stock.name}　未確認 {pendingFor(state, stock).reduce((n, sale) => n + sale.qty, 0)}・在庫 {stockRemaining(state, stock)}
         </Button>)}</div>}
@@ -151,10 +151,10 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
       </>}
       {mode === 'buyer' && <>
       <div className="tabs category-tabs" aria-label="販売商品を絞り込む">
-        {(category === '閉じる' ? ['商品を選ぶ', 'パン', '焼き菓子'] : ['閉じる', 'パン', '焼き菓子', '全部'])
+        {(category === '閉じる' ? ['商品を選ぶ', 'パン', '焼き菓子'] : ['閉じる', 'パン', '焼き菓子', 'ALL'])
           .map((item) => <Button key={item} secondary={item === '閉じる' ||
             (item !== '商品を選ぶ' && category !== item)}
-            onClick={() => setCategory(item === '商品を選ぶ' ? '全部' : item)}>{item}</Button>)}
+            onClick={() => setCategory(item === '商品を選ぶ' ? 'パン' : item)}>{item}</Button>)}
       </div>
       {category !== '閉じる' && <Field label="商品を探す"><input type="search" value={query}
         onChange={(e) => setQuery(e.target.value)}/></Field>}

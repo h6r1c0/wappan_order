@@ -478,7 +478,7 @@ function columnName(n) {
 export function Masters() {
   const { state, save } = useApp();
   const [tab, setTab] = useState("商品"),
-    [category,setCategory]=useState('全部'),
+    [category,setCategory]=useState('パン'),
     [editor, setEditor] = useState(null),
     [importing, setImporting] = useState(false),
     [query, setQuery] = useState("");
@@ -494,8 +494,8 @@ export function Masters() {
       </div>
       {tab === "商品" ? (
         <>
-          <div className="actions">
-            <Button onClick={() => setEditor({ type: "product" })}>
+          <div className="actions compact-actions">
+            <Button secondary onClick={() => setEditor({ type: "product" })}>
               ＋ 商品を追加
             </Button>
             <Button secondary onClick={() => setImporting(true)}>
@@ -508,13 +508,13 @@ export function Masters() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <div className="tabs category-tabs">{['全部','パン','焼き菓子'].map(c=><Button key={c} secondary={category!==c} onClick={()=>setCategory(c)}>{c!=='全部'&&<Cat category={c}/>} {c}</Button>)}</div>
+          <div className="tabs category-tabs">{['パン','焼き菓子','すべて'].map(c=><Button key={c} secondary={category!==c} onClick={()=>setCategory(c)}>{c!=='すべて'&&<Cat category={c}/>} {c}</Button>)}</div>
           {state.products
-            .filter(p=>category==='全部'||p.category===category)
+            .filter(p=>query.trim()||category==='すべて'||p.category===category)
             .filter((p) => normalize(p.name).includes(normalize(query)))
             .map((p) => (
               <button
-                className="card product-row clickable"
+                className="product-row clickable master-row"
                 key={p.id}
                 onClick={() => setEditor({ type: "product", value: p })}
               >
@@ -533,12 +533,12 @@ export function Masters() {
         </>
       ) : (
         <>
-          <Button onClick={() => setEditor({ type: "buyer" })}>
+          <Button secondary onClick={() => setEditor({ type: "buyer" })}>
             ＋ 購入者を追加
           </Button>
-          {state.buyers.map((b) => (
+          {state.buyers.slice().sort((a,b)=>a.name.localeCompare(b.name,'ja')).map((b) => (
             <button
-              className="card clickable line"
+              className="clickable line master-row"
               key={b.id}
               onClick={() => setEditor({ type: "buyer", value: b })}
             >
@@ -563,6 +563,12 @@ export function Masters() {
       {importing && <ExcelImport onClose={() => setImporting(false)} />}
     </>
   );
+}
+function FixedProductPicker({products,onPick}) {
+  const [query,setQuery]=useState('');
+  return <div className="fixed-picker"><Field label="商品名で探す" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>
+    {query.trim() && products.filter(p=>normalize(p.name).includes(normalize(query))).map(p=><button type="button" className="master-row" key={p.id} onClick={()=>{onPick(p);setQuery('');}}>{p.name} ＋</button>)}
+  </div>;
 }
 function BuyerEditor({ buyer, onClose }) {
   const { state, save } = useApp();
@@ -599,11 +605,8 @@ function BuyerEditor({ buyer, onClose }) {
         />
         {buyer?.testOnly && <Check label="氏名を確認し、通常の注文でも選択できるようにする" checked={!b.testOnly} onChange={v => set({...b,testOnly:!v,active:v})} />}
         <h3>毎回の固定注文</h3>
-        <p className="muted">
-          その人の未入力の注文を開くと反映します。入力済みの回は変わりません。
-        </p>
         {state.products
-          .filter((p) => p.active || b.fixed.some((f) => f.productId === p.id))
+          .filter((p) => b.fixed.some((f) => f.productId === p.id))
           .map((p) => (
             <div className="product-row" key={p.id}>
               <span className="grow">{p.name}</span>
@@ -622,6 +625,11 @@ function BuyerEditor({ buyer, onClose }) {
               />
             </div>
           ))}
+        {!b.fixed.length && <p className="muted">固定注文なし</p>}
+        <details className="fixed-add"><summary>＋ 固定注文を追加</summary>
+          <FixedProductPicker products={state.products.filter(p=>p.active&&!b.fixed.some(f=>f.productId===p.id))}
+            onPick={p=>set({...b,fixed:[...b.fixed,{productId:p.id,qty:1}]})}/>
+        </details>
         <Button type="submit">購入者・固定注文を保存</Button>
       </form>
       {buyer && (

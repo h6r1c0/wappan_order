@@ -31,11 +31,11 @@ import {
   BuyerPicker,
   ProductQuantityEditor,
 } from "./ui";
-export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
+export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='all'}) {
   const { state, save } = useApp();
   const titleRef = useRef(null);
   useEffect(() => { titleRef.current?.scrollIntoView({ block: 'start' }); }, []);
-  const [mode, setMode] = useState(null);
+  const [mode, setMode] = useState(phase === 'order' ? 'order' : null);
   const [inputMode, setInputMode] = useState(null);
   const [edit, setEdit] = useState(null);
   const [selling, setSelling] = useState(null);
@@ -65,26 +65,26 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
     onClick={() => toggleStep(key)} aria-expanded={mode === key}>
     <span className={`step-icon step-icon-${key}`}><TaskIcon type={{order:'basket',assign:'assign',history:'history'}[key]}/></span>
     <span className="step-label">{label}{key === 'assign' && <small>販売先未確認 {unconfirmedQty}個</small>}</span>
-    <span aria-hidden="true">{mode === key ? '閉じる' : '開く'}</span>
+    <span className="chevron" aria-hidden="true">{mode === key ? '⌄' : '›'}</span>
   </button>;
   return <>
-    <div className="work-title" ref={titleRef}><span className="eyebrow">販売用 {round?.date ? `・${round.date.replaceAll('-', '/')} 着` : ''}</span>
-      <h1>販売用の作業</h1></div>
+    {phase === 'all' && <div className="work-title" ref={titleRef}><span className="eyebrow">販売用 {round?.date ? `・${round.date.replaceAll('-', '/')} 着` : ''}</span>
+      <h1>販売用の作業</h1></div>}
     <div className="sales-steps">
-      {step('order', '① 販売用として注文する')}
+      {phase === 'all' && step('order', '① 販売用として注文する')}
       {mode === 'order' && !round && <p>納品回を選んでください。</p>}
       {mode === 'order' && round && <section className="work-section order-editor"
         data-unsaved={JSON.stringify(orderQuantities) !== JSON.stringify(savedOrderQuantities)}>
         <h2>販売用として注文する</h2>
         <ProductQuantityEditor products={round.products} quantities={orderQuantities}
           onChange={setOrderQuantities} startCollapsed
-          emptyMessage="「この納品日の商品」から、販売価格が分かっている商品を追加してください。"/>
+          emptyMessage="今月の商品を準備してください。"/>
         <div className="sticky-action"><span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
           <Button onClick={() => save((s) => setSalesOrderQuantities(s, roundId, orderQuantities),
             "販売用の注文数量を保存")}>販売用の注文を保存</Button></div>
-        {onManageProducts && <Button secondary onClick={onManageProducts}>この納品日の商品</Button>}
+        {onManageProducts && <Button secondary onClick={onManageProducts}>商品を追加・変更</Button>}
       </section>}
-      {step('assign', '② 売れた商品の販売先を割り当てる')}
+      {phase !== 'order' && step('assign', phase === 'after' ? '売れた商品の販売先を割り当てる' : '② 売れた商品の販売先を割り当てる')}
       {mode === 'assign' && <section className="work-section sales-step-body">
             <h2>入力方法を選ぶ</h2>
             <div className="sales-mode-grid">
@@ -98,13 +98,10 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
             </div>
             {inputMode && <SalesWorkspace key={inputMode} stocks={stocks} roundId={roundId} mode={inputMode}/>}
       </section>}
-      {step('history', '③ 残数・販売履歴を確認する')}
+      {phase !== 'order' && step('history', phase === 'after' ? '残数・販売履歴' : '③ 残数・販売履歴を確認する')}
     </div>
     {mode === 'history' && <section className="work-section history-section">
       <h2>残数・販売履歴</h2>
-      {unconfirmedSales.length > 0 && <Button secondary onClick={() => setUnconfirmedOpen(true)}>
-        販売先未確認 {unconfirmedSales.length}件をまとめて確認
-      </Button>}
       {remainingStocks.length > 0 && <Button secondary onClick={() => setBatchSelling(true)}>
         購入者を選んでまとめて販売を記録
       </Button>}
@@ -113,8 +110,8 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null}) {
         const remaining = stockRemaining(state, st);
         return <details className={`card stock-card ${remaining<1?'sold-out':''}`} key={st.id}>
           <summary className="product-row"><span className="grow"><strong>{st.name}</strong>
-            <small>{yen(st.price)} ／ 販売済み {soldQty(state,st.id)}個</small></span>
-            <strong>{remaining<1?'売り切れ':`残り ${remaining}個`}</strong></summary>
+            <small>{yen(st.price)} ／ 割当済み {soldQty(state,st.id)}個</small></span>
+            <strong>残り {remaining}個</strong></summary>
           <div className="actions"><Button disabled={remaining<1} onClick={() => setSelling(st)}>1商品ずつ販売を記録</Button>
             <Button secondary onClick={() => setEdit(st)}>販売履歴を確認・修正</Button></div>
         </details>;

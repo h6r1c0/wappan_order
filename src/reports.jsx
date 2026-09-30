@@ -41,7 +41,7 @@ export function Reports() {
   ].sort((a, b) => b - a);
   return (
     <>
-      <h1>集計・個人請求</h1>
+      <h1>今年度の実績・利益</h1>
       <Field label="対象年度（4月〜翌3月）">
         <select
           value={year}
@@ -114,10 +114,7 @@ export function Reports() {
       </div>
       {tab === "利益" && (
         <>
-          <p>
-            {start} 〜 {end}（テスト入力を除く）
-          </p>
-          <div className="grid2">
+          <div className="report-totals">
             <Summary
               label={`販売額${data.unknownRevenue ? "（判明分）" : ""}`}
               value={yen(data.revenue)}
@@ -126,17 +123,16 @@ export function Reports() {
               label={`仕入額${data.unknownCost ? "（判明分）" : ""}`}
               value={yen(data.cost)}
             />
-            <Summary
-              label="販売利益＋過去の利益"
-              value={yen(data.salesProfit)}
-            />
-            <Summary label="利益調整" value={yen(data.adjustment)} />
-            <Summary label="出店経費（利益反映分）" value={yen(data.expenses||0)} />
           </div>
           <Summary
             label={`最終利益${data.pending || data.provisional ? "（暫定）" : ""}`}
             value={yen(data.profit)}
           />
+          <details className="report-more"><summary>利益の計算内訳</summary>
+            <p>販売利益＋過去の利益 {yen(data.salesProfit)}</p>
+            <p>利益調整 {yen(data.adjustment)}</p>
+            <p>出店経費（利益反映分） {yen(data.expenses||0)}</p>
+          </details>
           {(data.unknownRevenue || data.unknownCost) && (
             <p className="notice">
               不明の販売額・仕入額があります。表示額は判明分のみで、全体の合計ではありません。利益のみの過去実績は利益へ加算しています。
@@ -157,7 +153,7 @@ export function Reports() {
               件は期間を特定できないため、年度全体の表示にのみ含まれます。
             </p>
           )}
-          <h2>数字の内訳</h2>
+          <details className="report-more"><summary>納品日ごとの実績を見る</summary>
           {data.rows.map((r) => (
             <details className="card" key={r.id}>
               <summary>
@@ -193,6 +189,7 @@ export function Reports() {
           {!data.rows.length && !data.adjustments.length && (
             <Empty>対象期間の実績はまだありません。</Empty>
           )}
+          </details>
           <Button
             secondary
             onClick={async () => {

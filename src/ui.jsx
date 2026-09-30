@@ -160,34 +160,24 @@ export function Modal({ title, children, onClose }) {
   );
 }
 export function Qty({ value = 0, onChange, label = "数量" }) {
+  const [direct, setDirect] = useState(false);
+  const amount = Number(value) || 0;
   return (
     <div className="qty">
-      <label>
-        <span className="sr-only">{label}</span>
-        <select
-          aria-label={label}
-          value={value > 10 ? "other" : value}
-          onChange={(e) =>
-            onChange(e.target.value === "other" ? 11 : Number(e.target.value))
-          }
-        >
-          {Array.from({ length: 11 }, (_, i) => (
-            <option key={i} value={i}>
-              {i}
-            </option>
-          ))}
-          <option value="other">その他</option>
-        </select>
-      </label>
-      {value > 10 && (
+      <button type="button" aria-label={`${label}を減らす`} disabled={amount === 0}
+        onClick={() => onChange(amount - 1)}>−</button>
+      <button type="button" className="qty-value" aria-label={`${label} ${amount}、直接入力する`}
+        aria-expanded={direct} onClick={() => setDirect(!direct)}>{amount}</button>
+      <button type="button" aria-label={`${label}を増やす`} onClick={() => onChange(amount + 1)}>＋</button>
+      {direct && (
         <input
-          aria-label={`${label} その他`}
+          aria-label={`${label} 直接入力`}
           type="number"
           inputMode="numeric"
           min="0"
           step="1"
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
+          value={amount}
+          onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
         />
       )}
     </div>
@@ -202,11 +192,11 @@ export function ProductQuantityEditor({
   startCollapsed = false,
 }) {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState(startCollapsed ? "閉じる" : "全部");
+  const [category, setCategory] = useState(startCollapsed ? null : "パン");
   const filtered = products.filter(
     (product) =>
-      category !== "閉じる" &&
-      (category === "全部" || product.category === category) &&
+      category !== null &&
+      (query.trim() || category === "ALL" || product.category === category) &&
       normalize(product.name).includes(normalize(query)),
   );
   const selected = filtered.filter((product) => quantities[product.id] > 0);
@@ -230,7 +220,7 @@ export function ProductQuantityEditor({
   return (
     <>
       <div className="tabs category-tabs">
-        {[(startCollapsed ? "閉じる" : null), "パン", "焼き菓子", "全部"].filter(Boolean).map((value) => (
+        {["パン", "焼き菓子", "ALL"].map((value) => (
           <Button
             secondary={category !== value}
             key={value}
@@ -240,11 +230,10 @@ export function ProductQuantityEditor({
             {value}
           </Button>
         ))}
+        {category !== null && startCollapsed && <button type="button" className="text-action" aria-label="商品一覧を閉じる" onClick={() => { setCategory(null); setQuery(""); }}>⌃</button>}
       </div>
-      {category === "閉じる" ? (
-        <p className="muted product-collapsed">商品は閉じています。パン・焼き菓子・全部から表示する範囲を選んでください。</p>
-      ) : <Field
-        label="商品名で絞る"
+      {category !== null && <Field
+        label="商品名で探す"
         type="search"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
@@ -255,7 +244,7 @@ export function ProductQuantityEditor({
           {selected.map(row)}
         </>
       )}
-      {category !== "閉じる" && unselected.map(row)}
+      {category !== null && unselected.map(row)}
     </>
   );
 }
@@ -298,7 +287,7 @@ export function BuyerPicker({
     : [];
   return (
     <>
-      {state.buyers.length > 12 && <Field label="購入者を絞り込む" type="search" placeholder="名前の一部（入力しなくても選べます）" value={query} onChange={e => setQuery(e.target.value)} />}
+      {state.buyers.length > 8 && <Field label="購入者を探す" type="search" placeholder="名前を検索" value={query} onChange={e => setQuery(e.target.value)} />}
       {allowAdd && (
         <>
           <Button secondary onClick={() => setAdding(!adding)}>
@@ -361,6 +350,7 @@ export function BuyerPicker({
         {state.buyers
           .filter((b) => b.id === value || (b.testOnly ? includeTest : b.active))
           .filter(b => normalize(b.name).includes(normalize(query)))
+          .sort((a,b) => (a.id === value ? -1 : b.id === value ? 1 : a.name.localeCompare(b.name, 'ja')))
           .map((b) => (
             <button
               type="button"
@@ -381,7 +371,7 @@ export function CollectionList({ rows }) {
       {rows.map((row) => (
         <details className="card" key={row.id}>
           <summary className="collection-person">
-            <span>{row.name}<small>入力済み</small></span>
+            <span>{row.name}</span>
             <strong>{yen(row.total)}</strong>
           </summary>
           <details className="collection-breakdown"><summary>種類別を見る</summary>

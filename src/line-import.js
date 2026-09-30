@@ -27,7 +27,7 @@ export function parseLineOrder(text,s,r){
    products.push({raw,qty,productId:options.length===1?options[0].id:'',options,include:true});
   }else{
    const productOptions=candidates(line,r.products,s.aliases?.products);
-   if(productOptions.length===1){products.push({raw:line,qty:1,productId:productOptions[0].id,options:productOptions,include:true});continue;}
+   if(productOptions.length){products.push({raw:line,qty:1,productId:productOptions.length===1?productOptions[0].id:'',options:productOptions,include:true});continue;}
    const options=candidates(line,s.buyers.filter(b=>!b.testOnly||r.test),s.aliases?.buyers);
    if(options.length)buyers.push({raw:line,options});else unread.push({raw:original,ignored:false,productOptions,destinationCandidate:destinationCandidate(line,s)});
   }

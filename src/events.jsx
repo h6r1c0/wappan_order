@@ -30,7 +30,7 @@ import {
   Summary,
   ProductQuantityEditor,
 } from "./ui";
-export function Events({roundId=null,onManageProducts=null}) {
+export function Events({roundId=null,onManageProducts=null,phase='all'}) {
   const { state, save } = useApp();
   const [edit, setEdit] = useState(null),
     [move, setMove] = useState(null),
@@ -46,14 +46,11 @@ export function Events({roundId=null,onManageProducts=null}) {
     .sort((a, b) => b.date.localeCompare(a.date));
   return (
     <>
-      <div className="section-head">
+      {phase !== 'after' && <div className="section-head">
         <h1>おやつ用</h1>
-        {onManageProducts && <Button secondary onClick={onManageProducts}>この回の商品</Button>}
-      </div>
-      <p className="lead">
-        個人注文と同じ一覧で、おやつ用に注文する数量を続けて入力します。
-      </p>
-      {round && (
+        {onManageProducts && <Button secondary onClick={onManageProducts}>商品を追加・変更</Button>}
+      </div>}
+      {phase !== 'after' && round && (
         <section
           className="card order-editor"
           data-unsaved={
@@ -70,7 +67,7 @@ export function Events({roundId=null,onManageProducts=null}) {
               const cost = state.products.find((item) => item.id === product.id)?.cost;
               return cost == null ? "仕入単価 未確認" : `仕入単価 ${yen(cost)}`;
             }}
-            emptyMessage="「この回の商品」から商品を追加してください。"
+            emptyMessage="今月の商品を準備してください。"
           />
           <div className="sticky-action">
             <span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
@@ -81,8 +78,8 @@ export function Events({roundId=null,onManageProducts=null}) {
           </div>
         </section>
       )}
-      <h2>納品後の使用・財政処理</h2>
-      <p className="muted">納品後に使用数を入力します。使った分だけ財政へ請求し、余りは販売用へ振り替えます。</p>
+      {phase !== 'order' && <h2>おやつ使用・財政請求</h2>}
+      {phase !== 'order' && <>
       {events.map((e) => (
           <section className="card" key={e.id}>
             <div className="section-head">
@@ -125,6 +122,8 @@ export function Events({roundId=null,onManageProducts=null}) {
                       ? "未確定"
                       : yen(l.used * (l.cost || 0))}
                   </p>
+                  {l.cost == null && <p className="notice">仕入単価が未確認です。使用数と仕入単価を入力してください。</p>}
+                  {l.cost == null && <Button secondary onClick={() => setEdit(e)}>使用数・仕入単価を入力</Button>}
                   <Button
                     disabled={remaining < 1 || l.cost == null}
                     secondary
@@ -185,6 +184,7 @@ export function Events({roundId=null,onManageProducts=null}) {
           上の商品一覧で注文数量を入力して保存します。
         </Empty>
       )}
+      </>}
       {edit && (
         <EventEditor
           roundId={roundId}

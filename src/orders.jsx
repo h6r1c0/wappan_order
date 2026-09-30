@@ -29,6 +29,7 @@ import {
   Button,
   Field,
   Money,
+  Qty,
   Check,
   Modal,
   Tag,
@@ -41,8 +42,8 @@ import {
 } from "./ui";
 const PURPOSES = [
   ["個人注文", new URL("../wappan_icon_personal_order_final.png", import.meta.url).href, "購入者ごとの注文"],
-  ["販売用", new URL("../wappan_icon_sales_basket_final.png", import.meta.url).href, "販売・残数・セット"],
-  ["おやつ用", new URL("../wappan_icon_snack_use_anpan_final.png", import.meta.url).href, "使用数と財政請求"],
+  ["販売用", new URL("../wappan_icon_sales_basket_final.png", import.meta.url).href, "販売用の注文"],
+  ["おやつ用", new URL("../wappan_icon_snack_use_anpan_final.png", import.meta.url).href, "おやつ用の注文"],
 ];
 export function Orders() {
   const { state, save } = useApp();
@@ -56,15 +57,15 @@ export function Orders() {
   ) : (
     <>
       <div className="section-head">
-        <h1>納品日ごとの注文</h1>
-        <Button onClick={() => setCreating(true)}>＋ 注文回を作る</Button>
+        <h1>注文</h1>
+        <Button onClick={() => setCreating(true)}>新しい注文を始める</Button>
       </div>
-      <p className="lead">納品日を開いて、購入者の注文を入力します。</p>
+      <h2 className="list-heading">進行中・過去の注文</h2>
       {[...state.rounds]
         .sort((a, b) => b.date.localeCompare(a.date))
         .map((r) => (
           <button
-            className="card clickable"
+            className={`card clickable round-list-item status-${r.status}`}
             key={r.id}
             onClick={() => setId(r.id)}
           >
@@ -73,17 +74,14 @@ export function Orders() {
               <Tag>{r.status}</Tag>
             </div>
             {r.test && <Tag>テスト・年度集計対象外</Tag>}
-            <div className="line">
-              <span>{Object.keys(r.orders).length}人 入力済み</span>
-              <strong>{r.reconciliationPending ? "判明分 " : ""}{yen(roundRevenue(r))} ›</strong>
-            </div>
+            <span className="round-open" aria-hidden="true">›</span>
           </button>
         ))}
       {!state.rounds.length && (
-        <Empty>まず「注文回を作る」から納品日を登録してください。</Empty>
+        <Empty>納品日を選んで新しい注文を始めましょう。</Empty>
       )}
       {creating && (
-        <Modal title="注文回を作る" onClose={() => setCreating(false)}>
+        <Modal title="いつ届く分を注文しますか" onClose={() => setCreating(false)}>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -108,9 +106,6 @@ export function Orders() {
               checked={test}
               onChange={setIsTest}
             />
-            <p className="muted">
-              販売価格が登録され、対象期間内の商品をこの回へ入れます。商品は後から追加できます。
-            </p>
             <Button type="submit">この納品日で注文を始める</Button>
           </form>
         </Modal>
@@ -153,8 +148,7 @@ function Round({ round: r, back }) {
   const monthLabel = `${Number(r.date.slice(5, 7))}月`;
   return (
     <>
-      <Button
-        secondary
+      <button type="button" className="text-action back-link"
         onClick={() => {
           if (
             draft &&
@@ -164,12 +158,12 @@ function Round({ round: r, back }) {
           back();
         }}
       >
-        ‹ 注文回一覧
-      </Button>
+        ‹ 注文一覧へ
+      </button>
       <div className="delivery-heading">
-        <div><span className="eyebrow">① 注文回を作る・現在の納品日</span><h1>{r.date.replaceAll("-", "/")} 着</h1></div>
+        <div><span className="eyebrow">納品予定日</span><h1>{r.date.replaceAll("-", "/")} 着</h1></div>
         <Button secondary onClick={() => setSettings(true)}>
-          日付・状態
+          詳細
         </Button>
       </div>
       <p>
@@ -190,14 +184,14 @@ function Round({ round: r, back }) {
       {r.note && (r.reconciliationPending ? <details className="notice"><summary>実資料の照合中：表示金額は判明分です（詳細・未確認事項）</summary><p>{r.note}</p></details> : <p className="notice">{r.note}</p>)}
       <div className="purpose-grid" aria-label="注文の用途を選ぶ">
         {PURPOSES.map(([label, image, note]) => (
-          <button type="button" key={label} className={`purpose ${tab === label ? "selected" : ""}`} onClick={() => setTab(label)}>
+          <button type="button" key={label} data-purpose={label} className={`purpose ${tab === label ? "selected" : ""}`} onClick={() => setTab(label)}>
             <img src={image} alt="" />
             <span><strong>{label}</strong><small>{note}</small></span>
           </button>
         ))}
       </div>
       <div className="tabs work-tabs">
-        {[["発注数", "④"], ["納品・精算", "⑤"], ["集金額", "⑥"]].map(([t, number]) => (
+        {[["発注数", "②"], ["納品・精算", "③"], ["集金額", "④"]].map(([t, number]) => (
           <Button key={t} secondary={tab !== t} onClick={() => setTab(t)}>
             <TaskIcon type={{'発注数':'totals','納品・精算':'delivery','集金額':'coins'}[t]}/>
             <span className="work-tab-label"><span aria-hidden="true">{number} </span>{t}</span></Button>
@@ -205,23 +199,19 @@ function Round({ round: r, back }) {
       </div>
       {lineImport&&<LineImport round={r} onClose={()=>setLineImport(false)}/>}
       {excelImport&&<ExcelImport targetRoundId={r.id} onClose={()=>setExcelImport(false)}/>}
-      {tab==='販売用'&&<><Sales roundId={r.id} onManageProducts={() => setProducts(true)}/><Markets roundId={r.id}/></>}
-      {tab==='おやつ用'&&<Events roundId={r.id} onManageProducts={() => setProducts(true)}/>}
+      {tab==='販売用'&&<Sales roundId={r.id} phase="order" onManageProducts={() => setProducts(true)}/>}
+      {tab==='おやつ用'&&<Events roundId={r.id} phase="order" onManageProducts={() => setProducts(true)}/>}
       {tab === "個人注文" && (
         <>
-          <section className="personal-start"><Button className="line-import-entry" secondary onClick={()=>setLineImport(true)}>LINE注文を貼り付けて入力を省く</Button>
+          <section className="personal-start">
           <div className="section-head">
-              <h2>③ 購入者ごとの注文を入力する</h2>
+              <h2>① 個人注文を入力する</h2>
             <div className="compact-actions">
-              <Button secondary onClick={() => setProducts(true)}>この納品日の商品</Button>
+              <Button secondary onClick={()=>setLineImport(true)}>注文を貼り付け</Button>
+              <Button secondary onClick={() => setProducts(true)}>商品を追加・変更</Button>
             </div>
           </div>
           <BuyerPicker value={buyerId} onChange={choose} includeTest={r.test} /></section>
-          {!draft && (
-            <Empty>
-              名前をタップすると、固定注文が入った入力欄が開きます。
-            </Empty>
-          )}
           {draft && (
             <section className="card order-editor" data-unsaved="true">
               <h2>{currentBuyer?.name}さんの注文</h2>
@@ -262,7 +252,7 @@ function Round({ round: r, back }) {
               </div>
             </section>
           )}
-          <h3>入力済みの購入者</h3>
+          <h3>入力済み</h3>
           {Object.entries(r.orders).map(([id, o]) => (
             <button
               className="card clickable line completed-buyer"
@@ -271,7 +261,6 @@ function Round({ round: r, back }) {
             >
               <span className="completed-buyer-name">
                 {state.buyers.find((b) => b.id === id)?.name || o.name}
-                <small>入力済み</small>
               </span>
               <b>{yen(orderAmount(r, o))} ›</b>
             </button>
@@ -306,13 +295,10 @@ function Round({ round: r, back }) {
       {tab === "発注数" && (
         <>
           <h2>わっぱんへ発注する数量</h2>
-          <p className="muted">
-            個人注文・販売用・おやつ用を合算した、この納品日の発注数です。販売場所の変更や余剰の振替は追加発注に数えません。
-          </p>
           {deliveryTotals(state,r).map((p) => (
-            <div className="card line" key={p.id}>
-              <span>{p.name}<small>個人 {p.personal} ／ 販売用 {p.sales} ／ おやつ用 {p.snack}</small></span>
-              <strong>{p.qty} 個／袋</strong>
+            <div className="delivery-total-row" key={p.id}>
+              <span>{p.name}</span>
+              <span className="delivery-total-quantity"><strong>{p.qty}個</strong><small>{[["個人",p.personal],["販売",p.sales],["おやつ",p.snack]].filter(([,n])=>n>0).map(([name,n])=>`${name}${n}`).join("｜")}</small></span>
             </div>
           ))}
           {!productTotals(r).length && (
@@ -336,14 +322,9 @@ function Round({ round: r, back }) {
           >
             商品名・数量をコピー
           </Button>
-          <pre className="copyable">
-            {deliveryTotals(state,r)
-              .map((p) => `${p.name}　${p.qty}`)
-              .join("\n")}
-          </pre>
-          {r.planned && (
+          {r.planned && r.products.some((p) => (productTotals(r, r.planned).find((x) => x.id === p.id)?.qty||0)!==(productTotals(r).find((x) => x.id === p.id)?.qty||0)) && (
             <details>
-              <summary>注文確定時の数量を見る</summary>
+              <summary>発注確定後に変更あり</summary>
               {productTotals(r, r.planned).map((p) => (
                 <p key={p.id}>
                   {p.name}：{p.qty}
@@ -368,17 +349,20 @@ function Round({ round: r, back }) {
       )}
       {tab === "納品・精算" && (
         <>
-          <div className="notice">
-            欠品があるときだけ「個人注文」で、了承した購入者の数量を減らして保存してください。全員の納品確認は不要です。
-          </div>
-          <div className="grid2">
-            <Summary label="修正後の通常販売額" value={yen(total)} />
-            <Summary
-              label="通常販売の利益"
-              value={yen(cost == null ? null : total - cost)}
-            />
-          </div>
+          <h2>納品後に確認する</h2>
+          <Shortage round={r}/>
           <Invoice key={`${r.id}-${r.invoice}`} round={r} />
+          <details className="after-work"><summary>販売先を割り当てる</summary>
+            <Sales roundId={r.id} phase="after"/>
+            <details><summary>販売場所・セットを使う</summary><Markets roundId={r.id}/></details>
+          </details>
+          <details className="after-work"><summary>おやつ使用・財政請求</summary>
+            <Events roundId={r.id} phase="after"/>
+          </details>
+          <details className="after-work"><summary>利益の確認</summary>
+            <div className="grid2"><Summary label="販売額" value={yen(total)} />
+              <Summary label="利益" value={yen(cost == null ? null : total - cost)} /></div>
+          </details>
           {r.planned && (
             <details>
               <summary>注文確定時と現在の差を確認</summary>
@@ -410,6 +394,34 @@ function Round({ round: r, back }) {
     </>
   );
 }
+function Shortage({round:r}) {
+  const {save} = useApp();
+  const [choice,setChoice] = useState(r.shortageConfirmation || null);
+  const [buyerId,setBuyerId] = useState('');
+  const [quantities,setQuantities] = useState(null);
+  const [agreed,setAgreed] = useState(false);
+  const ordered = Object.entries(r.orders).filter(([,order])=>Object.values(order.quantities).some(q=>q>0));
+  return <section className="shortage-check"><h3>欠品確認</h3>
+    <div className="segmented" role="group" aria-label="欠品確認">
+      {[['none','なし'],['yes','あり']].map(([value,label]) => <button type="button" key={value}
+        className={choice===value?'selected':''} aria-pressed={choice===value}
+        onClick={async()=>{if(await save(s=>{s.rounds.find(x=>x.id===r.id).shortageConfirmation=value;},'欠品確認'))setChoice(value);}}>{label}</button>)}
+    </div>
+    {choice === 'yes' && <div className="shortage-editor">
+      <Field label="欠品を修正する購入者"><select value={buyerId} onChange={e=>{const id=e.target.value;setBuyerId(id);setQuantities(id?{...r.orders[id].quantities}:null);setAgreed(false);}}>
+        <option value="">購入者を選ぶ</option>{ordered.map(([id,o])=><option key={id} value={id}>{o.name}</option>)}
+      </select></Field>
+      {buyerId && quantities && <>
+        {r.products.filter(p=>(r.orders[buyerId]?.quantities[p.id]||0)>0).map(p=><div className="product-row" key={p.id}><span className="grow">{p.name}<small>注文 {r.orders[buyerId].quantities[p.id]}個</small></span>
+          <Qty label={`${p.name} 納品数量`} value={quantities[p.id]||0} onChange={n=>setQuantities({...quantities,[p.id]:n})}/></div>)}
+        <Check label="購入者の了承を得て数量を修正する" checked={agreed} onChange={setAgreed}/>
+        <Button disabled={!agreed||r.products.some(p=>(quantities[p.id]||0)>(r.orders[buyerId].quantities[p.id]||0))} onClick={async()=>{
+          if(await save(s=>{s.rounds.find(x=>x.id===r.id).orders[buyerId].quantities=quantities;},'欠品による注文数量を修正')) {setBuyerId('');setQuantities(null);setAgreed(false);}
+        }}>了承済みの数量で保存</Button>
+      </>}
+    </div>}
+  </section>;
+}
 function Invoice({ round: r }) {
   const { state, save } = useApp();
   const [invoice, setInvoice] = useState(r.invoice),
@@ -435,29 +447,29 @@ function Invoice({ round: r }) {
       }
       onSubmit={async (e) => {
         e.preventDefault();
+        const nextStatus = status === '注文確定' && r.shortageConfirmation === 'none' && invoice != null ? '納品済み' : status;
         await save((s) => {
           const round = s.rounds.find((x) => x.id === r.id);
-          Object.assign(round, { invoice, eventIds, stockIds, status });
-          if (status !== "入力中")
+          Object.assign(round, { invoice, eventIds, stockIds, status: nextStatus });
+          if (nextStatus !== "入力中")
             round.planned ??= structuredClone(round.orders);
         }, "納品・仕入額を保存");
       }}
     >
       <h2>納品書の仕入額を登録</h2>
       <Money
-        label="実際に支払う仕入税込総額"
+        label="納品書の税込合計（円）"
         value={invoice}
         onChange={setInvoice}
       />
-      <details open={eventIds.length > 0 || stockIds.length > 0}>
-        <summary>同じ納品回の用途別仕入（自動で区分）</summary>
-        <p className="muted">販売用・おやつ用は、この納品回への登録から自動で区分します。販売場所の変更や余剰振替は追加仕入に数えません。</p>
+      <div className="cost-overview">個人注文 {yen(roundCost(state, preview))} ／ 販売用 {yen(salesCost)} ／ おやつ用 {yen(snackCost)}</div>
+      {(salesCost == null || snackCost == null) && <p className="notice">仕入単価が未入力です。判明分の納品書総額は先に保存できます。</p>}
+      <details>
+        <summary>用途別の内訳を見る</summary>
         {snackRows.map(e=><p key={e.id}>おやつ用：{e.name} ／ {yen(e.lines.every(line=>line.cost!=null) ? e.lines.reduce((n,line)=>n+line.qty*line.cost,0) : null)}</p>)}
         {salesRows.map(st=><p key={st.id}>販売用：{st.name} ×{st.qty} ／ {yen(st.cost==null?null:st.cost*st.qty)}</p>)}
       </details>
-      <p>おやつ用仕入 {yen(snackCost)} ／ 販売用仕入 {yen(salesCost)}</p>
-      <p className="total">個人注文の仕入：{yen(roundCost(state, preview))}</p>
-      {invoice != null && ded == null && <p className="notice">納品書総額は先に保存できます。用途別の仕入単価を確認してから精算済みにしてください。</p>}
+      {invoice != null && ded == null && <p className="notice">用途別の仕入単価を確認してから精算済みにしてください。</p>}
       <Field label="納品・精算の状態">
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           {["入力中", "注文確定", "納品済み", "精算済み"].map((v) => (
@@ -476,7 +488,7 @@ function RoundSettings({ round: r, onClose, onDeleted }) {
     [test, setIsTest] = useState(r.test),
     [note, setNote] = useState(r.note);
   return (
-    <Modal title="注文回の日付・状態" onClose={onClose}>
+    <Modal title="注文の詳細" onClose={onClose}>
       <form
         onSubmit={async (e) => {
           e.preventDefault();

@@ -24,6 +24,11 @@ function App() {
     revisionRef = useRef(0);
   const notify = (text) => setMessage(text);
   useEffect(() => {
+    if (message !== '保存しました') return;
+    const timeout = setTimeout(() => setMessage(''), 2500);
+    return () => clearTimeout(timeout);
+  }, [message]);
+  useEffect(() => {
     if (!client) {
       setAuthLoading(false);
       return;
@@ -190,7 +195,7 @@ function App() {
                   ? "読み込み中…"
                   : newer
                     ? "別の係がデータを更新しました"
-                    : "係の共有データ"}
+                    : "共有中"}
             </span>
             <Button
               secondary
@@ -271,12 +276,7 @@ function Login({ notify }) {
   return (
     <main className="login">
       <span className="eyebrow">おひさま保育園の係専用</span>
-      <h1>
-        わっぱんの注文を、
-        <br />
-        かんたんに。
-      </h1>
-      <p>登録済みの係のメールアドレスでログインしてください。</p>
+      <h1>わっぱん</h1>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -332,8 +332,9 @@ function Login({ notify }) {
           setBusy(false);
         }}
       >
-        パスワードを忘れた場合
+        パスワードを忘れた方
       </Button>
+      <p className="login-help">初めて使う方は、係の管理者に利用登録を依頼してください。</p>
     </main>
   );
 }

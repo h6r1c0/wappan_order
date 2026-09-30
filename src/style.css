@@ -1641,3 +1641,105 @@ header small {
 @media screen and (max-width: 390px) {
   .buyer { font-size: 15px; }
 }
+
+/* 業務順に読む画面: 情報一覧と操作ボタンの強さを分ける。 */
+@media screen {
+  .text-action {
+    appearance: none; border: 0; background: transparent; color: #805a40;
+    min-height: 42px; padding: 7px 9px; font-size: .9rem; font-weight: 500;
+    text-decoration: underline; text-underline-offset: 4px;
+  }
+  .back-link { display: inline-flex; align-items: center; margin: 0 0 4px -9px; }
+  .list-heading { margin: 28px 0 9px; font-size: 1.15rem; font-weight: 600; }
+  .round-list-item {
+    position: relative; padding: 13px 42px 13px 16px; margin: 7px 0;
+    border-left: 5px solid #ccac80; text-align: left;
+  }
+  .round-list-item.status-注文確定 { border-left-color: #ad754f; }
+  .round-list-item.status-納品済み { border-left-color: #8ba28a; }
+  .round-list-item.status-精算済み { border-left-color: #597d65; }
+  .round-list-item .line { margin: 0; }
+  .round-list-item h2 { margin: 0; font-size: 1.08rem; font-weight: 600; }
+  .round-open { position: absolute; top: 18px; right: 17px; font-size: 1.5rem; color: #966d4d; }
+  .qty {
+    display: inline-flex; justify-content: flex-end; flex-wrap: nowrap;
+    max-width: none; gap: 3px; font-variant-numeric: tabular-nums;
+  }
+  .qty button {
+    appearance: none; border: 1px solid #d7c8b6; background: #fffdf9;
+    color: #744f37; border-radius: 11px; width: 38px; min-width: 38px;
+    height: 40px; padding: 0; font-size: 1.17rem; font-weight: 500;
+  }
+  .qty button:disabled { opacity: .35; }
+  .qty .qty-value { width: 39px; min-width: 39px; color: #342b25; font-weight: 600; background: #f8f0e5; font-size: 1rem; }
+  .qty input { width: 65px; min-width: 65px; height: 40px; padding: 5px; font-weight: 500; }
+  .category-tabs { align-items: center; }
+  .category-tabs .cat { width: 27px; height: 27px; }
+  .category-tabs .button:has(.cat) { min-height: 44px; }
+  .category-tabs .button { min-height: 44px; }
+  .category-tabs .button:nth-child(3) { flex: .6; font-size: .8rem; }
+  .category-tabs .text-action { padding: 3px; min-width: 36px; text-decoration: none; }
+  .product-row { min-height: 56px; }
+  .product-row .grow { min-width: 0; font-weight: 500; }
+  .product-row small { font-size: .78rem; }
+  .master-row {
+    display: flex; width: 100%; align-items: center; justify-content: space-between;
+    min-height: 56px; padding: 8px 12px; margin: 0; text-align: left;
+    border: 0; border-bottom: 1px solid var(--line); background: transparent;
+    color: var(--ink); box-shadow: none; border-radius: 0;
+  }
+  .master-row small { color: var(--muted); }
+  .master-row strong { font-weight: 600; }
+  .fixed-add { margin: 12px 0 22px; }
+  .fixed-picker { padding: 10px 0; max-height: 310px; overflow: auto; }
+  .delivery-total-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 15px;
+    padding: 13px 4px; border-bottom: 1px solid var(--line);
+  }
+  .delivery-total-row > span:first-child { min-width: 0; font-weight: 500; }
+  .delivery-total-quantity { flex: 0 0 auto; text-align: right; }
+  .delivery-total-quantity strong { display: block; font-size: 1.35rem; font-weight: 600; line-height: 1.25; }
+  .delivery-total-quantity small { display: block; color: var(--muted); font-size: .75rem; }
+  .after-work { margin: 14px 0; border: 1px solid var(--line); border-radius: 16px; background: var(--milk); }
+  .after-work > summary { padding: 15px; font-weight: 600; min-height: 54px; }
+  .after-work > :not(summary) { margin: 10px; }
+  .shortage-check { padding: 12px 2px 20px; }
+  .shortage-check h3 { margin: 0 0 10px; }
+  .segmented { display: inline-flex; padding: 3px; border-radius: 13px; background: #f0e9df; gap: 3px; }
+  .segmented button { border: 1px solid transparent; border-radius: 10px; min-width: 88px; min-height: 42px; background: transparent; color: var(--ink); }
+  .segmented .selected { background: #fffdf9; border-color: #b38b68; box-shadow: 0 1px 4px #5b402018; }
+  .cost-overview { padding: 10px 0; font-size: .89rem; color: var(--ink); }
+  .collection-entry { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 8px; padding: 10px 3px; border-bottom: 1px solid var(--line); }
+  .collection-entry > :not(.collection-person):not(.collection-pay):not(.collection-edit) { grid-column: 1 / -1; }
+  .collection-entry .collection-person { display: flex; align-items: center; gap: 10px; justify-content: flex-start; min-width: 0; }
+  .collection-entry .collection-person > span:first-child { flex: 1; min-width: 0; font-size: 1rem; font-weight: 500; }
+  .collection-entry .collection-person > strong { font-size: 1rem; font-weight: 600; white-space: nowrap; }
+  .collection-state { font-size: .74rem; border-radius: 100px; padding: 2px 7px; }
+  .collection-state.is-paid { color: #3e6647; background: #e5f0e1; }
+  .collection-state.is-due { color: #94623d; background: #f8e9d7; }
+  .collection-entry .collection-pay { min-height: 40px; padding: 5px 11px; width: auto; font-size: .85rem; }
+  .collection-entry .collection-edit { grid-column: 1 / -1; justify-self: end; min-height: 30px; }
+  .sales-step .chevron { font-size: 1.5rem; text-decoration: none; }
+  .login-help { margin-top: 22px; color: var(--muted); font-size: .85rem; }
+  .sync { min-height: 36px; padding: 2px 18px; }
+  .sync .button { min-height: 32px; padding: 4px 9px; }
+  .work-tabs { position: sticky; top: 0; z-index: 8; background: #faf6ef; }
+  .tabs.work-tabs .button, .tabs.work-tabs .button.secondary { min-height: 48px; }
+  .toast {
+    position: fixed; top: 92px; left: 50%; transform: translateX(-50%);
+    width: max-content; max-width: calc(100vw - 24px); border: 1px solid #cdb293;
+    border-radius: 13px; box-shadow: 0 5px 22px #35261b26; padding: 3px 7px 3px 15px;
+  }
+  .report-totals { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px; }
+  .report-totals .summary { margin: 3px 0; }
+  .report-totals .summary strong { font-size: 1.18rem; }
+  .report-more { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .report-more > summary { min-height: 43px; font-weight: 500; }
+  .report-more .card { margin: 7px 0; }
+}
+@media screen and (max-width: 390px) {
+  .qty button { min-width: 35px; width: 35px; }
+  .qty .qty-value { min-width: 35px; width: 35px; }
+  .collection-entry { grid-template-columns: 1fr; }
+  .collection-entry .collection-pay { justify-self: end; }
+}
