@@ -34,7 +34,8 @@ async function backend(context, shared) {
         headers: { "access-control-allow-origin": "*" },
       });
     if (method === "OPTIONS") return json({});
-    if (url.pathname.includes("/auth/v1/token"))
+    if (url.pathname.includes("/auth/v1/token")) {
+      shared.authBody = route.request().postData();
       return json({
         access_token:
           "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjo0MDAwMDAwMDAwfQ.fake",
@@ -48,6 +49,7 @@ async function backend(context, shared) {
           role: "authenticated",
         },
       });
+    }
     if (url.pathname.includes("/auth/v1/logout")) return json({});
     if (url.pathname.includes("/rest/v1/wappan_workspace"))
       return json({
@@ -113,14 +115,14 @@ async function setQty(page, name, value) {
   await page.getByLabel(`${name} 直接入力`).fill(String(value));
 }
 async function openAfter(page, name) {
-  await page.getByRole('button', {name:'納品・精算', exact:true}).click();
+  await page.locator('.stage-3 > .stage-trigger').click();
   await page.locator('.after-work').filter({has:page.locator('summary', {hasText:name})}).locator('summary').first().click();
 }
 
 test('ログインの主従と入力欄をスマホ幅で確認する', async ({page,context}) => {
   await backend(context,{state:preparedState(),revision:0});
   await page.goto('/'); await qaFont(page);
-  await expect(page.getByRole('heading',{name:'わっぱん係'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'係用ログイン'})).toBeVisible();
   await expect(page.getByRole('button',{name:'ログイン',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'パスワードを忘れた方'})).toHaveClass(/login-reset/);
   for (const width of [320,375,430]) {
@@ -130,12 +132,30 @@ test('ログインの主従と入力欄をスマホ幅で確認する', async ({
   }
 });
 
+test('ログアウト後、画面に入力された認証情報で再ログインできる', async ({page,context}) => {
+  const shared={state:preparedState(),revision:0};
+  await backend(context,shared); page.on('dialog',d=>d.accept());
+  await login(page);
+  await page.getByRole('button',{name:'ログアウト'}).click();
+  await expect(page.getByRole('heading',{name:'係用ログイン'})).toBeVisible();
+  // ブラウザの自動入力が React の change を送らない場合を模擬する。
+  await page.evaluate(() => {
+    document.querySelector('input[name="email"]').value='staff@example.test';
+    document.querySelector('input[name="password"]').value='reused-password';
+  });
+  await page.getByRole('button',{name:'ログイン',exact:true}).click();
+  await expect(page.getByRole('button',{name:/新しい注文を始める/})).toBeVisible();
+  expect(shared.authBody).toContain('reused-password');
+});
+
 test('業務順: 注文開始、個人・販売・おやつ、発注数とスマホ幅', async ({page,context}) => {
   const shared={state:preparedState(),revision:0};
   await backend(context,shared); page.on('dialog',d=>d.accept()); await login(page);
   await expect(page.getByRole('button',{name:/新しい注文を始める/})).toBeVisible();
   await openRound(page);
-  await expect(page.getByRole('heading',{name:/① 注文/})).toBeVisible();
+  await expect(page.locator('.stage-trigger')).toHaveCount(4);
+  await expect(page.locator('.stage-1 .purpose')).toHaveCount(3);
+  await expect(page.locator('.stage-2 .stage-content')).toHaveCount(0);
   for(const width of [320,375,430]) {
     await page.setViewportSize({width,height:812});
     await page.evaluate(()=>scrollTo(0,0));
@@ -151,6 +171,8 @@ test('業務順: 注文開始、個人・販売・おやつ、発注数とスマ
   await expect(page.getByRole('button',{name:/黒糖ブレッド 数量 0、直接入力する/})).toBeVisible();
   await page.getByRole('button',{name:'黒糖ブレッド 数量を増やす'}).click();
   await page.getByRole('button',{name:'保存して次の購入者へ'}).click();
+  await expect(page.locator('.personal-saved[open]')).toContainText('黒糖ブレッド');
+  await expect(page.locator('.personal-saved[open]')).not.toContainText('くるみパン');
   await page.getByRole('button',{name:'販売用',exact:true}).click();
   await expect(page.locator('.order-editor').getByRole('button',{name:'パン',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'くるみパン 数量を増やす'}).click();
@@ -158,10 +180,13 @@ test('業務順: 注文開始、個人・販売・おやつ、発注数とスマ
   await expect(page.getByRole('region',{name:'今回の販売用注文'})).toContainText('くるみパン');
   await expect(page.getByRole('region',{name:'今回の販売用注文'})).toContainText('合計 1個');
   await expect(page.getByRole('region',{name:'今回の販売用注文'})).not.toContainText('黒糖ブレッド');
+  await expect(page.locator('.stage-1 .order-editor .product-row')).toHaveCount(0);
   await page.getByRole('button',{name:'おやつ用',exact:true}).click();
   await page.getByRole('button',{name:'くるみパン 数量を増やす'}).click();
   await page.getByRole('button',{name:'おやつ用を保存'}).click();
-  await page.getByRole('button',{name:'発注',exact:true}).click();
+  await page.locator('.stage-2 > .stage-trigger').click();
+  await expect(page.locator('.stage-2 > .stage-content')).toBeVisible();
+  await expect(page.locator('.stage-1 .purpose')).toHaveCount(0);
   await expect(page.locator('.delivery-total-row').filter({hasText:'くるみパン'})).toContainText('2個');
   await page.evaluate(()=>scrollTo(0,0));
   await page.screenshot({path:'test-results/fax-list.png'});
@@ -217,7 +242,7 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
   const r=newRound(shared.state,'2026-09-11',true); r.orders.hori={name:'ホリ',quantities:{galette:2}};
   r.status='注文確定'; r.planned=structuredClone(r.orders); shared.state.rounds.push(r);
   await backend(context,shared); await login(page); await page.locator('.round-list-item').click();
-  await page.getByRole('button',{name:'納品・精算',exact:true}).click();
+  await page.locator('.stage-3 > .stage-trigger').click();
   await expect(page.getByRole('group',{name:'欠品確認'})).toBeVisible();
   await page.getByRole('button',{name:'あり',exact:true}).click();
   await page.getByLabel('欠品を修正する購入者').selectOption('hori');
@@ -229,11 +254,16 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
   await page.getByRole('button',{name:'仕入額・状態を保存'}).click();
   await expect.poll(()=>shared.state.rounds[0].invoice).toBe(100);
   await expect.poll(()=>shared.state.rounds[0].status).toBe('注文確定');
-  await page.getByRole('button',{name:'集金',exact:true}).click();
+  await page.locator('.stage-4 > .stage-trigger').click();
   await expect(page.locator('.collection-entry')).toHaveCount(1);
+  for(const width of [320,375,430]) {
+    await page.setViewportSize({width,height:812});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.screenshot({path:`test-results/collection-${width}.png`});
+  }
   await page.getByRole('button',{name:'全額受取'}).click();
   await expect(page.locator('.collection-state')).toHaveText('受取済');
-  await page.getByRole('button',{name:'編集・内訳'}).click();
+  await page.getByRole('button',{name:/編集・内訳/}).click();
   await page.getByLabel('ホリ 実際受取額（返金はマイナス）').fill('-10');
   await page.getByLabel('理由・メモ').fill('返金');
   await page.getByRole('button',{name:'受取額を保存'}).click();

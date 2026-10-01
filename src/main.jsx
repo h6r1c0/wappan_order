@@ -119,26 +119,23 @@ function App() {
   };
   return (
     <>
-      <header className={!session ? 'login-header' : ''}>
-        <img
-          className="school-logo"
-          src={new URL("../ohisama_header_logo.png", import.meta.url).href}
-          alt="おひさま保育園"
-        />
-        <div className="app-title">
-          <img
+      <header className={!session ? 'login-header' : 'workspace-header'}>
+        {session ? <strong className="workspace-brand">わっぱん係</strong> : <>
+          <img className="school-logo"
+            src={new URL("../ohisama_header_logo.png", import.meta.url).href}
+            alt="おひさま保育園" />
+          <img className="login-brand"
             src={new URL("../wappan_title_logo_display.png", import.meta.url).href}
-            alt="わっぱん"
-          />
-          <small>おひさま保育園・わっぱん係</small>
-        </div>
+            alt="わっぱん" />
+        </>}
         {session && (
           <Button
             secondary
             onClick={async () => {
               if (confirm("ログアウトしますか？未保存の入力は失われます。")) {
-                await client.auth.signOut();
-                setState(null);
+                const { error } = await client.auth.signOut();
+                if (error) notify("ログアウトできませんでした。通信状態を確認してください。");
+                else { setSession(null); setState(null); }
               }
             }}
           >
@@ -275,15 +272,15 @@ function Login({ notify }) {
     [busy, setBusy] = useState(false);
   return (
     <main className="login">
-      <h1>わっぱん係</h1>
-      <p className="login-subtitle">おひさま保育園</p>
+      <h1>係用ログイン</h1>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
+          const fields = new FormData(e.currentTarget);
           setBusy(true);
           const { error } = await client.auth.signInWithPassword({
-            email,
-            password,
+            email: String(fields.get("email") || "").trim(),
+            password: String(fields.get("password") || ""),
           });
           if (error)
             notify(
@@ -294,6 +291,7 @@ function Login({ notify }) {
       >
         <Field
           label="メールアドレス"
+          name="email"
           type="email"
           autoComplete="username"
           required
@@ -302,6 +300,7 @@ function Login({ notify }) {
         />
         <Field
           label="パスワード"
+          name="password"
           type="password"
           autoComplete="current-password"
           required
@@ -316,12 +315,13 @@ function Login({ notify }) {
         className="login-reset"
         disabled={busy}
         onClick={async () => {
-          if (!email) {
+          const resetEmail = document.querySelector('.login input[name="email"]')?.value.trim() || email;
+          if (!resetEmail) {
             notify("先にメールアドレスを入力してください");
             return;
           }
           setBusy(true);
-          const { error } = await client.auth.resetPasswordForEmail(email, {
+          const { error } = await client.auth.resetPasswordForEmail(resetEmail, {
             redirectTo: location.origin + location.pathname,
           });
           notify(
@@ -334,7 +334,7 @@ function Login({ notify }) {
       >
         パスワードを忘れた方
       </Button>
-      <p className="login-help">初めて使う方は、係の管理者に利用登録を依頼してください。</p>
+      <p className="login-help">係として登録された方のみ利用できます。</p>
     </main>
   );
 }

@@ -44,6 +44,8 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
   const [orderQuantities, setOrderQuantities] = useState(() =>
     roundId ? salesOrderQuantities(state, roundId) : {},
   );
+  const [reviewing, setReviewing] = useState(() => roundId &&
+    Object.values(salesOrderQuantities(state, roundId)).some(q => q > 0));
   const round = state.rounds.find((item) => item.id === roundId);
   const savedOrderQuantities = roundId ? salesOrderQuantities(state, roundId) : {};
   const stocks = state.stocks.filter(st =>
@@ -75,19 +77,23 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
       {mode === 'order' && !round && <p>納品回を選んでください。</p>}
       {mode === 'order' && round && <section className="work-section order-editor"
         data-unsaved={JSON.stringify(orderQuantities) !== JSON.stringify(savedOrderQuantities)}>
-        <h2>販売用として注文する</h2>
+        <h2>{reviewing ? '今回の販売用注文' : '販売用として注文する'}</h2>
+        {!reviewing && <>
         <ProductQuantityEditor products={round.products} quantities={orderQuantities}
           onChange={setOrderQuantities}
           emptyMessage="今月の商品を準備してください。"/>
         <div className="sticky-action"><span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
-          <Button onClick={() => save((s) => setSalesOrderQuantities(s, roundId, orderQuantities),
-            "販売用の注文数量を保存")}>保存</Button></div>
+          <Button onClick={async () => {
+            if (await save((s) => setSalesOrderQuantities(s, roundId, orderQuantities),
+              "販売用の注文数量を保存")) setReviewing(true);
+          }}>保存</Button></div></>}
         {Object.values(savedOrderQuantities).some(q=>q>0) && <section className="sales-order-summary" aria-label="今回の販売用注文">
-          <h3>今回の販売用注文</h3>
+          {!reviewing && <h3>保存済みの注文</h3>}
           {round.products.filter(p=>savedOrderQuantities[p.id]>0).map(p=><div className="sales-order-line" key={p.id}><span>{p.name}</span><strong>{savedOrderQuantities[p.id]}個</strong></div>)}
           <div className="sales-order-total">合計 {Object.values(savedOrderQuantities).reduce((n,q)=>n+q,0)}個</div>
         </section>}
-        {onManageProducts && <Button secondary onClick={onManageProducts}>商品を追加・変更</Button>}
+        {reviewing && <Button secondary onClick={() => setReviewing(false)}>数量を編集</Button>}
+        {!reviewing && onManageProducts && <Button secondary onClick={onManageProducts}>商品を追加・変更</Button>}
       </section>}
       {phase !== 'order' && step('assign', phase === 'after' ? '売れた商品の販売先を割り当てる' : '② 売れた商品の販売先を割り当てる')}
       {mode === 'assign' && <section className="work-section sales-step-body">

@@ -48,8 +48,14 @@ test("価格切捨て・個別指定・過去の価格スナップショット",
   );
   const { s, r } = setup();
   assert.equal(r.products.find((p) => p.id === "brown").price, 430);
+  const oldName = r.products.find((p) => p.id === "brown").name;
   s.products.find((p) => p.id === "brown").manual = 500;
+  s.products.find((p) => p.id === "brown").name = "変更後の商品名";
+  s.products.find((p) => p.id === "brown").cost = 250;
   assert.equal(r.products.find((p) => p.id === "brown").price, 430);
+  assert.equal(r.products.find((p) => p.id === "brown").name, oldName);
+  assert.equal(r.products.find((p) => p.id === "brown").cost, null);
+  assert.equal(d.newRound(s, "2026-10-16").products.find((p) => p.id === "brown").cost, 250);
   assert.equal(
     d.price(d.initialState().products.find((p) => p.id === "bean")),
     null,

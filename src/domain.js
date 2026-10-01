@@ -102,7 +102,7 @@ export function initialState() {
 export function snapshot(p) {
   const amount = price(p);
   if (amount == null) throw Error(`${p.name}の販売価格を設定してください`);
-  return { id: p.id, name: p.name, category: p.category, price: amount };
+  return { id: p.id, name: p.name, category: p.category, price: amount, cost: p.cost ?? null };
 }
 export function newRound(state, date, test = false) {
   if (!date) throw Error("納品日を入力してください");

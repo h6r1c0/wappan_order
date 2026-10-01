@@ -113,6 +113,8 @@ export function Orders() {
 function Round({ round: r, back }) {
   const { state, save, notify } = useApp();
   const [tab, setTab] = useState("個人注文"),
+    [lastPurpose, setLastPurpose] = useState("個人注文"),
+    [lastSavedBuyer, setLastSavedBuyer] = useState(null),
     [buyerId, setBuyerId] = useState(null),
     [draft, setDraft] = useState(null),
     [settings, setSettings] = useState(false),
@@ -143,6 +145,7 @@ function Round({ round: r, back }) {
     cost = roundCost(state, r);
   const needsMonthlyProducts = r.productImportPending && !monthProductsImported(state, r.date);
   const monthLabel = `${Number(r.date.slice(5, 7))}月`;
+  const activeStage = PURPOSES.some(([label]) => label === tab) ? "注文" : tab;
   return (
     <>
       <button type="button" className="text-action back-link"
@@ -166,6 +169,19 @@ function Round({ round: r, back }) {
       <p>
         <Tag>{r.status}</Tag> {r.test && <Tag>テスト・集計対象外</Tag>}
       </p>
+      {r.note && <details className="round-note"><summary>この注文回のメモ</summary><p>{r.note}</p></details>}
+      <div className="stage-list" aria-label="注文の工程">
+        {["注文", "発注", "納品・精算", "集金"].map((stage, index) => (
+          <section className={`stage stage-${index + 1} ${activeStage === stage ? "active" : ""}`} key={stage}>
+            <button type="button" className="stage-trigger" aria-expanded={activeStage === stage}
+              aria-controls={`stage-body-${index + 1}`}
+              onClick={() => setTab(stage === "注文" ? lastPurpose : stage)}>
+              <span className="stage-number">{["①", "②", "③", "④"][index]}</span>
+              <span>{stage}</span>
+              <span className="stage-chevron" aria-hidden="true">{activeStage === stage ? "⌄" : "›"}</span>
+            </button>
+            {activeStage === stage && <div className="stage-content" id={`stage-body-${index + 1}`}>
+              {stage === "注文" && <>
       {needsMonthlyProducts ? (
         <section className="monthly-import-callout">
           <div>
@@ -178,25 +194,17 @@ function Round({ round: r, back }) {
         <summary>商品情報を更新</summary>
         <Button secondary onClick={() => setExcelImport(true)}>{monthLabel}の商品を更新</Button>
       </details>}
-      {r.note && <details className="round-note"><summary>この注文回のメモ</summary><p>{r.note}</p></details>}
-      <section className="order-stage"><h2 className="workflow-heading">① 注文 <small>用途を選ぶ</small></h2>
-      <div className="purpose-grid" aria-label="注文の用途を選ぶ">
-        {PURPOSES.map(([label, image, note]) => (
-          <button type="button" key={label} data-purpose={label} className={`purpose ${tab === label ? "selected" : ""}`} onClick={() => setTab(label)}>
-            <img src={image} alt="" />
-            <span><strong>{label}</strong><small>{note}</small></span>
-          </button>
-        ))}
-      </div></section>
-      <div className="tabs work-tabs">
-        {[["発注", "②"], ["納品・精算", "③"], ["集金", "④"]].map(([t, number]) => (
-          <Button key={t} secondary={tab !== t} onClick={() => setTab(t)}>
-            <TaskIcon type={{'発注':'totals','納品・精算':'delivery','集金':'coins'}[t]}/>
-            <span className="work-tab-label"><span aria-hidden="true">{number} </span>{t}</span></Button>
-        ))}
-      </div>
-      {lineImport&&<LineImport round={r} onClose={()=>setLineImport(false)}/>}
-      {excelImport&&<ExcelImport targetRoundId={r.id} onClose={()=>setExcelImport(false)}/>}
+              <div className="purpose-grid" role="group" aria-label="注文の用途を選ぶ">
+                {PURPOSES.map(([label]) => (
+                  <button type="button" key={label} data-purpose={label}
+                    className={`purpose ${tab === label ? "selected" : ""}`}
+                    aria-pressed={tab === label}
+                    onClick={() => { setLastPurpose(label); setTab(label); }}>
+                    <TaskIcon type={{"個人注文":"buyer","販売用":"basket","おやつ用":"bread"}[label]}/>
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div></>}
       {tab==='販売用'&&<Sales roundId={r.id} phase="order" onManageProducts={() => setProducts(true)}/>}
       {tab==='おやつ用'&&<Events roundId={r.id} phase="order" onManageProducts={() => setProducts(true)}/>}
       {tab === "個人注文" && (
@@ -239,9 +247,10 @@ function Round({ round: r, back }) {
                           draft;
                       }, `${currentBuyer.name}の注文を保存`)
                     ) {
+                        setLastSavedBuyer(buyerId);
                         setDraft(null);
                         setBuyerId(null);
-                        requestAnimationFrame(() => document.querySelector('.buyer-grid')?.scrollIntoView({block:'start'}));
+                        requestAnimationFrame(() => document.querySelector('.personal-saved[open]')?.scrollIntoView({block:'nearest'}));
                     }
                   }}
                 >
@@ -250,28 +259,28 @@ function Round({ round: r, back }) {
               </div>
             </section>
           )}
-          {Object.keys(r.orders).length > 0 && <h3>入力済みの購入者</h3>}
+          {Object.keys(r.orders).length > 0 && <h3 className="saved-list-heading">今回の注文</h3>}
           {Object.entries(r.orders).map(([id, o]) => (
-            <button
-              className="card clickable line completed-buyer"
-              key={id}
-              onClick={() => choose(id)}
-            >
-              <span className="completed-buyer-name">
-                {state.buyers.find((b) => b.id === id)?.name || o.name}
-              </span>
-              <b>{yen(orderAmount(r, o))} ›</b>
-            </button>
+            <details className="personal-saved" key={`${id}-${id === lastSavedBuyer ? 'saved' : 'other'}`}
+              open={id === lastSavedBuyer || undefined}>
+              <summary className="completed-buyer">
+                <span className="completed-buyer-name">{state.buyers.find((b) => b.id === id)?.name || o.name}</span>
+                <strong>{yen(orderAmount(r, o))}</strong>
+              </summary>
+              <div className="saved-order-lines" aria-label={`${o.name}の注文内容`}>
+                {r.products.filter(p => (o.quantities[p.id] || 0) > 0).map(p =>
+                  <div className="saved-order-line" key={p.id}><span>{p.name}</span><strong>{o.quantities[p.id]}個</strong></div>)}
+                {!r.products.some(p => (o.quantities[p.id] || 0) > 0) && <small>注文商品はありません</small>}
+                <button type="button" className="text-action" onClick={() => choose(id)}>注文を編集 ›</button>
+              </div>
+            </details>
           ))}
         </>
       )}
       {tab === "集金" && (
         <>
-          <Summary
-            label={r.reconciliationPending ? "個人請求の判明分（照合中・未確定）" : "この注文回にまとめた個人請求"}
-            value={yen(rows.reduce((a, b) => a + b.total, 0))}
-            note="個人注文＋販売用からの追加購入。外部売上は含みません。"
-          />
+          <div className="collection-total"><span>今回の請求合計{r.reconciliationPending && <small>　照合中</small>}</span>
+            <strong>{yen(rows.reduce((a, b) => a + b.total, 0))}</strong></div>
           <RoundCollections round={r} rows={rows} />
           <Button
             secondary
@@ -379,6 +388,12 @@ function Round({ round: r, back }) {
           )}
         </>
       )}
+            </div>}
+          </section>
+        ))}
+      </div>
+      {lineImport&&<LineImport round={r} onClose={()=>setLineImport(false)}/>}
+      {excelImport&&<ExcelImport targetRoundId={r.id} onClose={()=>setExcelImport(false)}/>}
       {settings && (
         <RoundSettings
           round={r}
