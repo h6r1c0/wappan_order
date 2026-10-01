@@ -40,11 +40,7 @@ import {
   CollectionList,
   copyText,
 } from "./ui";
-const PURPOSES = [
-  ["個人注文", new URL("../wappan_icon_personal_order_final.png", import.meta.url).href, "購入者ごとの注文"],
-  ["販売用", new URL("../wappan_icon_sales_basket_final.png", import.meta.url).href, "販売用の注文"],
-  ["おやつ用", new URL("../wappan_icon_snack_use_anpan_final.png", import.meta.url).href, "おやつ用の注文"],
-];
+const PURPOSES = ["個人注文", "販売用", "おやつ用"];
 export function Orders() {
   const { state, save } = useApp();
   const [id, setId] = useState(null),
@@ -145,7 +141,7 @@ function Round({ round: r, back }) {
     cost = roundCost(state, r);
   const needsMonthlyProducts = r.productImportPending && !monthProductsImported(state, r.date);
   const monthLabel = `${Number(r.date.slice(5, 7))}月`;
-  const activeStage = PURPOSES.some(([label]) => label === tab) ? "注文" : tab;
+  const activeStage = PURPOSES.includes(tab) ? "注文" : tab;
   return (
     <>
       <button type="button" className="text-action back-link"
@@ -195,7 +191,7 @@ function Round({ round: r, back }) {
         <Button secondary onClick={() => setExcelImport(true)}>{monthLabel}の商品を更新</Button>
       </details>}
               <div className="purpose-grid" role="group" aria-label="注文の用途を選ぶ">
-                {PURPOSES.map(([label]) => (
+                {PURPOSES.map((label) => (
                   <button type="button" key={label} data-purpose={label}
                     className={`purpose ${tab === label ? "selected" : ""}`}
                     aria-pressed={tab === label}
