@@ -77,11 +77,16 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
         data-unsaved={JSON.stringify(orderQuantities) !== JSON.stringify(savedOrderQuantities)}>
         <h2>販売用として注文する</h2>
         <ProductQuantityEditor products={round.products} quantities={orderQuantities}
-          onChange={setOrderQuantities} startCollapsed
+          onChange={setOrderQuantities}
           emptyMessage="今月の商品を準備してください。"/>
         <div className="sticky-action"><span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
           <Button onClick={() => save((s) => setSalesOrderQuantities(s, roundId, orderQuantities),
-            "販売用の注文数量を保存")}>販売用の注文を保存</Button></div>
+            "販売用の注文数量を保存")}>保存</Button></div>
+        {Object.values(savedOrderQuantities).some(q=>q>0) && <section className="sales-order-summary" aria-label="今回の販売用注文">
+          <h3>今回の販売用注文</h3>
+          {round.products.filter(p=>savedOrderQuantities[p.id]>0).map(p=><div className="sales-order-line" key={p.id}><span>{p.name}</span><strong>{savedOrderQuantities[p.id]}個</strong></div>)}
+          <div className="sales-order-total">合計 {Object.values(savedOrderQuantities).reduce((n,q)=>n+q,0)}個</div>
+        </section>}
         {onManageProducts && <Button secondary onClick={onManageProducts}>商品を追加・変更</Button>}
       </section>}
       {phase !== 'order' && step('assign', phase === 'after' ? '売れた商品の販売先を割り当てる' : '② 売れた商品の販売先を割り当てる')}
@@ -94,7 +99,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
                     if (document.querySelector('.sales-workspace[data-unsaved="true"]') &&
                       !confirm('未保存の入力があります。切り替えますか？')) return;
                     setInputMode(inputMode === input ? null : input);
-                  }}><TaskIcon type={input === 'buyer' ? 'buyer' : 'bread'}/>{text}</Button>)}
+                  }}>{text}</Button>)}
             </div>
             {inputMode && <SalesWorkspace key={inputMode} stocks={stocks} roundId={roundId} mode={inputMode}/>}
       </section>}
@@ -108,10 +113,10 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
       {stocks.slice().sort((a,b) => (stockRemaining(state,b)>0)-(stockRemaining(state,a)>0) ||
         b.date.localeCompare(a.date)).map((st) => {
         const remaining = stockRemaining(state, st);
-        return <details className={`card stock-card ${remaining<1?'sold-out':''}`} key={st.id}>
+        return <details className={`stock-card ${remaining<1?'sold-out':''}`} key={st.id}>
           <summary className="product-row"><span className="grow"><strong>{st.name}</strong>
-            <small>{yen(st.price)} ／ 割当済み {soldQty(state,st.id)}個</small></span>
-            <strong>残り {remaining}個</strong></summary>
+            <small>{yen(st.price)} ／ 注文 {st.qty}個 ／ 販売記録 {soldQty(state,st.id)}個</small></span>
+            <strong>在庫 {remaining}個</strong></summary>
           <div className="actions"><Button disabled={remaining<1} onClick={() => setSelling(st)}>1商品ずつ販売を記録</Button>
             <Button secondary onClick={() => setEdit(st)}>販売履歴を確認・修正</Button></div>
         </details>;

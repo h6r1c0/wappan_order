@@ -1743,3 +1743,125 @@ header small {
   .collection-entry { grid-template-columns: 1fr; }
   .collection-entry .collection-pay { justify-self: end; }
 }
+
+/* 第2段階: 白い作業面と、操作・入力・状態の明確な役割。 */
+@media screen {
+  :root {
+    --paper: #fdfcf9; --milk: #fff; --ink: #292b29; --muted: #626762;
+    --line: #e5e8e1; --terra: #784632; --camel: #795b41;
+    --selected: #f6f0e7; --apricot: #fff5e5; --sage-light: #edf5ed;
+    color: var(--ink); background: var(--paper);
+  }
+  body, .work-tabs { background: var(--paper); }
+  header { background: #fff; border-bottom-color: var(--line); min-height: 64px; }
+  .school-logo { width: 76px; align-self: center; }
+  .app-title { align-items: flex-start; }
+  .app-title img { width: 126px; height: 43px; }
+  header small { margin: -3px 0 0; color: var(--muted); font-size: 11px; }
+  h1, h2, h3 { color: var(--ink); }
+  .login { padding-top: 27px; }
+  .login h1 { font-size: 26px; margin: 5px 0 0; line-height: 1.4; }
+  .login-subtitle { margin: 0 0 23px; color: var(--muted); }
+  .login form { display: grid; gap: 10px; }
+  .login form > .button { min-height: 52px; }
+  .button.login-reset, .button.login-reset:not(.secondary):not(.danger) {
+    min-height: 42px; border: 0; background: transparent; color: var(--camel);
+    padding: 7px 0; font-weight: 500; text-decoration: underline; box-shadow: none;
+  }
+  .login-help { margin-top: 6px; }
+  .home-start { margin: 12px 0 24px; }
+  .home-start .button { width: 100%; min-height: 60px; font-size: 1.08rem; }
+  .list-heading { margin: 0 0 8px; }
+  .round-list-item { margin: 0; border: 0; border-bottom: 1px solid var(--line); border-left: 4px solid #aa997f; border-radius: 0; background: #fff; box-shadow: none; padding: 10px 36px 10px 12px; }
+  .round-list-item.status-納品済み { border-left-color: #5f8265; }
+  .round-list-item.status-精算済み { border-left-color: #3b6d4c; }
+  .tag { border: 0; background: #f0f2ed; color: #4f584f; font-weight: 600; }
+  .status-納品済み .tag, .status-精算済み .tag { background: var(--sage-light); color: #326344; }
+  .status-注文確定 .tag { background: #fff1de; color: #80502d; }
+  .round-open { top: 8px; }
+  .delivery-heading { background: transparent; border-left: 0; border-bottom: 1px solid var(--line); padding: 3px 0 8px; border-radius: 0; }
+  .delivery-heading h1 { margin: 2px 0; }
+  .monthly-import-ready { width: max-content; max-width: 100%; padding: 0; border: 0; background: transparent; }
+  .monthly-import-ready > summary { min-height: 36px; padding: 4px 0; color: var(--muted); font-weight: 500; font-size: .85rem; }
+  .round-note { margin: 2px 0; color: var(--muted); font-size: .86rem; }
+  .round-note > summary { min-height: 34px; padding: 4px 0; }
+  .workflow-heading { display: flex; align-items: baseline; gap: 10px; margin: 16px 0 6px; font-size: 1rem; font-weight: 650; }
+  .workflow-heading small { font-weight: 400; }
+  .purpose-grid { margin: 0 0 10px; }
+  .purpose, .purpose:nth-child(2), .purpose:nth-child(3) { min-height: 53px; border-radius: 13px; }
+  .purpose img { width: 26px; height: 26px; }
+  .purpose.selected { background: var(--selected); border-color: #b59b7e; box-shadow: inset 0 -2px #9d7959; }
+  .tabs.work-tabs { position: static; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); margin: 12px 0 15px; border-bottom: 0; gap: 5px; }
+  .tabs.work-tabs .button, .tabs.work-tabs .button.secondary, .tabs.work-tabs .button:not(.secondary) { border: 1px solid var(--line); border-radius: 10px; background: #fff; min-height: 46px; padding: 4px; color: var(--ink); font-size: .82rem; font-weight: 500; }
+  .tabs.work-tabs .button:not(.secondary) { border-color: #ab8668; background: var(--selected); box-shadow: inset 0 -2px #9d7959; font-weight: 650; }
+  .work-tabs .task-icon { display: none; }
+  .buyer-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 8px; margin: 7px 0; }
+  .buyer, .buyer.selected { min-height: 43px; margin: 0; padding: 6px 10px; text-align: left; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; font-size: .94rem; font-weight: 450; box-shadow: none; }
+  .buyer.selected { background: var(--selected); color: var(--ink); border-bottom-color: #b59b7e; }
+  .completed-buyer { min-height: 43px; padding: 6px 3px; margin: 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none; background: transparent; }
+  .completed-buyer-name { font-weight: 450; }
+  .completed-buyer > b { font-size: 1rem; font-weight: 600; }
+  .order-editor .notice { padding: 7px 10px; font-size: .82rem; }
+  .field input, .field select, .field textarea, .qty input { background: #fff; border: 1px solid #aeb9aa; border-radius: 10px; }
+  .money-input { display: flex; align-items: center; gap: 7px; }
+  .money-input input { flex: 1; min-width: 0; }
+  .money-input > span { font-size: 1rem; font-weight: 600; }
+  .cost-overview { color: var(--muted); font-size: .82rem; }
+  .segmented { border: 1px solid var(--line); background: #f3f5f1; border-radius: 11px; }
+  .segmented button { min-width: 82px; min-height: 39px; border-radius: 8px; }
+  .segmented .selected { background: #fff; border-color: #a7b5a5; box-shadow: 0 1px 3px #23342218; }
+  .sales-mode-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .sales-mode-grid .button { min-height: 47px; padding: 7px 5px; font-size: .9rem; white-space: nowrap; }
+  .sales-step, .sales-step:nth-of-type(2) { min-height: 65px; border-radius: 14px; box-shadow: none; }
+  .step-icon { flex-basis: 31px; height: 31px; }
+  .step-icon .task-icon { width: 18px; height: 18px; }
+  .sales-step .step-label { font-size: .96rem; }
+  .sales-order-summary { margin: 14px 0; padding: 10px 0; border-top: 1px solid var(--line); }
+  .sales-order-summary h3 { margin: 0 0 5px; }
+  .sales-order-line { display: flex; justify-content: space-between; gap: 12px; padding: 4px 2px; border-bottom: 1px solid var(--line); font-size: .88rem; }
+  .sales-order-line strong { white-space: nowrap; font-weight: 600; }
+  .sales-order-total { padding: 7px 2px; text-align: right; font-weight: 650; }
+  .delivery-total-row { align-items: flex-start; padding: 9px 3px; }
+  .delivery-total-row > span:first-child { line-height: 1.45; padding: 2px 0; }
+  .delivery-total-quantity strong { line-height: 1.45; font-size: 1rem; }
+  .stock-card { display: block; margin: 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 0; box-shadow: none; background: transparent; }
+  .stock-card summary { padding: 8px 1px; min-height: 53px; }
+  .stock-card .actions { margin: 4px 0 8px; }
+  .stock-card .product-row strong { font-weight: 500; }
+  .collection-entry, .collection-entry:nth-child(n) { grid-template-columns: minmax(0,1fr) auto; grid-template-rows: auto auto; gap: 0 7px; padding: 8px 1px; }
+  .collection-entry .collection-person { grid-column: 1; grid-row: 1; align-self: center; gap: 6px; }
+  .collection-entry .collection-person > span:first-child { flex: none; }
+  .collection-right { grid-column: 2; grid-row: 1 / 3; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .collection-right > strong { font-size: 1rem; font-variant-numeric: tabular-nums; }
+  .collection-entry .collection-pay { min-height: 37px; margin: 0; }
+  .collection-entry .collection-edit { grid-column: 1; grid-row: 2; justify-self: start; padding: 0; min-height: 34px; text-decoration: none; color: var(--muted); font-size: .8rem; }
+  .collection-entry > :not(.collection-person):not(.collection-right):not(.collection-edit) { grid-column: 1 / -1; grid-row: auto; }
+  .master-row { min-height: 49px; padding: 6px 3px; }
+  .master-row strong { font-size: .86rem; }
+  .summary { background: #f4f6f1; }
+  .notice { background: #fff6e9; }
+}
+@media (min-width: 560px) { .buyer-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media (max-width: 390px) {
+  header { min-height: 65px; padding: 6px 10px; }
+  .school-logo { width: 54px; }
+  .app-title img { width: 110px; height: 39px; }
+  .app-title small { font-size: 10px; }
+}
+
+@media screen {
+  header.login-header .school-logo { width: 122px; }
+  header.login-header .app-title img { width: 96px; height: 35px; }
+  header.login-header .app-title small { font-size: 10px; }
+  .order-stage { padding: 4px 8px 9px; background: #f4f5f1; border-radius: 14px; }
+  .order-stage .workflow-heading { margin: 3px 0 8px; }
+  .order-stage .purpose-grid { margin: 0; }
+  .tabs.work-tabs { grid-template-columns: 1fr; gap: 0; margin: 8px 0 13px; }
+  .tabs.work-tabs .button, .tabs.work-tabs .button.secondary, .tabs.work-tabs .button:not(.secondary) {
+    min-height: 42px; justify-content: flex-start; padding: 6px 12px;
+    border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
+    background: transparent; box-shadow: none; font-size: .94rem;
+  }
+  .tabs.work-tabs .button:not(.secondary) { color: var(--terra); border-left: 3px solid var(--terra); font-weight: 650; }
+  .toast { top: auto; bottom: 83px; }
+}

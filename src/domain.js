@@ -152,6 +152,15 @@ export function orderDraft(state, round, buyer) {
 export const soldQty = (s, id) =>
   sum(s.sales.filter((x) => !x.void && x.stockId === id).map((x) => x.qty)) + bundleUsed(s,id);
 export const stockRemaining = (s, stock) => stock.qty - soldQty(s, stock.id) - movedOut(s,stock.id);
+// A recorded sale may still have an unknown destination; it is no longer stock on hand.
+export function stockAllocation(s, stock) {
+  const unconfirmed = sum(s.sales.filter(x => !x.void && x.stockId === stock.id &&
+    (x.pending || x.destinationType === 'unknown')).map(x => x.qty));
+  const assigned = soldQty(s, stock.id) - unconfirmed;
+  const remaining = stockRemaining(s, stock);
+  const moved = movedOut(s, stock.id);
+  return { ordered: stock.qty, assigned, unconfirmed, remaining, moved };
+}
 export const transferredQty = (s, lineId) =>
   sum(s.stocks.filter((x) => x.eventLineId === lineId).map((x) => x.qty));
 export const eventCost = (e) =>

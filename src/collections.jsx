@@ -10,12 +10,13 @@ function BuyerCollection({ round, buyer, row }) {
   const [adjustment, setAdjustment] = useState(0);
   const [note, setNote] = useState('');
   return <section className="collection-entry">
-    <div className="collection-person"><span>{buyer.name}</span><strong>{yen(position.current)}</strong>
-      <span className={`collection-state ${position.balance===0?'is-paid':'is-due'}`}>{position.balance===0?'済':'未'}</span></div>
+    <div className="collection-person"><span>{buyer.name}</span>
+      <span className={`collection-state ${position.balance===0?'is-paid':'is-due'}`}>{position.balance===0?'受取済':'未受取'}</span></div>
+    <div className="collection-right"><strong>{yen(position.current)}</strong>
     {position.balance > 0 && !open && <Button className="collection-pay" onClick={async()=>{
       if(await save(next=>{next.collectionEntries??=[];next.collectionEntries.push({id:uid(),roundId:round.id,buyerId:buyer.id,date:today(),received:position.balance,adjustment:0,note:'全額受取'});},'全額の集金を記録'))setOpen(false);
-    }}>全額受取</Button>}
-    <button type="button" className="text-action collection-edit" onClick={()=>setOpen(!open)} aria-expanded={open}>{open?'閉じる':'編集・内訳'}</button>
+    }}>全額受取</Button>}</div>
+    <button type="button" className="text-action collection-edit" onClick={()=>setOpen(!open)} aria-expanded={open}>{open?'閉じる':'› 編集・内訳'}</button>
     {open && row && <details className="collection-breakdown"><summary>種類別・内訳を見る</summary>
       {Object.entries(row.categories || {}).filter(([, amount]) => amount > 0).map(([name, amount]) =>
         <p key={name}>{name} {yen(amount)}</p>)}

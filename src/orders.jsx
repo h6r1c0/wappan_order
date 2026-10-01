@@ -56,10 +56,7 @@ export function Orders() {
     <Round key={r.id} round={r} back={() => setId(null)} />
   ) : (
     <>
-      <div className="section-head">
-        <h1>注文</h1>
-        <Button onClick={() => setCreating(true)}>新しい注文を始める</Button>
-      </div>
+      <div className="home-start"><Button onClick={() => setCreating(true)}>＋ 新しい注文を始める</Button></div>
       <h2 className="list-heading">進行中・過去の注文</h2>
       {[...state.rounds]
         .sort((a, b) => b.date.localeCompare(a.date))
@@ -178,10 +175,11 @@ function Round({ round: r, back }) {
           <Button onClick={() => setExcelImport(true)}><TaskIcon type="excel"/>{monthLabel}のExcel注文表を取り込む</Button>
         </section>
       ) : <details className="monthly-import-ready">
-        <summary>② {monthLabel}の商品情報は登録済み</summary>
+        <summary>商品情報を更新</summary>
         <Button secondary onClick={() => setExcelImport(true)}>{monthLabel}の商品を更新</Button>
       </details>}
-      {r.note && (r.reconciliationPending ? <details className="notice"><summary>実資料の照合中：表示金額は判明分です（詳細・未確認事項）</summary><p>{r.note}</p></details> : <p className="notice">{r.note}</p>)}
+      {r.note && <details className="round-note"><summary>この注文回のメモ</summary><p>{r.note}</p></details>}
+      <section className="order-stage"><h2 className="workflow-heading">① 注文 <small>用途を選ぶ</small></h2>
       <div className="purpose-grid" aria-label="注文の用途を選ぶ">
         {PURPOSES.map(([label, image, note]) => (
           <button type="button" key={label} data-purpose={label} className={`purpose ${tab === label ? "selected" : ""}`} onClick={() => setTab(label)}>
@@ -189,11 +187,11 @@ function Round({ round: r, back }) {
             <span><strong>{label}</strong><small>{note}</small></span>
           </button>
         ))}
-      </div>
+      </div></section>
       <div className="tabs work-tabs">
-        {[["発注数", "②"], ["納品・精算", "③"], ["集金額", "④"]].map(([t, number]) => (
+        {[["発注", "②"], ["納品・精算", "③"], ["集金", "④"]].map(([t, number]) => (
           <Button key={t} secondary={tab !== t} onClick={() => setTab(t)}>
-            <TaskIcon type={{'発注数':'totals','納品・精算':'delivery','集金額':'coins'}[t]}/>
+            <TaskIcon type={{'発注':'totals','納品・精算':'delivery','集金':'coins'}[t]}/>
             <span className="work-tab-label"><span aria-hidden="true">{number} </span>{t}</span></Button>
         ))}
       </div>
@@ -252,7 +250,7 @@ function Round({ round: r, back }) {
               </div>
             </section>
           )}
-          <h3>入力済み</h3>
+          {Object.keys(r.orders).length > 0 && <h3>入力済みの購入者</h3>}
           {Object.entries(r.orders).map(([id, o]) => (
             <button
               className="card clickable line completed-buyer"
@@ -267,7 +265,7 @@ function Round({ round: r, back }) {
           ))}
         </>
       )}
-      {tab === "集金額" && (
+      {tab === "集金" && (
         <>
           <Summary
             label={r.reconciliationPending ? "個人請求の判明分（照合中・未確定）" : "この注文回にまとめた個人請求"}
@@ -292,7 +290,7 @@ function Round({ round: r, back }) {
           </Button>
         </>
       )}
-      {tab === "発注数" && (
+      {tab === "発注" && (
         <>
           <h2>わっぱんへ発注する数量</h2>
           {deliveryTotals(state,r).map((p) => (
@@ -363,7 +361,7 @@ function Round({ round: r, back }) {
             <div className="grid2"><Summary label="販売額" value={yen(total)} />
               <Summary label="利益" value={yen(cost == null ? null : total - cost)} /></div>
           </details>
-          {r.planned && (
+          {r.planned && r.products.some((p) => (productTotals(r, r.planned).find((x) => x.id === p.id)?.qty||0)!==(productTotals(r).find((x) => x.id === p.id)?.qty||0)) && (
             <details>
               <summary>注文確定時と現在の差を確認</summary>
               {r.products.map((p) => {
@@ -458,12 +456,12 @@ function Invoice({ round: r }) {
     >
       <h2>納品書の仕入額を登録</h2>
       <Money
-        label="納品書の税込合計（円）"
+        label="納品書の税込合計"
+        unit="円"
         value={invoice}
         onChange={setInvoice}
       />
-      <div className="cost-overview">個人注文 {yen(roundCost(state, preview))} ／ 販売用 {yen(salesCost)} ／ おやつ用 {yen(snackCost)}</div>
-      {(salesCost == null || snackCost == null) && <p className="notice">仕入単価が未入力です。判明分の納品書総額は先に保存できます。</p>}
+      {invoice != null && <div className="cost-overview">個人注文 {yen(roundCost(state, preview))} ／ 販売用 {yen(salesCost)} ／ おやつ用 {yen(snackCost)}</div>}
       <details>
         <summary>用途別の内訳を見る</summary>
         {snackRows.map(e=><p key={e.id}>おやつ用：{e.name} ／ {yen(e.lines.every(line=>line.cost!=null) ? e.lines.reduce((n,line)=>n+line.qty*line.cost,0) : null)}</p>)}

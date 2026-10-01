@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { addSale, assignUnknownSale, stockRemaining, soldQty, today, yen, normalize } from './domain';
+import { addSale, assignUnknownSale, stockRemaining, stockAllocation, today, yen, normalize } from './domain';
 import { bundleUsed } from './commerce';
 import { useApp, Button, BuyerPicker, Field, Empty } from './ui';
 
@@ -19,9 +19,10 @@ function StockStatus({ stock }) {
   }
   const inSets = bundleUsed(state, stock.id);
   if (inSets) groups.set('セット販売で使用', inSets);
+  const allocation = stockAllocation(state, stock);
   return <div className="sale-status" aria-label={`${stock.name}の割当状況`}>
     <strong>{stock.name}</strong>
-    <span>割当済 {soldQty(state, stock.id) - pendingFor(state, stock).reduce((n, x) => n + x.qty, 0)} ／ 未確認 {pendingFor(state, stock).reduce((n, x) => n + x.qty, 0)} ／ 残り {stockRemaining(state, stock)}</span>
+    <span>注文 {allocation.ordered}個 ／ 割当済 {allocation.assigned}個 ／ 未確認 {allocation.unconfirmed}個 ／ 在庫 {allocation.remaining}個{allocation.moved ? ` ／ 振替 ${allocation.moved}個` : ''}</span>
     {groups.size > 0 && <div className="assignment-chips">{[...groups].map(([name, qty]) =>
       <span key={name}>{name} {qty}</span>)}</div>}
   </div>;

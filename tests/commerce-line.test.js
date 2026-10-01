@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialState,newRound,addSale,assignSalesToBuyer,assignUnknownSale,collections,report,stockRemaining,transfer,updateSaleDestination,validate} from '../src/domain.js';
+import {initialState,newRound,addSale,assignSalesToBuyer,assignUnknownSale,collections,report,stockRemaining,stockAllocation,transfer,updateSaleDestination,validate} from '../src/domain.js';
 import {delivery,upgrade,moveStock,sellBundle,marketTotals,deliveryTotals,salesOrderQuantities,setSalesOrderQuantities,snackOrderQuantities,setSnackOrderQuantities} from '../src/commerce.js';
 import {destinationCandidate,looksLikePersonalName,parseLineOrder} from '../src/line-import.js';
 
@@ -8,6 +8,20 @@ function setup(){
  const s=initialState();s.products.forEach(p=>{if(p.gross==null&&p.manual==null)p.gross=394});
  const r=newRound(s,'2026-09-11',false);s.rounds.push(r);upgrade(s);return {s,r};
 }
+
+test('商品名の「1個」と注文数量を混同せず、割当・未確認・振替・在庫が注文数に一致する',()=>{
+ const {s,r}=setup();
+ const stock={id:'pkg',productId:'walnut',name:'ライ麦くるみレーズン 1個',category:'パン',qty:2,price:300,cost:200,date:r.date,test:false,roundId:r.id};
+ s.stocks.push(stock);
+ addSale(s,stock,{date:r.date,qty:2,price:300,destinationType:'unknown',paymentStatus:'unconfirmed'});
+ let a=stockAllocation(s,stock);
+ assert.deepEqual(a,{ordered:2,assigned:0,unconfirmed:2,remaining:0,moved:0});
+ assignUnknownSale(s,s.sales[0].id,1,{destinationType:'external',paymentStatus:'paid',destinationName:''});
+ a=stockAllocation(s,stock);
+ assert.deepEqual(a,{ordered:2,assigned:1,unconfirmed:1,remaining:0,moved:0});
+ assert.equal(a.ordered,a.assigned+a.unconfirmed+a.remaining+a.moved);
+ validate(s);
+});
 
 test('1納品回に個人・販売用・おやつ用を統合し、販売場所の変更は追加仕入にしない',()=>{
  const {s,r}=setup();r.orders.hori={name:'ホリ',quantities:{milk:1}};

@@ -43,10 +43,11 @@ export function Money({
   onChange,
   required = false,
   signed = false,
+  unit,
 }) {
   return (
     <Field label={label}>
-      <input
+      <span className="money-input"><input
         aria-label={label}
         inputMode={signed ? "text" : "numeric"}
         type="number"
@@ -57,7 +58,7 @@ export function Money({
         onChange={(e) =>
           onChange(e.target.value === "" ? null : Number(e.target.value))
         }
-      />
+      />{unit && <span aria-hidden="true">{unit}</span>}</span>
     </Field>
   );
 }

@@ -119,7 +119,7 @@ function App() {
   };
   return (
     <>
-      <header>
+      <header className={!session ? 'login-header' : ''}>
         <img
           className="school-logo"
           src={new URL("../ohisama_header_logo.png", import.meta.url).href}
@@ -130,7 +130,7 @@ function App() {
             src={new URL("../wappan_title_logo_display.png", import.meta.url).href}
             alt="わっぱん"
           />
-          <small>注文・集計</small>
+          <small>おひさま保育園・わっぱん係</small>
         </div>
         {session && (
           <Button
@@ -275,8 +275,8 @@ function Login({ notify }) {
     [busy, setBusy] = useState(false);
   return (
     <main className="login">
-      <span className="eyebrow">おひさま保育園の係専用</span>
-      <h1>わっぱん</h1>
+      <h1>わっぱん係</h1>
+      <p className="login-subtitle">おひさま保育園</p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -313,7 +313,7 @@ function Login({ notify }) {
         </Button>
       </form>
       <Button
-        secondary
+        className="login-reset"
         disabled={busy}
         onClick={async () => {
           if (!email) {

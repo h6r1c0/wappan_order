@@ -83,7 +83,7 @@ async function login(page) {
     .fill("test-password-123");
   await page.getByRole("button", { name: "ログイン", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "注文", exact: true }),
+    page.getByRole("button", { name: /新しい注文を始める/ }),
   ).toBeVisible();
 }
 async function nav(page, name) {
@@ -98,7 +98,7 @@ async function closeToast(page) {
 }
 
 async function openRound(page, date = '2026-09-11') {
-  await page.getByRole('button', {name:'新しい注文を始める'}).click();
+  await page.getByRole('button', {name:/新しい注文を始める/}).click();
   await page.getByLabel('納品予定日').fill(date);
   await page.getByRole('button', {name:'この納品日で注文を始める'}).click();
 }
@@ -117,12 +117,25 @@ async function openAfter(page, name) {
   await page.locator('.after-work').filter({has:page.locator('summary', {hasText:name})}).locator('summary').first().click();
 }
 
+test('ログインの主従と入力欄をスマホ幅で確認する', async ({page,context}) => {
+  await backend(context,{state:preparedState(),revision:0});
+  await page.goto('/'); await qaFont(page);
+  await expect(page.getByRole('heading',{name:'わっぱん係'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'ログイン',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'パスワードを忘れた方'})).toHaveClass(/login-reset/);
+  for (const width of [320,375,430]) {
+    await page.setViewportSize({width,height:812});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.screenshot({path:`test-results/login-${width}.png`});
+  }
+});
+
 test('業務順: 注文開始、個人・販売・おやつ、発注数とスマホ幅', async ({page,context}) => {
   const shared={state:preparedState(),revision:0};
   await backend(context,shared); page.on('dialog',d=>d.accept()); await login(page);
-  await expect(page.getByRole('button',{name:'新しい注文を始める'})).toBeVisible();
+  await expect(page.getByRole('button',{name:/新しい注文を始める/})).toBeVisible();
   await openRound(page);
-  await expect(page.getByText('9月の商品情報は登録済み')).toBeVisible();
+  await expect(page.getByRole('heading',{name:/① 注文/})).toBeVisible();
   for(const width of [320,375,430]) {
     await page.setViewportSize({width,height:812});
     await page.evaluate(()=>scrollTo(0,0));
@@ -139,13 +152,16 @@ test('業務順: 注文開始、個人・販売・おやつ、発注数とスマ
   await page.getByRole('button',{name:'黒糖ブレッド 数量を増やす'}).click();
   await page.getByRole('button',{name:'保存して次の購入者へ'}).click();
   await page.getByRole('button',{name:'販売用',exact:true}).click();
-  await page.locator('.order-editor').getByRole('button',{name:'パン',exact:true}).click();
+  await expect(page.locator('.order-editor').getByRole('button',{name:'パン',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'くるみパン 数量を増やす'}).click();
-  await page.getByRole('button',{name:'販売用の注文を保存'}).click();
+  await page.getByRole('button',{name:'保存',exact:true}).click();
+  await expect(page.getByRole('region',{name:'今回の販売用注文'})).toContainText('くるみパン');
+  await expect(page.getByRole('region',{name:'今回の販売用注文'})).toContainText('合計 1個');
+  await expect(page.getByRole('region',{name:'今回の販売用注文'})).not.toContainText('黒糖ブレッド');
   await page.getByRole('button',{name:'おやつ用',exact:true}).click();
   await page.getByRole('button',{name:'くるみパン 数量を増やす'}).click();
   await page.getByRole('button',{name:'おやつ用を保存'}).click();
-  await page.getByRole('button',{name:'発注数',exact:true}).click();
+  await page.getByRole('button',{name:'発注',exact:true}).click();
   await expect(page.locator('.delivery-total-row').filter({hasText:'くるみパン'})).toContainText('2個');
   await page.evaluate(()=>scrollTo(0,0));
   await page.screenshot({path:'test-results/fax-list.png'});
@@ -209,14 +225,14 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
   await page.getByLabel('購入者の了承を得て数量を修正する').check();
   await page.getByRole('button',{name:'了承済みの数量で保存'}).click();
   expect(shared.state.rounds[0].orders.hori.quantities.galette).toBe(1);
-  await page.getByLabel('納品書の税込合計（円）').fill('100');
+  await page.getByLabel('納品書の税込合計').fill('100');
   await page.getByRole('button',{name:'仕入額・状態を保存'}).click();
   await expect.poll(()=>shared.state.rounds[0].invoice).toBe(100);
   await expect.poll(()=>shared.state.rounds[0].status).toBe('注文確定');
-  await page.getByRole('button',{name:'集金額',exact:true}).click();
+  await page.getByRole('button',{name:'集金',exact:true}).click();
   await expect(page.locator('.collection-entry')).toHaveCount(1);
   await page.getByRole('button',{name:'全額受取'}).click();
-  await expect(page.locator('.collection-state')).toHaveText('済');
+  await expect(page.locator('.collection-state')).toHaveText('受取済');
   await page.getByRole('button',{name:'編集・内訳'}).click();
   await page.getByLabel('ホリ 実際受取額（返金はマイナス）').fill('-10');
   await page.getByLabel('理由・メモ').fill('返金');
@@ -237,7 +253,7 @@ test('10月初回のExcel準備と同月再利用、LINE候補、固定注文追
   await page.getByRole('button',{name:'読み取って確認へ'}).click();
   await page.getByLabel('商品区分',{exact:true}).selectOption('once');
   await page.getByRole('button',{name:'確認した商品を登録'}).click();
-  await expect(page.getByText('10月の商品情報は登録済み')).toBeVisible();
+  await expect(page.getByText('商品情報を更新')).toBeVisible();
   await page.getByRole('button',{name:'注文を貼り付け'}).click();
   await page.getByLabel('注文文章').fill('ホリ\n黒糖');
   await page.getByRole('button',{name:'注文候補を読み取る'}).click();
@@ -245,7 +261,7 @@ test('10月初回のExcel準備と同月再利用、LINE候補、固定注文追
   await page.getByRole('button',{name:'この内容で注文へ反映'}).click();
   await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
   await openRound(page,'2026-10-30');
-  await expect(page.getByText('10月の商品情報は登録済み')).toBeVisible();
+  await expect(page.getByText('商品情報を更新')).toBeVisible();
   await expect(page.getByRole('button',{name:'10月のExcel注文表を取り込む'})).toHaveCount(0);
   await nav(page,'商品・購入者');
   await page.getByRole('button',{name:'購入者',exact:true}).click();
@@ -296,7 +312,7 @@ test('複数端末: 古いrevisionの保存は拒否して最新データを守�
     b.on('dialog',d=>d.accept());
     await login(a);await login(b);
     await openRound(a,'2026-09-11');
-    await b.getByRole('button',{name:'新しい注文を始める'}).click();
+    await b.getByRole('button',{name:/新しい注文を始める/}).click();
     await b.getByLabel('納品予定日').fill('2026-09-18');
     await b.getByRole('button',{name:'この納品日で注文を始める'}).click();
     await expect(b.getByRole('alert')).toContainText('別の係が先に保存しました');
