@@ -38,6 +38,10 @@ export const price = (p) =>
     : p.gross == null
       ? null
       : Math.floor(p.gross / 10) * 10;
+// Imported rows retain the printed order. Products absent from the FAX sheet follow them.
+export const faxProducts = (products) => products.map((product, index) => ({product, index}))
+  .sort((a, b) => (a.product.faxOrder ?? Infinity) - (b.product.faxOrder ?? Infinity) || a.index - b.index)
+  .map(({product}) => product);
 export const normalize = (name) =>
   name
     .normalize("NFKC")
@@ -102,7 +106,10 @@ export function initialState() {
 export function snapshot(p) {
   const amount = price(p);
   if (amount == null) throw Error(`${p.name}の販売価格を設定してください`);
-  return { id: p.id, name: p.name, category: p.category, price: amount, cost: p.cost ?? null };
+  return { id: p.id, name: p.name, category: p.category, price: amount, cost: p.cost ?? null,
+    cutFee: p.cutFee ?? null,
+    cutSupported: p.cutSupported ?? p.name.includes('食パン'),
+    ...(p.faxOrder != null ? {faxOrder:p.faxOrder} : {}) };
 }
 export function newRound(state, date, test = false) {
   if (!date) throw Error("納品日を入力してください");
@@ -113,7 +120,7 @@ export function newRound(state, date, test = false) {
     test,
     status: "入力中",
     note: "",
-    products: state.products
+    products: faxProducts(state.products)
       .filter(
         (p) =>
           productAvailable(p, date) && price(p) != null,
@@ -128,7 +135,8 @@ export function newRound(state, date, test = false) {
   };
 }
 export const orderAmount = (round, order) =>
-  sum(round.products.map((p) => p.price * (order?.quantities[p.id] || 0)));
+  sum(round.products.map((p) => p.price * (order?.quantities[p.id] || 0) +
+    (p.cutFee || 0) * Math.min(order?.cutQuantities?.[p.id] || 0, order?.quantities[p.id] || 0)));
 export const roundRevenue = (r) =>
   sum(Object.values(r.orders).map((o) => orderAmount(r, o)));
 export const productTotals = (r, orders = r.orders) =>
@@ -388,7 +396,8 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
       if (amount) for (const product of r.products) {
         const qty = o.quantities[product.id] || 0;
         if (qty) add(id, s.buyers.find((b) => b.id === id)?.name || o.name,
-          'normal', product.price * qty, `${r.date} ${product.name} ×${qty}`, product.category);
+          'normal', product.price * qty + (product.cutFee || 0) * Math.min(o.cutQuantities?.[product.id] || 0, qty),
+          `${r.date} ${product.name} ×${qty}${o.cutQuantities?.[product.id] ? `（カット ${o.cutQuantities[product.id]}個）` : ''}`, product.category);
       }
     }
   for (const sale of s.sales.filter(
@@ -595,6 +604,13 @@ export function validate(s) {
         integer(q, "注文数");
         if (!r.products.some((p) => p.id === pid))
           throw Error("注文回に商品がありません");
+      }
+      for (const [pid, q] of Object.entries(o.cutQuantities || {})) {
+        integer(q, 'カット数量');
+        if (!r.products.some(p=>p.id===pid&&p.name.includes('食パン')) || q > (o.quantities[pid] || 0))
+          throw Error('カット数量は食パンの注文数以下にしてください');
+        if (q > 0 && r.products.find(p=>p.id===pid).cutFee == null)
+          throw Error('カット加算額を設定してください');
       }
     }
     for (const id of r.eventIds) {

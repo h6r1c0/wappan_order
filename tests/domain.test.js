@@ -196,6 +196,18 @@ test("年度境界・不明の実績・過年度調整・目標超過・テス�
   assert.equal(d.fiscalYear("2027-04-01"), 2027);
   d.validate(s);
 });
+
+test('食パンのカット加算は注文回スナップショットに固定し集金内訳へ反映する', () => {
+  const {s,r}=setup();
+  const bread=r.products.find(p=>p.id==='bread');
+  bread.cutFee=15;
+  r.orders.hori={name:'ホリ',quantities:{bread:2},cutQuantities:{bread:2}};
+  assert.equal(d.orderAmount(r,r.orders.hori),bread.price*2+30);
+  assert.equal(d.collections(s,'','',r.id,true).find(row=>row.id==='hori').normal,bread.price*2+30);
+  s.products.find(p=>p.id==='bread').cutFee=25;
+  assert.equal(d.orderAmount(r,r.orders.hori),bread.price*2+30);
+  d.validate(s);
+});
 test("未知の仕入額は利益未確定、重複納品書リンク・負数・端数・空欄を拒否", () => {
   const { s, r } = setup();
   r.orders.hori = { name: "ホリ", quantities: { milk: 1 } };
@@ -222,7 +234,7 @@ test("Excel実ファイルの複数商品ブロック・税込列・先頭行を
   assert.equal(map.pairs.length, 2);
   assert.deepEqual(
     extractRows(sheets[0].rows, map.pairs, map.start).map((r) => r.gross),
-    [538, 367, 394, 475],
+    [538, 394, 367, 475],
   );
 });
 

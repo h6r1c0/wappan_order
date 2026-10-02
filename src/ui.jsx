@@ -43,7 +43,7 @@ export function Money({
   onChange,
   required = false,
   signed = false,
-  unit,
+  unit = "円",
 }) {
   return (
     <Field label={label}>
@@ -191,6 +191,11 @@ export function ProductQuantityEditor({
   priceLabel = (product) => yen(product.price),
   emptyMessage = "この回の商品がありません。",
   startCollapsed = false,
+  secondaryLabel = null,
+  cutQuantities = null,
+  onCutChange = null,
+  cutFees = {},
+  onCutFeeChange = null,
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(startCollapsed ? null : "パン");
@@ -200,13 +205,12 @@ export function ProductQuantityEditor({
       (query.trim() || category === "ALL" || product.category === category) &&
       normalize(product.name).includes(normalize(query)),
   );
-  const selected = filtered.filter((product) => quantities[product.id] > 0);
-  const unselected = filtered.filter((product) => !quantities[product.id]);
   const row = (product) => (
-    <div className="product-row" key={product.id}>
+    <div className="product-entry" key={product.id}><div className="product-row">
       <span className="grow">
         {product.name}
         {priceLabel(product) && <small>{priceLabel(product)}</small>}
+        {secondaryLabel?.(product) && <small className="quantity-reference">{secondaryLabel(product)}</small>}
       </span>
       <Qty
         label={`${product.name} 数量`}
@@ -215,7 +219,10 @@ export function ProductQuantityEditor({
           onChange({ ...quantities, [product.id]: quantity })
         }
       />
-    </div>
+    </div>{onCutChange && (product.cutSupported ?? product.name.includes('食パン')) && !product.name.includes('【スライス】') && quantities[product.id] > 0 && <div className="cut-option">
+      <Check label="カット" checked={(cutQuantities?.[product.id] || 0) > 0} onChange={checked => onCutChange({...cutQuantities,[product.id]:checked ? quantities[product.id] : 0})}/>
+      {(cutQuantities?.[product.id] || 0) > 0 && cutFees[product.id] == null && <Money label="カット加算額" value={null} onChange={value => onCutFeeChange?.(product.id, value)}/>}
+    </div>}</div>
   );
   if (!products.length) return <Empty>{emptyMessage}</Empty>;
   return (
@@ -239,13 +246,7 @@ export function ProductQuantityEditor({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
       />}
-      {selected.length > 0 && (
-        <>
-          <h3>入力済み</h3>
-          {selected.map(row)}
-        </>
-      )}
-      {category !== null && unselected.map(row)}
+      {category !== null && filtered.map(row)}
     </>
   );
 }
@@ -351,7 +352,7 @@ export function BuyerPicker({
         {state.buyers
           .filter((b) => b.id === value || (b.testOnly ? includeTest : b.active))
           .filter(b => normalize(b.name).includes(normalize(query)))
-          .sort((a,b) => (a.id === value ? -1 : b.id === value ? 1 : a.name.localeCompare(b.name, 'ja')))
+          .sort((a,b) => a.name.localeCompare(b.name, 'ja'))
           .map((b) => (
             <button
               type="button"

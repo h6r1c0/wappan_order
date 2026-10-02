@@ -9,6 +9,29 @@ function setup(){
  const r=newRound(s,'2026-09-11',false);s.rounds.push(r);upgrade(s);return {s,r};
 }
 
+test('新規注文回の仕入単価を固定し、後のマスター変更で販売・おやつ原価を変えない',()=>{
+ const {s,r}=setup();
+ const walnut=s.products.find(p=>p.id==='walnut');
+ assert.equal(r.products.find(p=>p.id==='walnut').cost,138);
+ walnut.cost=999;
+ setSalesOrderQuantities(s,r.id,{walnut:1});
+ setSnackOrderQuantities(s,r.id,{walnut:1});
+ assert.equal(s.stocks.find(st=>st.productId==='walnut').cost,138);
+ assert.equal(s.events[0].lines.find(line=>line.productId==='walnut').cost,138);
+ const next=newRound(s,'2026-10-16');
+ assert.equal(next.products.find(p=>p.id==='walnut').cost,999);
+ validate(s);
+});
+
+test('旧注文回に仕入単価記録がない場合、現在のマスター単価を過去へ推定適用しない',()=>{
+ const {s,r}=setup();
+ delete r.products.find(p=>p.id==='walnut').cost;
+ s.products.find(p=>p.id==='walnut').cost=999;
+ setSalesOrderQuantities(s,r.id,{walnut:1});
+ assert.equal(s.stocks.find(st=>st.productId==='walnut').cost,null);
+ validate(s);
+});
+
 test('商品名の「1個」と注文数量を混同せず、割当・未確認・振替・在庫が注文数に一致する',()=>{
  const {s,r}=setup();
  const stock={id:'pkg',productId:'walnut',name:'ライ麦くるみレーズン 1個',category:'パン',qty:2,price:300,cost:200,date:r.date,test:false,roundId:r.id};

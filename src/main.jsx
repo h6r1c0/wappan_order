@@ -184,7 +184,7 @@ function App() {
         <PasswordReset done={() => setRecovery(false)} notify={notify} />
       ) : (
         <AppContext.Provider value={{ state, save, notify, saving }}>
-          <div className="sync">
+          <div className={`sync ${saving || loading || newer ? '' : 'sync-idle'}`}>
             <span>
               {saving
                 ? "共有データへ保存中…"
@@ -272,7 +272,6 @@ function Login({ notify }) {
     [busy, setBusy] = useState(false);
   return (
     <main className="login">
-      <h1>係用ログイン</h1>
       <form
         onSubmit={async (e) => {
           e.preventDefault();

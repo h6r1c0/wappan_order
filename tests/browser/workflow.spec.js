@@ -122,7 +122,7 @@ async function openAfter(page, name) {
 test('ログインの主従と入力欄をスマホ幅で確認する', async ({page,context}) => {
   await backend(context,{state:preparedState(),revision:0});
   await page.goto('/'); await qaFont(page);
-  await expect(page.getByRole('heading',{name:'係用ログイン'})).toBeVisible();
+  await expect(page.getByRole('img',{name:'わっぱん'})).toBeVisible();
   await expect(page.getByRole('button',{name:'ログイン',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'パスワードを忘れた方'})).toHaveClass(/login-reset/);
   for (const width of [320,375,430]) {
@@ -137,7 +137,7 @@ test('ログアウト後、画面に入力された認証情報で再ログイ�
   await backend(context,shared); page.on('dialog',d=>d.accept());
   await login(page);
   await page.getByRole('button',{name:'ログアウト'}).click();
-  await expect(page.getByRole('heading',{name:'係用ログイン'})).toBeVisible();
+  await expect(page.getByRole('img',{name:'わっぱん'})).toBeVisible();
   // ブラウザの自動入力が React の change を送らない場合を模擬する。
   await page.evaluate(() => {
     document.querySelector('input[name="email"]').value='staff@example.test';
@@ -156,6 +156,9 @@ test('業務順: 注文開始、個人・販売・おやつ、発注数とスマ
   await expect(page.locator('.stage-trigger')).toHaveCount(4);
   await expect(page.locator('.stage-1 .purpose')).toHaveCount(3);
   await expect(page.locator('.stage-2 .stage-content')).toHaveCount(0);
+  await page.locator('.stage-1 > .stage-trigger').click();
+  await expect(page.locator('.stage-1 .stage-content')).toHaveCount(0);
+  await page.locator('.stage-1 > .stage-trigger').click();
   for(const width of [320,375,430]) {
     await page.setViewportSize({width,height:812});
     await page.evaluate(()=>scrollTo(0,0));
@@ -251,7 +254,7 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
   await page.getByRole('button',{name:'了承済みの数量で保存'}).click();
   expect(shared.state.rounds[0].orders.hori.quantities.galette).toBe(1);
   await page.getByLabel('納品書の税込合計').fill('100');
-  await page.getByRole('button',{name:'仕入額・状態を保存'}).click();
+  await page.getByRole('button',{name:'納品書の金額を保存'}).click();
   await expect.poll(()=>shared.state.rounds[0].invoice).toBe(100);
   await expect.poll(()=>shared.state.rounds[0].status).toBe('注文確定');
   await page.locator('.stage-4 > .stage-trigger').click();
@@ -352,6 +355,22 @@ test('複数端末: 古いrevisionの保存は拒否して最新データを守�
     await b.getByRole('button',{name:'最新を読込'}).click();
     await expect(b.locator('.round-list-item')).toContainText('2026/09/11');
   } finally {await aContext.close();await bContext.close();}
+});
+
+test('個人注文のカット加算と販売用の個人注文数参照', async ({page,context}) => {
+  const shared={state:preparedState(),revision:0};
+  await backend(context,shared); await login(page); await openRound(page);
+  await page.getByRole('button',{name:'ホリ',exact:true}).click();
+  await page.locator('.order-editor').getByRole('button',{name:'パン',exact:true}).click();
+  await page.getByRole('button',{name:'湯種食パン 数量を増やす'}).click();
+  await page.getByLabel('カット',{exact:true}).check();
+  await page.getByLabel('カット加算額').fill('15');
+  await page.getByRole('button',{name:'保存して次の購入者へ'}).click();
+  await expect.poll(()=>shared.state.rounds[0].orders.hori.cutQuantities.bread).toBe(1);
+  expect(shared.state.products.find(p=>p.id==='bread').cutFee).toBe(15);
+  await page.getByRole('button',{name:'販売用',exact:true}).click();
+  await page.getByLabel('個人注文数を表示').check();
+  await expect(page.locator('.product-row').filter({hasText:'湯種食パン'})).toContainText('個人注文 1個');
 });
 
 test('集計と商品管理: 年度利益はテストを除外、検索はカテゴリ横断', async ({page,context}) => {

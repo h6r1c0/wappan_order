@@ -1963,3 +1963,39 @@ header small {
   .collection-actions .collection-edit { font-size: .73rem; }
   .collection-actions .collection-pay { font-size: .78rem; }
 }
+
+/* The working list stays light; only the current action carries a filled surface. */
+@media screen {
+  :root { --ink: #2d302d; --muted: #6d736e; --line: #e1e5df; --paper: #fcfcfa; --milk: #fff; }
+  body { background: #fcfcfa; color: var(--ink); }
+  .workspace-header { border-bottom: 1px solid var(--line); }
+  .sync-idle { display: none; }
+  .login-header { position: relative; min-height: 135px; display: flex; flex-direction: column; align-items: center; gap: 6px; border-bottom: 0; }
+  .login-header .school-logo { align-self: flex-start; width: 94px; max-height: 40px; object-fit: contain; }
+  .login-header .login-brand { width: 133px; max-height: 70px; object-fit: contain; }
+  .login { padding-top: 5px; }
+  .login form { border-top: 0; }
+  .login .field input { border: 1px solid #c8d0c8; background: #fff; border-radius: 7px; }
+  .login form .button { min-height: 48px; border-radius: 8px; }
+  .login-reset { background: transparent; box-shadow: none; border: 0; min-height: 38px; font-weight: 400; text-decoration: underline; }
+  .home-start .button { min-height: 50px; border-radius: 8px; font-size: 1rem; }
+  .stage-content > h2 { font-size: 1rem; font-weight: 650; }
+  .stage-2.active > .stage-trigger { border-left-color: #537393; color: #365b7e; background: #f4f7fa; }
+  .stage-3.active > .stage-trigger { border-left-color: #aa7444; color: #755032; background: #fbf7f2; }
+  .stage-4.active > .stage-trigger { border-left-color: #79546e; color: #64465c; background: #f8f5f8; }
+  .purpose-next { display: flex; justify-content: space-between; gap: 8px; padding: 10px 1px 3px; border-top: 1px solid var(--line); }
+  .purpose-next .text-action { min-height: 42px; font-size: .88rem; text-decoration: none; }
+  .quantity-reference { color: #646f69; font-size: .78rem; }
+  .personal-start .section-head { display: block; }
+  .personal-start .compact-actions { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+  .personal-start .compact-actions .text-action { padding: 5px 2px; font-size: .78rem; white-space: nowrap; }
+  .purpose-next .text-action { white-space: nowrap; }
+  .cut-option { display: flex; align-items: center; gap: 12px; padding: 2px 6px 9px; border-bottom: 1px solid var(--line); font-size: .84rem; }
+  .cut-option .field { max-width: 170px; margin: 0; }
+  .delivery-total-row { align-items: baseline; padding: 6px 3px; }
+  .delivery-total-quantity strong { font-size: .98rem; }
+  .category-tabs .button { border-radius: 7px; padding: 5px 7px; }
+  .product-row { min-height: 52px; padding: 7px 0; }
+  .buyer-grid .buyer { border-radius: 5px; }
+  .card { border-color: var(--line); }
+}

@@ -46,6 +46,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
   );
   const [reviewing, setReviewing] = useState(() => roundId &&
     Object.values(salesOrderQuantities(state, roundId)).some(q => q > 0));
+  const [showPersonal, setShowPersonal] = useState(false);
   const round = state.rounds.find((item) => item.id === roundId);
   const savedOrderQuantities = roundId ? salesOrderQuantities(state, roundId) : {};
   const stocks = state.stocks.filter(st =>
@@ -79,8 +80,13 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
         data-unsaved={JSON.stringify(orderQuantities) !== JSON.stringify(savedOrderQuantities)}>
         <h2>{reviewing ? '今回の販売用注文' : '販売用として注文する'}</h2>
         {!reviewing && <>
+        <Check label="個人注文数を表示" checked={showPersonal} onChange={setShowPersonal}/>
         <ProductQuantityEditor products={round.products} quantities={orderQuantities}
           onChange={setOrderQuantities}
+          secondaryLabel={showPersonal ? product => {
+            const count = Object.values(round.orders).reduce((n, order) => n + (order.quantities[product.id] || 0), 0);
+            return count ? `個人注文 ${count}個` : null;
+          } : null}
           emptyMessage="今月の商品を準備してください。"/>
         <div className="sticky-action"><span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
           <Button onClick={async () => {

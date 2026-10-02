@@ -15,7 +15,7 @@ test("表示された整数税込価格を使い、不明な小数は確定し�
 test("左右ブロック・途中の税込列変更・結合したおすすめ区画", () => {
   const rows = [["わっぱん注文書 2026年9月お届け"], ["", "商品名", "本体", "税込", "", "", "商品名", "本体", "税込"], ["", "定番A", 340, 367, "", "今月のおすすめパン", "限定A", 170, 184], ["", "商品名", "", "本体", "税込"], ["", "定番B", "", 365, 394, "", "限定B", 180, 194]];
   const a = analyzeSheet({rows, merges:[{s:{r:2,c:5},e:{r:4,c:5}}]});
-  assert.deepEqual(a.products.map(p=>[p.name,p.gross,p.lifecycle]), [["定番A",367,"staple"],["限定A",184,"once"],["定番B",394,"staple"],["限定B",194,"once"]]);
+  assert.deepEqual(a.products.map(p=>[p.name,p.gross,p.lifecycle]), [["定番A",367,"staple"],["定番B",394,"staple"],["限定A",184,"once"],["限定B",194,"once"]]);
 });
 test("商品ライフサイクルと価格履歴、例外定番", () => {
   const s=initialState();

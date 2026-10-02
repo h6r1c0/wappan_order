@@ -23,6 +23,7 @@ import {
   invoiceDeductions,
   setTest,
   monthProductsImported,
+  faxProducts,
 } from "./domain";
 import {
   useApp,
@@ -44,12 +45,13 @@ const PURPOSES = ["個人注文", "販売用", "おやつ用"];
 export function Orders() {
   const { state, save } = useApp();
   const [id, setId] = useState(null),
+    [justCreated, setJustCreated] = useState(false),
     [creating, setCreating] = useState(false),
     [date, setDate] = useState(today()),
     [test, setIsTest] = useState(false);
   const r = state.rounds.find((r) => r.id === id);
   return r ? (
-    <Round key={r.id} round={r} back={() => setId(null)} />
+    <Round key={r.id} round={r} initialTab={justCreated ? "個人注文" : null} back={() => {setId(null);setJustCreated(false);}} />
   ) : (
     <>
       <div className="home-start"><Button onClick={() => setCreating(true)}>＋ 新しい注文を始める</Button></div>
@@ -60,7 +62,7 @@ export function Orders() {
           <button
             className={`card clickable round-list-item status-${r.status}`}
             key={r.id}
-            onClick={() => setId(r.id)}
+            onClick={() => {setJustCreated(false);setId(r.id);}}
           >
             <div className="line">
               <h2>{r.date.replaceAll("-", "/")} 着</h2>
@@ -79,10 +81,11 @@ export function Orders() {
             onSubmit={async (e) => {
               e.preventDefault();
               const existing=state.rounds.find(r=>r.date===date&&r.test===test);
-              if(existing){setCreating(false);setId(existing.id);return;}
+              if(existing){setCreating(false);setJustCreated(false);setId(existing.id);return;}
               const r = newRound(state, date, test);
               if (await save((s) => s.rounds.push(r), "注文回を作成")) {
                 setCreating(false);
+                setJustCreated(true);
                 setId(r.id);
               }
             }}
@@ -106,13 +109,14 @@ export function Orders() {
     </>
   );
 }
-function Round({ round: r, back }) {
+function Round({ round: r, initialTab = null, back }) {
   const { state, save, notify } = useApp();
-  const [tab, setTab] = useState("個人注文"),
+  const [tab, setTab] = useState(initialTab),
     [lastPurpose, setLastPurpose] = useState("個人注文"),
     [lastSavedBuyer, setLastSavedBuyer] = useState(null),
     [buyerId, setBuyerId] = useState(null),
     [draft, setDraft] = useState(null),
+    [cutFees, setCutFees] = useState(() => Object.fromEntries(r.products.map(p => [p.id, p.cutFee ?? null]))),
     [settings, setSettings] = useState(false),
     [products, setProducts] = useState(false), [lineImport,setLineImport]=useState(false), [excelImport,setExcelImport]=useState(false);
   const choose = (id, newBuyer) => {
@@ -142,6 +146,13 @@ function Round({ round: r, back }) {
   const needsMonthlyProducts = r.productImportPending && !monthProductsImported(state, r.date);
   const monthLabel = `${Number(r.date.slice(5, 7))}月`;
   const activeStage = PURPOSES.includes(tab) ? "注文" : tab;
+  const moveTo = (next) => {
+    if (draft && JSON.stringify(draft) !== JSON.stringify(orderDraft(state, r, currentBuyer)) &&
+      !confirm("未保存の個人注文を閉じますか？")) return;
+    if (draft && next !== '個人注文') { setDraft(null); setBuyerId(null); }
+    setTab(next);
+    if (PURPOSES.includes(next)) setLastPurpose(next);
+  };
   return (
     <>
       <button type="button" className="text-action back-link"
@@ -171,7 +182,7 @@ function Round({ round: r, back }) {
           <section className={`stage stage-${index + 1} ${activeStage === stage ? "active" : ""}`} key={stage}>
             <button type="button" className="stage-trigger" aria-expanded={activeStage === stage}
               aria-controls={`stage-body-${index + 1}`}
-              onClick={() => setTab(stage === "注文" ? lastPurpose : stage)}>
+              onClick={() => moveTo(activeStage === stage ? null : stage === "注文" ? lastPurpose : stage)}>
               <span className="stage-number">{["①", "②", "③", "④"][index]}</span>
               <span>{stage}</span>
               <span className="stage-chevron" aria-hidden="true">{activeStage === stage ? "⌄" : "›"}</span>
@@ -195,7 +206,7 @@ function Round({ round: r, back }) {
                   <button type="button" key={label} data-purpose={label}
                     className={`purpose ${tab === label ? "selected" : ""}`}
                     aria-pressed={tab === label}
-                    onClick={() => { setLastPurpose(label); setTab(label); }}>
+                    onClick={() => moveTo(label)}>
                     <TaskIcon type={{"個人注文":"buyer","販売用":"basket","おやつ用":"bread"}[label]}/>
                     <span>{label}</span>
                   </button>
@@ -210,7 +221,7 @@ function Round({ round: r, back }) {
               <h2>① 個人注文を入力する</h2>
             <div className="compact-actions">
               <Button secondary onClick={()=>setLineImport(true)}>注文を貼り付け</Button>
-              <Button secondary onClick={() => setProducts(true)}>商品を追加・変更</Button>
+              <button type="button" className="text-action" onClick={() => setProducts(true)}>＋ 商品が見つからない場合</button>
             </div>
           </div>
           <BuyerPicker value={buyerId} onChange={choose} includeTest={r.test} /></section>
@@ -227,20 +238,31 @@ function Round({ round: r, back }) {
               <ProductQuantityEditor
                 products={r.products}
                 quantities={draft.quantities}
-                onChange={(quantities) => setDraft({ ...draft, quantities })}
+                onChange={(quantities) => setDraft({ ...draft, quantities,
+                  cutQuantities: Object.fromEntries(Object.entries(draft.cutQuantities || {}).map(([id, qty]) => [id, Math.min(qty, quantities[id] || 0)])) })}
+                cutQuantities={draft.cutQuantities || {}}
+                onCutChange={cutQuantities => setDraft({...draft,cutQuantities})}
+                cutFees={cutFees}
+                onCutFeeChange={(id,value) => setCutFees({...cutFees,[id]:value})}
                 startCollapsed
                 emptyMessage="「この納品日の商品」から、販売価格が分かっている商品を追加してください。"
               />
               <div className="sticky-action">
                 <span>
-                  合計 <strong>{yen(orderAmount(r, draft))}</strong>
+                  合計 <strong>{yen(orderAmount({...r,products:r.products.map(p=>({...p,cutFee:cutFees[p.id]}))}, draft))}</strong>
                 </span>
                 <Button
+                  disabled={r.products.some(p => draft.cutQuantities?.[p.id] > 0 && cutFees[p.id] == null)}
                   onClick={async () => {
                     if (
                       await save((s) => {
-                        s.rounds.find((x) => x.id === r.id).orders[buyerId] =
-                          draft;
+                        const round = s.rounds.find((x) => x.id === r.id);
+                        for (const p of round.products) if (draft.cutQuantities?.[p.id] > 0 && cutFees[p.id] != null) {
+                          p.cutFee = cutFees[p.id];
+                          const master=s.products.find(x=>x.id===p.id);
+                          if(master) master.cutFee=cutFees[p.id];
+                        }
+                        round.orders[buyerId] = draft;
                       }, `${currentBuyer.name}の注文を保存`)
                     ) {
                         setLastSavedBuyer(buyerId);
@@ -273,6 +295,10 @@ function Round({ round: r, back }) {
           ))}
         </>
       )}
+      {stage === "注文" && PURPOSES.includes(tab) && <div className="purpose-next" aria-label="ほかの注文用途">
+        {PURPOSES.filter(label => label !== tab).map(label =>
+          <button type="button" className="text-action" key={label} onClick={() => moveTo(label)}>{label}へ ›</button>)}
+      </div>}
       {tab === "集金" && (
         <>
           <div className="collection-total"><span>今回の請求合計{r.reconciliationPending && <small>　照合中</small>}</span>
@@ -297,7 +323,7 @@ function Round({ round: r, back }) {
       )}
       {tab === "発注" && (
         <>
-          <h2>わっぱんへ発注する数量</h2>
+          <h2>発注一覧</h2>
           {deliveryTotals(state,r).map((p) => (
             <div className="delivery-total-row" key={p.id}>
               <span>{p.name}</span>
@@ -307,6 +333,7 @@ function Round({ round: r, back }) {
           {!productTotals(r).length && (
             <Empty>注文を入力すると商品別数量が表示されます。</Empty>
           )}
+          <button type="button" className="text-action" onClick={() => moveTo("販売用")}>販売用の数量を変更 ›</button>
           <Button
             secondary
             onClick={async () => {
@@ -352,13 +379,14 @@ function Round({ round: r, back }) {
       )}
       {tab === "納品・精算" && (
         <>
-          <h2>納品後に確認する</h2>
+          <h2>納品・精算</h2>
           <Shortage round={r}/>
           <Invoice key={`${r.id}-${r.invoice}`} round={r} />
+          <details className="after-work"><summary>セット販売の準備</summary><Markets roundId={r.id} section="sets"/></details>
           <details className="after-work"><summary>販売先を割り当てる</summary>
             <Sales roundId={r.id} phase="after"/>
-            <details><summary>販売場所・セットを使う</summary><Markets roundId={r.id}/></details>
           </details>
+          <details className="after-work"><summary>販売場所</summary><Markets roundId={r.id} section="places"/></details>
           <details className="after-work"><summary>おやつ使用・財政請求</summary>
             <Events roundId={r.id} phase="after"/>
           </details>
@@ -414,7 +442,7 @@ function Shortage({round:r}) {
     <div className="segmented" role="group" aria-label="欠品確認">
       {[['none','なし'],['yes','あり']].map(([value,label]) => <button type="button" key={value}
         className={choice===value?'selected':''} aria-pressed={choice===value}
-        onClick={async()=>{if(await save(s=>{s.rounds.find(x=>x.id===r.id).shortageConfirmation=value;},'欠品確認'))setChoice(value);}}>{label}</button>)}
+        onClick={async()=>{if(await save(s=>{const round=s.rounds.find(x=>x.id===r.id);round.shortageConfirmation=value;if(value==='none'&&round.invoice!=null&&round.status==='注文確定')round.status='納品済み';},'欠品確認'))setChoice(value);}}>{label}</button>)}
     </div>
     {choice === 'yes' && <div className="shortage-editor">
       <Field label="欠品を修正する購入者"><select value={buyerId} onChange={e=>{const id=e.target.value;setBuyerId(id);setQuantities(id?{...r.orders[id].quantities}:null);setAgreed(false);}}>
@@ -425,7 +453,7 @@ function Shortage({round:r}) {
           <Qty label={`${p.name} 納品数量`} value={quantities[p.id]||0} onChange={n=>setQuantities({...quantities,[p.id]:n})}/></div>)}
         <Check label="購入者の了承を得て数量を修正する" checked={agreed} onChange={setAgreed}/>
         <Button disabled={!agreed||r.products.some(p=>(quantities[p.id]||0)>(r.orders[buyerId].quantities[p.id]||0))} onClick={async()=>{
-          if(await save(s=>{s.rounds.find(x=>x.id===r.id).orders[buyerId].quantities=quantities;},'欠品による注文数量を修正')) {setBuyerId('');setQuantities(null);setAgreed(false);}
+          if(await save(s=>{const round=s.rounds.find(x=>x.id===r.id);round.orders[buyerId].quantities=quantities;if(round.invoice!=null&&round.status==='注文確定')round.status='納品済み';},'欠品による注文数量を修正')) {setBuyerId('');setQuantities(null);setAgreed(false);}
         }}>了承済みの数量で保存</Button>
       </>}
     </div>}
@@ -435,8 +463,7 @@ function Invoice({ round: r }) {
   const { state, save } = useApp();
   const [invoice, setInvoice] = useState(r.invoice),
     [eventIds, setEvents] = useState(r.eventIds),
-    [stockIds, setStocks] = useState(r.stockIds),
-    [status, setStatus] = useState(r.status);
+    [stockIds, setStocks] = useState(r.stockIds);
   const preview = { ...r, invoice, eventIds, stockIds },
     ded = invoiceDeductions(state, preview);
   const snackRows = state.events.filter(e => eventIds.includes(e.id));
@@ -450,13 +477,12 @@ function Invoice({ round: r }) {
       className="card"
       data-unsaved={
         invoice !== r.invoice ||
-        status !== r.status ||
         JSON.stringify(eventIds) !== JSON.stringify(r.eventIds) ||
         JSON.stringify(stockIds) !== JSON.stringify(r.stockIds)
       }
       onSubmit={async (e) => {
         e.preventDefault();
-        const nextStatus = status === '注文確定' && r.shortageConfirmation === 'none' && invoice != null ? '納品済み' : status;
+        const nextStatus = r.status === '注文確定' && r.shortageConfirmation === 'none' && invoice != null ? '納品済み' : r.status;
         await save((s) => {
           const round = s.rounds.find((x) => x.id === r.id);
           Object.assign(round, { invoice, eventIds, stockIds, status: nextStatus });
@@ -479,21 +505,15 @@ function Invoice({ round: r }) {
         {salesRows.map(st=><p key={st.id}>販売用：{st.name} ×{st.qty} ／ {yen(st.cost==null?null:st.cost*st.qty)}</p>)}
       </details>
       {invoice != null && ded == null && <p className="notice">用途別の仕入単価を確認してから精算済みにしてください。</p>}
-      <Field label="納品・精算の状態">
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          {["入力中", "注文確定", "納品済み", "精算済み"].map((v) => (
-            <option key={v}>{v}</option>
-          ))}
-        </select>
-      </Field>
-      <Button type="submit">仕入額・状態を保存</Button>
+      <Button type="submit">納品書の金額を保存</Button>
+      {r.status === '納品済み' && r.invoice != null && ded != null &&
+        <Button secondary onClick={() => save(s => { s.rounds.find(x => x.id === r.id).status = '精算済み'; }, '精算完了')}>精算完了を確認</Button>}
     </form>
   );
 }
 function RoundSettings({ round: r, onClose, onDeleted }) {
   const { save } = useApp();
   const [date, setDate] = useState(r.date),
-    [status, setStatus] = useState(r.status),
     [test, setIsTest] = useState(r.test),
     [note, setNote] = useState(r.note);
   return (
@@ -511,9 +531,7 @@ function RoundSettings({ round: r, onClose, onDeleted }) {
           if (
             await save((s) => {
               const round = s.rounds.find((x) => x.id === r.id);
-              Object.assign(round, { date, status, note });
-              if (status !== "入力中")
-                round.planned ??= structuredClone(round.orders);
+              Object.assign(round, { date, note });
               setTest(s, round, test);
             }, "注文回の設定を保存")
           )
@@ -527,13 +545,6 @@ function RoundSettings({ round: r, onClose, onDeleted }) {
           value={date}
           onChange={(e) => setDate(e.target.value)}
         />
-        <Field label="状態">
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            {["入力中", "注文確定", "納品済み", "精算済み"].map((x) => (
-              <option key={x}>{x}</option>
-            ))}
-          </select>
-        </Field>
         <Field label="メモ">
           <textarea value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
@@ -646,7 +657,7 @@ function RoundProducts({ round: r, onClose }) {
           if (
             await save((s) => {
               const round = s.rounds.find((x) => x.id === r.id);
-              round.products = items;
+              round.products = faxProducts(items);
               for (const order of [
                 ...Object.values(round.orders),
                 ...Object.values(round.planned || {}),

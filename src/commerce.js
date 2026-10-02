@@ -114,7 +114,6 @@ export function setSalesOrderQuantities(s, roundId, quantities) {
     if (difference > 0) {
       if (stocks.length) stocks[0].qty += difference;
       else {
-        const master = s.products.find((item) => item.id === product.id);
         s.stocks.push({
           id: crypto.randomUUID(),
           productId: product.id,
@@ -122,7 +121,7 @@ export function setSalesOrderQuantities(s, roundId, quantities) {
           category: product.category,
           qty: difference,
           price: product.price,
-          cost: master?.cost ?? null,
+          cost: product.cost ?? null,
           date: round.date,
           test: round.test,
           note: "",
@@ -208,13 +207,12 @@ export function setSnackOrderQuantities(s, roundId, quantities) {
     if (difference > 0) {
       if (lines.length) lines[0].qty += difference;
       else {
-        const master = s.products.find((item) => item.id === product.id);
         event.lines.push({
           id: crypto.randomUUID(),
           productId: product.id,
           name: product.name,
           category: product.category,
-          cost: master?.cost ?? null,
+          cost: product.cost ?? null,
           qty: difference,
           used: 0,
         });

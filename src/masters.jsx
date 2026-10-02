@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { uid, price, yen, normalize, snapshot, newRound, today, productAvailable, monthKey } from "./domain";
+import { uid, price, yen, normalize, snapshot, newRound, today, productAvailable, monthKey, faxProducts } from "./domain";
 import {
   useApp,
   Button,
@@ -94,6 +94,12 @@ export function ProductEditor({ product, onClose }) {
           value={p.cost}
           onChange={(v) => put("cost", v)}
         />
+        {p.name.includes('食パン') && <Check label="カット注文に対応" checked={p.cutSupported ?? true} onChange={v=>put('cutSupported',v)}/>}
+        {(p.cutSupported ?? p.name.includes('食パン')) && <Money
+          label="カット加算額（未確認なら空欄）"
+          value={p.cutFee}
+          onChange={(v) => put("cutFee", v)}
+        />}
         <Lifecycle value={permanentProduct(p.name) ? "permanent" : p.lifecycle || "staple"} onChange={v => put("lifecycle", v)} />
         {p.lifecycle === "once" && <Field label="利用する注文回"><select value={p.roundId || ""} onChange={e => put("roundId", e.target.value)}><option value="">選んでください</option>{state.rounds.map(r => <option key={r.id} value={r.id}>{r.date}{r.test ? "（テスト）" : ""}</option>)}</select></Field>}
         <details open={p.lifecycle === "seasonal"}>
@@ -140,10 +146,10 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
     setRows(null);
     const result = analyzeSheet(ss[n]);
     setAnalysis(result);
-    if (result.format !== "unknown") prepare(result.products);
+    if (result.format !== "unknown") prepare(result.products, result.format);
     else setRows(null);
   };
-  const prepare = (automatic) => {
+  const prepare = (automatic, format = analysis?.format) => {
     const data = Array.isArray(automatic) ? automatic : extractRows(sheets[sheet].rows, mapping.pairs, mapping.start);
     if (!data.length) {
       notify(
@@ -153,7 +159,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
     }
     const seen = new Set();
     setRows(
-      data.map((x) => {
+      data.map((x, sourceIndex) => {
         const p = state.products.find(
             (p) => importIdentity(p.name) === importIdentity(x.name),
           ),
@@ -161,6 +167,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
         seen.add(normalize(x.name));
         return {
           ...x,
+          faxOrder: (format === "sweets" ? 10000 : 0) + sourceIndex,
           id: uid(),
           include: !duplicate,
           duplicate,
@@ -423,6 +430,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                         }),
                         name: r.name.trim(),
                         gross: r.gross,
+                        faxOrder: r.faxOrder,
                         category: r.category,
                         mode: r.mode,
                         manual: r.manual,
@@ -438,14 +446,19 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                       const round = s.rounds.find(x => x.id === targetId);
                       if (round) {
                         const index = round.products.findIndex(x => x.id === p.id);
-                        if (index >= 0) round.products[index] = snapshot(p);
-                        else round.products.push(snapshot(p));
+                        const used = Object.values(round.orders).some(order => (order.quantities[p.id] || 0) > 0) ||
+                          s.stocks.some(stock => stock.roundId === targetId && stock.productId === p.id && stock.qty > 0) ||
+                          s.events.some(event => event.roundId === targetId && event.lines.some(line => line.productId === p.id && line.qty > 0));
+                        if (index >= 0 && !used && round.status === '入力中') round.products[index] = snapshot(p);
+                        else if (index < 0 && round.status === '入力中') round.products.push(snapshot(p));
                       }
                     }
+                    const importedRound = s.rounds.find(x => x.id === targetId);
+                    if (importedRound) importedRound.products = faxProducts(importedRound.products);
                     if (target === "new") {
                       const round = newRound(s, delivery, testRound);
                       round.id = targetId;
-                      round.products = s.products.filter(p => productAvailable(p, delivery, targetId) && price(p) != null).map(snapshot);
+                      round.products = faxProducts(s.products).filter(p => productAvailable(p, delivery, targetId) && price(p) != null).map(snapshot);
                       s.rounds.push(round);
                     }
                     if (importedMonth) {
@@ -509,7 +522,7 @@ export function Masters() {
             onChange={(e) => setQuery(e.target.value)}
           />
           <div className="tabs category-tabs">{['パン','焼き菓子','すべて'].map(c=><Button key={c} secondary={category!==c} onClick={()=>setCategory(c)}>{c!=='すべて'&&<Cat category={c}/>} {c}</Button>)}</div>
-          {state.products
+          {faxProducts(state.products)
             .filter(p=>query.trim()||category==='すべて'||p.category===category)
             .filter((p) => normalize(p.name).includes(normalize(query)))
             .map((p) => (
@@ -526,7 +539,7 @@ export function Masters() {
                   </small>
                 </span>
                 <strong>
-                  {price(p) == null ? "価格未確認" : yen(price(p))}
+                  {price(p) == null ? "現在価格未登録" : yen(price(p))}
                 </strong>
               </button>
             ))}

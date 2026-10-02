@@ -85,7 +85,7 @@ export function Events({roundId=null,onManageProducts=null,phase='all'}) {
             <div className="section-head">
               <h2>{e.name}</h2>
               <Button secondary onClick={() => setEdit(e)}>
-                注文・使用数を編集
+                使用数・仕入単価を編集
               </Button>
             </div>
             <p>
@@ -204,6 +204,7 @@ export function Events({roundId=null,onManageProducts=null,phase='all'}) {
 }
 function EventEditor({ event, onClose, roundId=null }) {
   const { state, save } = useApp();
+  const lockedOrder = !!event && state.rounds.find(r=>r.id===event.roundId)?.status !== '入力中';
   const [e, set] = useState(
     event
       ? structuredClone(event)
@@ -254,6 +255,8 @@ function EventEditor({ event, onClose, roundId=null }) {
               e.roundId ||= delivery(s,e.deliveryDate||e.date,e.test).id;
               e.test=s.rounds.find(r=>r.id===e.roundId).test;
               const i = s.events.findIndex((x) => x.id === e.id);
+              if (lockedOrder && event.lines.some(line => e.lines.find(next => next.id === line.id)?.qty !== line.qty))
+                throw Error('確定後の注文数は欠品修正の手順から変更してください');
               if (i < 0) s.events.push(e);
               else s.events[i] = e;
               setEventTest(s, e, e.test);
@@ -288,7 +291,7 @@ function EventEditor({ event, onClose, roundId=null }) {
               />
               <div className="grid2">
                 <Field label="注文数">
-                  <Qty label={`${l.name} 注文数`} value={l.qty} onChange={(v) => put(i, "qty", v)} />
+                  {lockedOrder ? <strong>{l.qty}個</strong> : <Qty label={`${l.name} 注文数`} value={l.qty} onChange={(v) => put(i, "qty", v)} />}
                 </Field>
                 <Field label="実際のおやつ使用数">
                   <Qty label={`${l.name} おやつ使用数`} value={l.used} onChange={(v) => put(i, "used", v)} />
