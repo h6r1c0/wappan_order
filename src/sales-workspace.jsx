@@ -90,7 +90,7 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
     }, '販売先と数量を割り当て');
     if (ok) {
       setDirty(false);
-      setLastSaved(`${picked.map((stock) => stock.name).join('・')}を${destinationType === 'external' ? '外部販売' : destinationType === 'buyer' ? state.buyers.find((buyer) => buyer.id === buyerId)?.name : '未確認'}として登録しました`);
+      setLastSaved('登録しました');
       setTouchedIds((ids) => [...new Set([...ids, ...picked.map((stock) => stock.id)])]);
       setQuantities(mode==='product' && selectedStock && stockRemaining(state,selectedStock)+pendingFor(state,selectedStock).reduce((n,s)=>n+s.qty,0)>Number(quantities[selectedStock.id]) ? {[selectedStock.id]:1} : {});
       if (mode === 'product') requestAnimationFrame(() =>

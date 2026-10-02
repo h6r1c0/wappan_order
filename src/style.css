@@ -2088,10 +2088,11 @@ header small {
   .set-preparation { margin:6px 0; }
   .set-preparation h3 { font-size:.9rem; }
   .set-row { border-bottom:1px solid var(--line); padding:7px 0; }
-  .sales-step { min-height:46px; border:0; border-bottom:1px solid var(--line); border-radius:0; padding:6px 0; background:#fff; }
+  .sales-step,.sales-step:nth-of-type(2) { min-height:46px; border:0; border-bottom:1px solid var(--line); border-radius:0; padding:6px 0; background:#fff; }
   .sales-mode-grid,.choice-grid { display:flex; flex-wrap:wrap; gap:5px; }
   .sales-mode-grid .button,.choice-grid .button { min-height:42px; font-size:.83rem; padding:6px 9px; border-radius:4px; }
   .sales-mode-grid .button:not(.secondary),.choice-grid .button:not(.secondary) { background:#e2eee5; border:1px solid #528369; color:#254f39; }
+  .sale-saved { margin:6px 0; padding:5px 0; border-radius:0; background:transparent; font-size:.84rem; font-weight:500; }
   .sales-workspace h2,.sales-step-body h2 { font-size:.95rem; margin:7px 0; }
   .sales-product-list { gap:0; }
   .sales-product-list > button { display:flex; justify-content:space-between; width:100%; border:0; border-bottom:1px solid var(--line); border-radius:0; background:#fff; padding:6px 0; text-align:left; min-height:48px; gap:8px; }
