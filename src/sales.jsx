@@ -36,7 +36,7 @@ const quantitySignature = quantities => JSON.stringify(Object.entries(quantities
 export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='all'}) {
   const { state, save } = useApp();
   const titleRef = useRef(null);
-  useEffect(() => { titleRef.current?.scrollIntoView({ block: 'start' }); }, []);
+
   const [mode, setMode] = useState(phase === 'order' ? 'order' : null);
   const [inputMode, setInputMode] = useState(null);
   const [edit, setEdit] = useState(null);
@@ -72,8 +72,8 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
   };
   const step = (key, label) => <button type="button" className={`sales-step ${mode === key ? 'selected' : ''}`}
     onClick={() => toggleStep(key)} aria-expanded={mode === key}>
-    <span className={`step-icon step-icon-${key}`}><TaskIcon type={{order:'basket',assign:'assign',history:'history'}[key]}/></span>
-    <span className="step-label">{label}{key === 'assign' && <small>販売先未確認 {unconfirmedQty}個</small>}</span>
+
+    <span className="step-label">{label}{key === 'assign' && <small>未割当 {stocks.reduce((n,stock)=>n+stockRemaining(state,stock),0)+unconfirmedQty}個</small>}</span>
     <span className="chevron" aria-hidden="true">{mode === key ? '⌄' : '›'}</span>
   </button>;
   return <>
@@ -142,13 +142,12 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
       {remainingStocks.length > 0 && <Button secondary onClick={() => setBatchSelling(true)}>
         購入者を選んでまとめて販売を記録
       </Button>}
-      {stocks.slice().sort((a,b) => (stockRemaining(state,b)>0)-(stockRemaining(state,a)>0) ||
-        b.date.localeCompare(a.date)).map((st) => {
+      {stocks.slice().sort((a,b)=>(round?.products.findIndex(p=>p.id===a.productId)??0)-(round?.products.findIndex(p=>p.id===b.productId)??0)).map((st) => {
         const remaining = stockRemaining(state, st);
         return <details className={`stock-card ${remaining<1?'sold-out':''}`} key={st.id}>
           <summary className="product-row"><span className="grow"><strong>{st.name}</strong>
             <small>{yen(st.price)} ／ 注文 {st.qty}個 ／ 販売記録 {soldQty(state,st.id)}個</small></span>
-            <strong>在庫 {remaining}個</strong></summary>
+            <strong>残数 {remaining}個</strong></summary>
           <div className="actions"><Button disabled={remaining<1} onClick={() => setSelling(st)}>1商品ずつ販売を記録</Button>
             <Button secondary onClick={() => setEdit(st)}>販売履歴を確認・修正</Button></div>
         </details>;

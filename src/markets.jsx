@@ -4,6 +4,7 @@ import {uid,today,yen,stockRemaining} from './domain';
 import {delivery,marketTotals,possibleSets,sellBundle} from './commerce';
 import {TaskIcon} from './task-icon';
 export function Markets({roundId=null,section='all'}){
+ if(section==='sets')return <SetSales roundId={roundId}/>;
  const {state,save}=useApp();const [edit,setEdit]=useState(null),[selected,setSelected]=useState(null),[bundle,setBundle]=useState(false),[selling,setSelling]=useState(null);
  const m=state.markets.find(m=>m.id===selected),totals=m?marketTotals(state,m):null;
  return <section className="sales-tools"><div className="section-head"><h2><TaskIcon type="shop"/> {section==='sets'?'セット販売の準備':'販売場所'}</h2><Button secondary onClick={()=>setEdit({})}>＋ 販売場所を登録</Button></div>{section==='sets'&&<p className="muted">セットを作るには、先に販売場所を選びます。</p>}{!m?state.markets.filter(m=>!roundId||m.roundId===roundId).map(m=><Button secondary key={m.id} onClick={()=>setSelected(m.id)}>{m.date} ／ {m.name} ／ 売上 {yen(marketTotals(state,m).revenue)}</Button>):<>
@@ -17,8 +18,8 @@ export function Markets({roundId=null,section='all'}){
  </section>;
 }
 function BundleSale({market,bundle,onClose}){
- const {state,save}=useApp();const [qty,setQty]=useState(1),[entry,set]=useState({destinationType:'external',paymentStatus:'unconfirmed',destinationName:market.name,buyerId:'',note:''});
- return <Modal title="セット販売を記録" onClose={onClose}><h3>{bundle.name} ／ 1セット {yen(bundle.price)}</h3><Qty label="販売セット数" value={qty} onChange={setQty}/><h3>販売先</h3><div className="choice-grid"><Button secondary={entry.destinationType!=='external'} onClick={()=>set({...entry,destinationType:'external',paymentStatus:'unconfirmed'})}>外部販売</Button><Button secondary={entry.destinationType!=='buyer'} onClick={()=>set({...entry,destinationType:'buyer',paymentStatus:'later'})}>登録済み購入者</Button><Button secondary={entry.destinationType!=='unknown'} onClick={()=>set({...entry,destinationType:'unknown',paymentStatus:'unconfirmed'})}>販売先未確認</Button></div>{entry.destinationType==='external'&&<><Field label="販売先・団体・マルシェ名"><input list="bundle-destinations" value={entry.destinationName} onChange={e=>set({...entry,destinationName:e.target.value})}/></Field><datalist id="bundle-destinations">{state.externalDestinations.map(x=><option value={x} key={x}/>)}</datalist><div className="choice-grid"><Button secondary={entry.paymentStatus!=='paid'} onClick={()=>set({...entry,paymentStatus:'paid'})}>入金済み</Button><Button secondary={entry.paymentStatus!=='unconfirmed'} onClick={()=>set({...entry,paymentStatus:'unconfirmed'})}>入金未確認</Button></div></>}{entry.destinationType==='buyer'&&<BuyerPicker value={entry.buyerId} includeTest={state.rounds.find(r=>r.id===market.roundId)?.test} onChange={buyerId=>set({...entry,buyerId})}/>} {entry.destinationType==='unknown'&&<p className="notice">売れた数量だけ記録し、入金・請求は未確認のまま保持します。</p>}<p className="total">売上 {yen(qty*bundle.price)}</p><Field label="支払メモ（任意）"><textarea value={entry.note} onChange={e=>set({...entry,note:e.target.value})}/></Field><p>販売時に構成商品の残数を減らし、仕入原価を引き継ぎます。</p><Button onClick={async()=>{if(await save(s=>sellBundle(s,s.bundles.find(b=>b.id===bundle.id),qty,market.date,entry),'セット販売を記録'))onClose();}}>この内容で販売を記録</Button></Modal>;
+ const {state,save}=useApp();const [qty,setQty]=useState(1),[entry,set]=useState({destinationType:'external',paymentStatus:'unconfirmed',destinationName:market.name||'',buyerId:'',note:''});
+ return <Modal title="セット販売を記録" onClose={onClose}><h3>{bundle.name} ／ 1セット {yen(bundle.price)}</h3><Qty label="販売セット数" value={qty} min={1} max={possibleSets(state,bundle)} onChange={setQty}/><h3>販売先</h3><div className="choice-grid"><Button secondary={entry.destinationType!=='external'} onClick={()=>set({...entry,destinationType:'external',paymentStatus:'unconfirmed'})}>外部販売</Button><Button secondary={entry.destinationType!=='buyer'} onClick={()=>set({...entry,destinationType:'buyer',paymentStatus:'later'})}>登録済み購入者</Button></div>{entry.destinationType==='external'&&<><Field label="外部販売先（任意）"><input list="bundle-destinations" value={entry.destinationName} onChange={e=>set({...entry,destinationName:e.target.value})}/></Field><datalist id="bundle-destinations">{state.externalDestinations.map(x=><option value={x} key={x}/>)}</datalist><div className="choice-grid"><Button secondary={entry.paymentStatus!=='paid'} onClick={()=>set({...entry,paymentStatus:'paid'})}>入金済み</Button><Button secondary={entry.paymentStatus!=='unconfirmed'} onClick={()=>set({...entry,paymentStatus:'unconfirmed'})}>入金未確認</Button></div></>}{entry.destinationType==='buyer'&&<BuyerPicker value={entry.buyerId} includeTest={state.rounds.find(r=>r.id===market.roundId)?.test} onChange={buyerId=>set({...entry,buyerId})}/>} {entry.destinationType==='unknown'&&<p className="notice">売れた数量だけ記録し、入金・請求は未確認のまま保持します。</p>}<p className="total">売上 {yen(qty*bundle.price)}</p><Field label="支払メモ（任意）"><textarea value={entry.note} onChange={e=>set({...entry,note:e.target.value})}/></Field><p>販売時に構成商品の残数を減らし、仕入原価を引き継ぎます。</p><Button onClick={async()=>{if(await save(s=>sellBundle(s,s.bundles.find(b=>b.id===bundle.id),qty,market.date,entry),'セット販売を記録'))onClose();}}>この内容で販売を記録</Button></Modal>;
 }
 function MarketEditor({value,roundId,onClose,onCreated}){
  const {state,save}=useApp();const [m,set]=useState(value?structuredClone(value):{id:uid(),name:'',date:today(),place:'',note:'',expense:null,expenseMode:'reference',roundId:roundId||''}),[date,setDate]=useState(today()),[test,setTest]=useState(false);
@@ -27,6 +28,24 @@ function MarketEditor({value,roundId,onClose,onCreated}){
  <Money label="場所代・出店経費（不明なら空欄）" value={m.expense} onChange={v=>put('expense',v)}/><Field label="出店経費の扱い"><select value={m.expenseMode} onChange={e=>put('expenseMode',e.target.value)}><option value="reference">参考情報のみ（わっぱん利益から引かない）</option><option value="apply">わっぱん利益へ反映する</option></select></Field><Field label="メモ・支払メモ"><textarea value={m.note} onChange={e=>put('note',e.target.value)}/></Field><Button type="submit">販売場所を保存</Button></form></Modal>;
 }
 function BundleEditor({market,onClose}){
- const {state,save}=useApp();const [b,set]=useState({id:uid(),name:'',price:null,marketId:market.id,components:[]});
+ const {state,save}=useApp();const [b,set]=useState({id:uid(),name:'',price:null,marketId:market.id||null,roundId:market.roundId,components:[]});
  return <Modal title="セットを作る" onClose={onClose}><Field label="セット名" value={b.name} onChange={e=>set({...b,name:e.target.value})}/><Money label="1セットの販売価格" value={b.price} onChange={v=>set({...b,price:v})}/><p>この納品日の販売用商品から構成を選びます。販売を記録した時点で共通の残数が減ります。</p>{state.stocks.filter(st=>st.roundId===market.roundId&&!st.cancelled).map(st=><div className="card" key={st.id}><strong>{st.name}</strong><p>残り {stockRemaining(state,st)} ／ 仕入単価 {yen(st.cost)}</p><Qty label={`${st.name} セット必要数`} value={b.components.find(c=>c.stockId===st.id)?.qty||0} onChange={qty=>set({...b,components:[...b.components.filter(c=>c.stockId!==st.id),...(qty?[{stockId:st.id,qty}]:[])]})}/></div>)}<p>作成可能 {possibleSets(state,b)} セット</p><Button onClick={async()=>{if(await save(s=>s.bundles.push(b),'セット構成・価格を保存'))onClose();}}>セットを保存</Button></Modal>;
+}
+
+function SetSales({roundId}) {
+ const {state,save}=useApp();
+ const [adding,setAdding]=useState(false),[selling,setSelling]=useState(null);
+ const round=state.rounds.find(r=>r.id===roundId);
+ const bundles=state.bundles.filter(b=>(b.roundId||state.markets.find(m=>m.id===b.marketId)?.roundId)===roundId);
+ const contextFor=b=>state.markets.find(m=>m.id===b?.marketId)||{id:null,roundId,date:round.date,name:''};
+ return <div className="set-list"><button type="button" className="text-action" onClick={()=>setAdding(true)}>＋ セットを作る</button>
+  {bundles.map(b=><div className="set-row" key={b.id}><div className="line"><strong>{b.name}</strong><span>{yen(b.price)}</span></div>
+   <small>{b.components.map(c=>`${state.stocks.find(st=>st.id===c.stockId)?.name} ×${c.qty}`).join(' ／ ')}</small>
+   <Button secondary disabled={possibleSets(state,b)<1} onClick={()=>setSelling(b)}>販売を記録</Button>
+  </div>)}
+  <details><summary>セットの販売履歴</summary>{state.bundleSales.filter(x=>bundles.some(b=>b.id===x.bundleId)).map(x=><div className="line" key={x.id}><span>{x.name} ×{x.qty}　{yen(x.price*x.qty)} {x.void?'取消済':''}</span>
+    {!x.void&&<button type="button" className="text-action" onClick={()=>{if(confirm('販売を取り消して数量を戻しますか？'))save(s=>{s.bundleSales.find(a=>a.id===x.id).void=true;},'セット販売取消');}}>取消</button>}</div>)}</details>
+  {adding&&<BundleEditor market={contextFor(null)} onClose={()=>setAdding(false)}/>}
+  {selling&&<BundleSale market={contextFor(selling)} bundle={selling} onClose={()=>setSelling(null)}/>}
+ </div>;
 }

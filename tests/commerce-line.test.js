@@ -54,10 +54,10 @@ test('商品名の「1個」と注文数量を混同せず、割当・未確認�
  s.stocks.push(stock);
  addSale(s,stock,{date:r.date,qty:2,price:300,destinationType:'unknown',paymentStatus:'unconfirmed'});
  let a=stockAllocation(s,stock);
- assert.deepEqual(a,{ordered:2,assigned:0,unconfirmed:2,remaining:0,moved:0});
+ assert.deepEqual(a,{ordered:2,received:2,assigned:0,unconfirmed:2,remaining:0,moved:0});
  assignUnknownSale(s,s.sales[0].id,1,{destinationType:'external',paymentStatus:'paid',destinationName:''});
  a=stockAllocation(s,stock);
- assert.deepEqual(a,{ordered:2,assigned:1,unconfirmed:1,remaining:0,moved:0});
+ assert.deepEqual(a,{ordered:2,received:2,assigned:1,unconfirmed:1,remaining:0,moved:0});
  assert.equal(a.ordered,a.assigned+a.unconfirmed+a.remaining+a.moved);
  validate(s);
 });

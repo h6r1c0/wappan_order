@@ -1,5 +1,7 @@
+import {Shortage} from './shortage-ui';
+import {receivedQuantity, updateDeliveryStatus} from './shortages';
 import React, { useState } from "react";
-import { deliveryTotals } from './commerce';
+import { deliveryTotals, setSalesOrderQuantities, salesOrderQuantities, salesCutQuantities } from './commerce';
 import {LineImport} from './line-import.jsx';
 import {Sales} from './sales';
 import {RoundCollections} from './collections';
@@ -151,6 +153,7 @@ function Round({ round: r, initialTab = null, back }) {
       !confirm("未保存の個人注文を閉じますか？")) return;
     if (draft && next !== '個人注文') { setDraft(null); setBuyerId(null); }
     setTab(next);
+    if (next) requestAnimationFrame(() => document.querySelector('.stage.active > .stage-trigger')?.scrollIntoView({block:'start',behavior:'smooth'}));
     if (PURPOSES.includes(next)) setLastPurpose(next);
   };
   return (
@@ -192,7 +195,7 @@ function Round({ round: r, initialTab = null, back }) {
       {needsMonthlyProducts ? (
         <section className="monthly-import-callout">
           <div>
-            <strong>② {monthLabel}の商品を準備する</strong>
+            <strong>{monthLabel}の商品を準備する</strong>
             <small>{monthLabel}の注文票を読み込みます。</small>
           </div>
           <Button onClick={() => setExcelImport(true)}><TaskIcon type="excel"/>{monthLabel}のExcel注文表を取り込む</Button>
@@ -218,7 +221,7 @@ function Round({ round: r, initialTab = null, back }) {
         <>
           <section className="personal-start">
           <div className="section-head">
-              <h2>① 個人注文を入力する</h2>
+              <h2>購入者ごとの注文</h2>
             <div className="compact-actions">
               <Button secondary onClick={()=>setLineImport(true)}>注文を貼り付け</Button>
               <button type="button" className="text-action" onClick={() => setProducts(true)}>＋ 商品が見つからない場合</button>
@@ -262,6 +265,7 @@ function Round({ round: r, initialTab = null, back }) {
                           const master=s.products.find(x=>x.id===p.id);
                           if(master) master.cutFee=cutFees[p.id];
                         }
+                        if (round.shortages?.length && JSON.stringify(round.orders[buyerId]?.quantities||{}) !== JSON.stringify(draft.quantities)) throw Error('欠品配分後は元の注文数を変更できません。欠品配分を修正してください');
                         round.orders[buyerId] = draft;
                       }, `${currentBuyer.name}の注文を保存`)
                     ) {
@@ -296,8 +300,8 @@ function Round({ round: r, initialTab = null, back }) {
         </>
       )}
       {stage === "注文" && PURPOSES.includes(tab) && <div className="purpose-next" aria-label="ほかの注文用途">
-        {PURPOSES.filter(label => label !== tab).map(label =>
-          <button type="button" className="text-action" key={label} onClick={() => moveTo(label)}>{label}へ ›</button>)}
+        {PURPOSES.map((label,index) =>
+          <button type="button" className={`text-action ${label === tab ? 'selected' : ''}`} aria-pressed={label===tab} key={label} onClick={() => moveTo(label)}>{['個人','販売','おやつ'][index]} {label===tab?'✓':'›'}</button>)}
       </div>}
       {tab === "集金" && (
         <>
@@ -328,14 +332,15 @@ function Round({ round: r, initialTab = null, back }) {
             <div className="delivery-total-row" key={p.id}>
               <span>{p.name}</span>
               <span className="delivery-total-quantity"><strong>{p.qty}個</strong><small>{[["個人",p.personal],["販売",p.sales],["おやつ",p.snack]].filter(([,n])=>n>0).map(([name,n])=>`${name}${n}`).join("｜")}</small></span>
+              {r.status==='入力中' && <div className="fax-adjust"><small>販売用</small><Qty label={`${p.name} 販売用の最終調整`} value={p.sales} min={salesCutQuantities(state,r.id)[p.id]||0}
+                onChange={n=>save(s=>setSalesOrderQuantities(s,r.id,{...salesOrderQuantities(s,r.id),[p.id]:n}),'発注前の販売用数量を調整')}/></div>}
             </div>
           ))}
           {!productTotals(r).length && (
             <Empty>注文を入力すると商品別数量が表示されます。</Empty>
           )}
           <button type="button" className="text-action" onClick={() => moveTo("販売用")}>販売用の数量を変更 ›</button>
-          <Button
-            secondary
+          <button type="button" className="text-action"
             onClick={async () => {
               try {
                 await copyText(
@@ -350,8 +355,8 @@ function Round({ round: r, initialTab = null, back }) {
               }
             }}
           >
-            商品名・数量をコピー
-          </Button>
+            商品名・数量をコピー ›
+          </button>
           {r.planned && r.products.some((p) => (productTotals(r, r.planned).find((x) => x.id === p.id)?.qty||0)!==(productTotals(r).find((x) => x.id === p.id)?.qty||0)) && (
             <details>
               <summary>発注確定後に変更あり</summary>
@@ -381,8 +386,10 @@ function Round({ round: r, initialTab = null, back }) {
         <>
           <h2>納品・精算</h2>
           <Shortage round={r}/>
+          {r.shortageConfirmation && <>
+          <SetPreparation roundId={r.id}/>
           <Invoice key={`${r.id}-${r.invoice}`} round={r} />
-          <details className="after-work"><summary>セット販売の準備</summary><Markets roundId={r.id} section="sets"/></details>
+
           <details className="after-work"><summary>販売先を割り当てる</summary>
             <Sales roundId={r.id} phase="after"/>
           </details>
@@ -410,6 +417,7 @@ function Round({ round: r, initialTab = null, back }) {
               })}
             </details>
           )}
+          </>}
         </>
       )}
             </div>}
@@ -431,34 +439,6 @@ function Round({ round: r, initialTab = null, back }) {
     </>
   );
 }
-function Shortage({round:r}) {
-  const {save} = useApp();
-  const [choice,setChoice] = useState(r.shortageConfirmation || null);
-  const [buyerId,setBuyerId] = useState('');
-  const [quantities,setQuantities] = useState(null);
-  const [agreed,setAgreed] = useState(false);
-  const ordered = Object.entries(r.orders).filter(([,order])=>Object.values(order.quantities).some(q=>q>0));
-  return <section className="shortage-check"><h3>欠品確認</h3>
-    <div className="segmented" role="group" aria-label="欠品確認">
-      {[['none','なし'],['yes','あり']].map(([value,label]) => <button type="button" key={value}
-        className={choice===value?'selected':''} aria-pressed={choice===value}
-        onClick={async()=>{if(await save(s=>{const round=s.rounds.find(x=>x.id===r.id);round.shortageConfirmation=value;if(value==='none'&&round.invoice!=null&&round.status==='注文確定')round.status='納品済み';},'欠品確認'))setChoice(value);}}>{label}</button>)}
-    </div>
-    {choice === 'yes' && <div className="shortage-editor">
-      <Field label="欠品を修正する購入者"><select value={buyerId} onChange={e=>{const id=e.target.value;setBuyerId(id);setQuantities(id?{...r.orders[id].quantities}:null);setAgreed(false);}}>
-        <option value="">購入者を選ぶ</option>{ordered.map(([id,o])=><option key={id} value={id}>{o.name}</option>)}
-      </select></Field>
-      {buyerId && quantities && <>
-        {r.products.filter(p=>(r.orders[buyerId]?.quantities[p.id]||0)>0).map(p=><div className="product-row" key={p.id}><span className="grow">{p.name}<small>注文 {r.orders[buyerId].quantities[p.id]}個</small></span>
-          <Qty label={`${p.name} 納品数量`} value={quantities[p.id]||0} onChange={n=>setQuantities({...quantities,[p.id]:n})}/></div>)}
-        <Check label="購入者の了承を得て数量を修正する" checked={agreed} onChange={setAgreed}/>
-        <Button disabled={!agreed||r.products.some(p=>(quantities[p.id]||0)>(r.orders[buyerId].quantities[p.id]||0))} onClick={async()=>{
-          if(await save(s=>{const round=s.rounds.find(x=>x.id===r.id);round.orders[buyerId].quantities=quantities;if(round.invoice!=null&&round.status==='注文確定')round.status='納品済み';},'欠品による注文数量を修正')) {setBuyerId('');setQuantities(null);setAgreed(false);}
-        }}>了承済みの数量で保存</Button>
-      </>}
-    </div>}
-  </section>;
-}
 function Invoice({ round: r }) {
   const { state, save } = useApp();
   const [invoice, setInvoice] = useState(r.invoice),
@@ -470,11 +450,11 @@ function Invoice({ round: r }) {
   const salesRows = state.stocks.filter(st => stockIds.includes(st.id));
   const snackKnown = snackRows.every(e => e.lines.every(line => line.cost != null));
   const salesKnown = salesRows.every(st => st.cost != null);
-  const snackCost = snackKnown ? snackRows.reduce((n,e) => n + e.lines.reduce((m,line) => m + line.qty * line.cost,0),0) : null;
-  const salesCost = salesKnown ? salesRows.reduce((n,st) => n + st.qty * st.cost,0) : null;
+  const snackCost = snackKnown ? snackRows.reduce((n,e) => n + e.lines.reduce((m,line) => m + receivedQuantity(line) * line.cost,0),0) : null;
+  const salesCost = salesKnown ? salesRows.reduce((n,st) => n + receivedQuantity(st) * st.cost,0) : null;
   return (
     <form
-      className="card"
+      className="invoice-form"
       data-unsaved={
         invoice !== r.invoice ||
         JSON.stringify(eventIds) !== JSON.stringify(r.eventIds) ||
@@ -482,30 +462,23 @@ function Invoice({ round: r }) {
       }
       onSubmit={async (e) => {
         e.preventDefault();
-        const nextStatus = r.status === '注文確定' && r.shortageConfirmation === 'none' && invoice != null ? '納品済み' : r.status;
+        const nextStatus = r.status;
         await save((s) => {
           const round = s.rounds.find((x) => x.id === r.id);
           Object.assign(round, { invoice, eventIds, stockIds, status: nextStatus });
+          updateDeliveryStatus(round);
           if (nextStatus !== "入力中")
             round.planned ??= structuredClone(round.orders);
         }, "納品・仕入額を保存");
       }}
     >
-      <h2>納品書の仕入額を登録</h2>
-      <Money
-        label="納品書の税込合計"
-        unit="円"
-        value={invoice}
-        onChange={setInvoice}
-      />
-      {invoice != null && <div className="cost-overview">個人注文 {yen(roundCost(state, preview))} ／ 販売用 {yen(salesCost)} ／ おやつ用 {yen(snackCost)}</div>}
-      <details>
-        <summary>用途別の内訳を見る</summary>
-        {snackRows.map(e=><p key={e.id}>おやつ用：{e.name} ／ {yen(e.lines.every(line=>line.cost!=null) ? e.lines.reduce((n,line)=>n+line.qty*line.cost,0) : null)}</p>)}
-        {salesRows.map(st=><p key={st.id}>販売用：{st.name} ×{st.qty} ／ {yen(st.cost==null?null:st.cost*st.qty)}</p>)}
-      </details>
-      {invoice != null && ded == null && <p className="notice">用途別の仕入単価を確認してから精算済みにしてください。</p>}
-      <Button type="submit">納品書の金額を保存</Button>
+      <div className="invoice-input-row"><Money label="税込合計" value={invoice} onChange={setInvoice}/><Button type="submit">保存</Button></div>
+      {r.invoice != null && <details><summary>用途別の内訳を見る</summary>
+        <div className="cost-overview">個人注文 {yen(roundCost(state, preview))} ／ 販売用 {yen(salesCost)} ／ おやつ用 {yen(snackCost)}</div>
+        {snackRows.map(e=><p key={e.id}>おやつ用：{e.name}</p>)}
+        {salesRows.map(st=><p key={st.id}>販売用：{st.name} ×{st.qty}</p>)}
+        {ded == null && <small>用途別の仕入単価を確認すると精算を完了できます。</small>}
+      </details>}
       {r.status === '納品済み' && r.invoice != null && ded != null &&
         <Button secondary onClick={() => save(s => { s.rounds.find(x => x.id === r.id).status = '精算済み'; }, '精算完了')}>精算完了を確認</Button>}
     </form>
@@ -679,4 +652,13 @@ function RoundProducts({ round: r, onClose }) {
       </Button>
     </Modal>
   );
+}
+
+function SetPreparation({roundId}) {
+  const {state}=useApp();
+  const [open,setOpen]=useState(state.bundles.some(b=>(b.roundId||state.markets.find(m=>m.id===b.marketId)?.roundId)===roundId));
+  return <section className="set-preparation"><div className="line"><h3>セット販売</h3><div className="segmented" role="group" aria-label="セット販売">
+    <button type="button" className={!open?'selected':''} onClick={()=>setOpen(false)}>なし</button>
+    <button type="button" className={open?'selected':''} onClick={()=>setOpen(true)}>あり</button>
+  </div></div>{open&&<Markets roundId={roundId} section="sets"/>}</section>;
 }

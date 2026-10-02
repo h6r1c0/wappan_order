@@ -1,3 +1,4 @@
+import {receivedQuantity} from './shortages.js';
 // Shared delivery identity; transfers retain origin, never purchase twice.
 const sum = xs => xs.reduce((a,b)=>a+b,0);
 const requireInt = (v,label,positive=false) => { if(!Number.isSafeInteger(v)||v<(positive?1:0)||v>100000000) throw Error(`${label}を確認してください`); };
@@ -35,7 +36,7 @@ export function syncDeliveryLinks(s){
 }
 export const bundleUsed = (s,id) => sum((s.bundleSales||[]).filter(x=>!x.void).flatMap(x=>x.components.filter(c=>c.stockId===id).map(c=>c.qty*x.qty)));
 export const movedOut = (s,id) => sum(s.stocks.filter(x=>x.sourceStockId===id).map(x=>x.qty));
-export const remaining = (s,st) => st.qty-sum(s.sales.filter(x=>!x.void&&x.stockId===st.id).map(x=>x.qty))-bundleUsed(s,st.id)-movedOut(s,st.id);
+export const remaining = (s,st) => receivedQuantity(st)-sum(s.sales.filter(x=>!x.void&&x.stockId===st.id).map(x=>x.qty))-bundleUsed(s,st.id)-movedOut(s,st.id);
 export function moveStock(s,source,qty,marketId=null,price=source.price){
   requireInt(qty,'振替数量',true);requireInt(price,'販売価格');
   if(qty>remaining(s,source))throw Error('販売待ち数量を超えています');
@@ -51,10 +52,10 @@ export function sellBundle(s,b,qty,date,entry={}){
   const components=b.components.map(c=>({...c,cost:s.stocks.find(st=>st.id===c.stockId).cost}));
   const destinationType=entry.destinationType||'external',paymentStatus=entry.paymentStatus||'paid';
   if(!['external','unknown','buyer'].includes(destinationType)||!['paid','unconfirmed','later'].includes(paymentStatus))throw Error('販売先・支払状態を確認してください');
-  if(destinationType==='external'&&!String(entry.destinationName||'').trim())throw Error('外部販売先の名称を入力してください');
+
   if(destinationType==='buyer'&&!s.buyers.some(x=>x.id===entry.buyerId))throw Error('購入者を選んでください');
-  const destinationName=destinationType==='external'?String(entry.destinationName).trim():destinationType==='buyer'?s.buyers.find(x=>x.id===entry.buyerId).name:null;
-  const sale={id:crypto.randomUUID(),bundleId:b.id,marketId:b.marketId,name:b.name,qty,price:b.price,date,note:entry.note||'',paid:paymentStatus==='paid',pending:destinationType==='unknown',destinationType,paymentStatus,destinationName,buyerId:destinationType==='buyer'?entry.buyerId:null,chargeRoundId:destinationType==='buyer'?s.markets.find(m=>m.id===b.marketId)?.roundId:null,components};
+  const destinationName=destinationType==='external'?String(entry.destinationName||'').trim()||'外部販売（名称未入力）':destinationType==='buyer'?s.buyers.find(x=>x.id===entry.buyerId).name:null;
+  const sale={id:crypto.randomUUID(),bundleId:b.id,marketId:b.marketId||null,roundId:b.roundId||s.markets.find(m=>m.id===b.marketId)?.roundId,name:b.name,qty,price:b.price,date,note:entry.note||'',paid:paymentStatus==='paid',pending:destinationType==='unknown',destinationType,paymentStatus,destinationName,buyerId:destinationType==='buyer'?entry.buyerId:null,chargeRoundId:destinationType==='buyer'?(b.roundId||s.markets.find(m=>m.id===b.marketId)?.roundId):null,components};
   if(destinationType==='external'&&!s.externalDestinations.includes(destinationName))s.externalDestinations.push(destinationName);
   s.bundleSales.push(sale);return sale;
 }
@@ -118,6 +119,7 @@ export function setSalesOrderQuantities(s, roundId, quantities, cutQuantities = 
         item.productId === product.id && !!item.cut === cut,
     );
     const current = sum(stocks.map((item) => item.qty));
+    if (round.shortages?.length && variantTarget !== current) throw Error('欠品配分後は元の発注数を変更できません');
     const committed = sum(stocks.map((item) => item.qty - remaining(s, item)));
     if (variantTarget < committed)
       throw Error(
@@ -207,6 +209,7 @@ export function setSnackOrderQuantities(s, roundId, quantities) {
     requireInt(target, `${product.name}の数量`);
     const lines = event.lines.filter((line) => line.productId === product.id);
     const current = sum(lines.map((line) => line.qty));
+    if (round.shortages?.length && target !== current) throw Error('欠品配分後は元の発注数を変更できません');
     const committed = sum(
       lines.map(
         (line) =>
@@ -227,7 +230,7 @@ export function setSnackOrderQuantities(s, roundId, quantities) {
           productId: product.id,
           name: product.name,
           category: product.category,
-          cost: product.cost ?? null,
+          cost: product.cost ?? (round.status === "入力中" ? s.products.find(p=>p.id===product.id)?.cost : null) ?? null,
           qty: difference,
           used: 0,
         });
@@ -263,6 +266,6 @@ export function validateCommerce(s){
     if(st.channel==='external'){const m=s.markets.find(m=>m.id===st.marketId);if(!m||m.roundId!==st.roundId)throw Error('外部販売先を選んでください');}
   }
   for(const m of s.markets){const r=s.rounds.find(r=>r.id===m.roundId);if(!m.name.trim()||!r||!/^\d{4}-\d{2}-\d{2}$/.test(m.date)||m.date<r.date)throw Error('販売イベント名・納品回・日付を確認してください');if(m.expense!=null)requireInt(m.expense,'出店経費');if(!['reference','apply'].includes(m.expenseMode))throw Error('経費の扱いを確認してください');}
-  for(const b of s.bundles){const market=s.markets.find(m=>m.id===b.marketId);if(!b.name.trim()||!market||!b.components.length||new Set(b.components.map(c=>c.stockId)).size!==b.components.length)throw Error('セット名・構成商品を確認してください');requireInt(b.price,'セット価格');for(const c of b.components){requireInt(c.qty,'必要数',true);if(s.stocks.find(st=>st.id===c.stockId)?.roundId!==market.roundId)throw Error('同じ納品回の販売用商品を選んでください');}}
-  for(const x of s.bundleSales){const b=s.bundles.find(b=>b.id===x.bundleId),m=s.markets.find(m=>m.id===x.marketId);requireInt(x.qty,'セット数',true);requireInt(x.price,'セット価格');if(!b||!m||b.marketId!==x.marketId||x.date<m.date||!x.components.length||new Set(x.components.map(c=>c.stockId)).size!==x.components.length)throw Error('セット販売の記録を確認してください');if(x.paid!==(x.paymentStatus==='paid')||x.pending!==(x.destinationType==='unknown'))throw Error('セット販売の支払状態を確認してください');if(x.destinationType==='external'&&(!String(x.destinationName||'').trim()||!['paid','unconfirmed'].includes(x.paymentStatus)))throw Error('外部販売先の名称を確認してください');if(x.destinationType==='buyer'&&(x.paymentStatus!=='later'||!s.buyers.some(b=>b.id===x.buyerId)||x.chargeRoundId!==m.roundId))throw Error('購入者を確認してください');if(x.destinationType==='unknown'&&x.paymentStatus!=='unconfirmed')throw Error('未確認販売の支払状態を確認してください');for(const c of x.components){requireInt(c.qty,'構成数量',true);const st=s.stocks.find(st=>st.id===c.stockId);if(!st||st.roundId!==m.roundId||c.cost!==st.cost)throw Error('セットの仕入原価が一致しません');}}
+  for(const b of s.bundles){const market=s.markets.find(m=>m.id===b.marketId), round=s.rounds.find(r=>r.id===(b.roundId||market?.roundId));if(!b.name.trim()||!round||(b.marketId&&!market)||!b.components.length||new Set(b.components.map(c=>c.stockId)).size!==b.components.length)throw Error('セット名・構成商品を確認してください');requireInt(b.price,'セット価格');for(const c of b.components){requireInt(c.qty,'必要数',true);if(s.stocks.find(st=>st.id===c.stockId)?.roundId!==round.id)throw Error('同じ納品回の販売用商品を選んでください');}}
+  for(const x of s.bundleSales){const b=s.bundles.find(b=>b.id===x.bundleId),m=s.markets.find(m=>m.id===x.marketId),r=s.rounds.find(r=>r.id===(x.roundId||m?.roundId));requireInt(x.qty,'セット数',true);requireInt(x.price,'セット価格');if(!b||!r||(x.marketId&&!m)||(b.marketId||null)!==(x.marketId||null)||x.date<(m?.date||r.date)||!x.components.length||new Set(x.components.map(c=>c.stockId)).size!==x.components.length)throw Error('セット販売の記録を確認してください');if(x.paid!==(x.paymentStatus==='paid')||x.pending!==(x.destinationType==='unknown'))throw Error('セット販売の支払状態を確認してください');if(x.destinationType==='external'&&(!String(x.destinationName||'').trim()||!['paid','unconfirmed'].includes(x.paymentStatus)))throw Error('外部販売先の名称を確認してください');if(x.destinationType==='buyer'&&(x.paymentStatus!=='later'||!s.buyers.some(b=>b.id===x.buyerId)||x.chargeRoundId!==r.id))throw Error('購入者を確認してください');if(x.destinationType==='unknown'&&x.paymentStatus!=='unconfirmed')throw Error('未確認販売の支払状態を確認してください');for(const c of x.components){requireInt(c.qty,'構成数量',true);const st=s.stocks.find(st=>st.id===c.stockId);if(!st||st.roundId!==r.id||c.cost!==st.cost)throw Error('セットの仕入原価が一致しません');}}
 }

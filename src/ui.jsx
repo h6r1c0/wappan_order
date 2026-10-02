@@ -160,25 +160,27 @@ export function Modal({ title, children, onClose }) {
     </div>
   );
 }
-export function Qty({ value = 0, onChange, label = "数量" }) {
+export function Qty({ value = 0, onChange, label = "数量", min=0, max=100000000 }) {
   const [direct, setDirect] = useState(false);
   const amount = Number(value) || 0;
+  const bounded = n => onChange(Math.max(min,Math.min(max,Math.floor(Number(n)||0))));
   return (
     <div className="qty">
-      <button type="button" aria-label={`${label}を減らす`} disabled={amount === 0}
-        onClick={() => onChange(amount - 1)}>−</button>
+      <button type="button" aria-label={`${label}を減らす`} disabled={amount <= min}
+        onClick={() => bounded(amount - 1)}>−</button>
       <button type="button" className="qty-value" aria-label={`${label} ${amount}、直接入力する`}
         aria-expanded={direct} onClick={() => setDirect(!direct)}>{amount}</button>
-      <button type="button" aria-label={`${label}を増やす`} onClick={() => onChange(amount + 1)}>＋</button>
+      <button type="button" aria-label={`${label}を増やす`} disabled={amount >= max} onClick={() => bounded(amount + 1)}>＋</button>
       {direct && (
         <input
           aria-label={`${label} 直接入力`}
           type="number"
           inputMode="numeric"
-          min="0"
+          min={min}
+          max={max}
           step="1"
           value={amount}
-          onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
+          onChange={(e) => bounded(e.target.value)}
         />
       )}
     </div>
@@ -234,13 +236,14 @@ export function ProductQuantityEditor({
             key={value}
             onClick={() => setCategory(value)}
           >
-            {["パン", "焼き菓子"].includes(value) && <Cat category={value} />}
-            {value}
+
+            {value === "ALL" ? "すべて" : value}
           </Button>
         ))}
         {category !== null && startCollapsed && <button type="button" className="text-action" aria-label="商品一覧を閉じる" onClick={() => { setCategory(null); setQuery(""); }}>⌃</button>}
       </div>
       {category !== null && <Field
+        placeholder="全商品から検索"
         label="商品名で探す"
         type="search"
         value={query}
@@ -259,6 +262,11 @@ export function Summary({ label, value, note }) {
     </div>
   );
 }
+const kana = text => String(text||'').normalize('NFKC').replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));
+export const buyerReading = buyer => kana(buyer.kana || (/^[ぁ-ゖァ-ヶー]+$/.test(buyer.name) ? buyer.name : ''));
+export const buyerCompare = (a,b) => (buyerReading(a)||'ん'+a.name).localeCompare(buyerReading(b)||'ん'+b.name,'ja');
+const kanaGroups = [['あ','あいうえお'],['か','かきくけこがぎぐげご'],['さ','さしすせそざじずぜぞ'],['た','たちつてとだぢづでど'],['な','なにぬねの'],['は','はひふへほばびぶべぼぱぴぷぺぽ'],['ま','まみむめも'],['や','やゆよ'],['ら','らりるれろ'],['わ','わをん']];
+const buyerGroup = b => kanaGroups.find(([,letters])=>letters.includes(buyerReading(b)[0]||'!'))?.[0] || 'その他';
 export function BuyerPicker({
   value,
   onChange,
@@ -268,6 +276,8 @@ export function BuyerPicker({
 }) {
   const { state, save } = useApp();
   const [query, setQuery] = useState("");
+  const candidates=state.buyers.filter(b=>b.id===value||(b.testOnly?includeTest:b.active));
+  const [group,setGroup] = useState(() => buyerGroup(candidates.find(b=>b.id===value)||candidates.slice().sort(buyerCompare)[0]||{name:''}));
   const [name, setName] = useState(suggestedName);
   const [adding, setAdding] = useState(!!suggestedName);
   useEffect(() => {
@@ -289,12 +299,15 @@ export function BuyerPicker({
     : [];
   return (
     <>
-      {state.buyers.length > 8 && <Field label="購入者を探す" type="search" placeholder="名前を検索" value={query} onChange={e => setQuery(e.target.value)} />}
+      <div className="buyer-search-add"><Field label="購入者を探す" type="search" placeholder="名前を検索" value={query} onChange={e => setQuery(e.target.value)} />
+        {allowAdd && <button type="button" className="text-action" onClick={() => setAdding(!adding)}>＋ 追加</button>}
+      </div>
+      {!query && <div className="buyer-index" role="group" aria-label="購入者の五十音索引">
+        {[...kanaGroups.map(([name])=>name),'その他','すべて'].map(name=><button type="button" key={name}
+          className={group===name?'selected':''} aria-pressed={group===name} onClick={()=>setGroup(name)}>{name}</button>)}
+      </div>}
       {allowAdd && (
         <>
-          <Button secondary onClick={() => setAdding(!adding)}>
-            ＋ 購入者を追加
-          </Button>
           {adding && (
             <div className="buyer-add">
               {suggestedName && <p className="notice compact-notice">LINEから読み取った名前です。確認・修正してから追加してください。</p>}
@@ -351,8 +364,8 @@ export function BuyerPicker({
       <div className="buyer-grid">
         {state.buyers
           .filter((b) => b.id === value || (b.testOnly ? includeTest : b.active))
-          .filter(b => normalize(b.name).includes(normalize(query)))
-          .sort((a,b) => a.name.localeCompare(b.name, 'ja'))
+          .filter(b => (query || group==='すべて' || buyerGroup(b)===group) && (normalize(b.name).includes(normalize(query)) || normalize(buyerReading(b)).includes(normalize(kana(query)))))
+          .sort(buyerCompare)
           .map((b) => (
             <button
               type="button"

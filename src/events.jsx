@@ -1,3 +1,4 @@
+import {receivedQuantity} from './shortages';
 import React, { useState } from "react";
 import {
   delivery,
@@ -64,7 +65,7 @@ export function Events({roundId=null,onManageProducts=null,phase='all'}) {
             quantities={orderQuantities}
             onChange={setOrderQuantities}
             priceLabel={(product) => {
-              const cost = state.products.find((item) => item.id === product.id)?.cost;
+              const cost = product.cost ?? (round.status === '入力中' ? state.products.find((item) => item.id === product.id)?.cost : null);
               return cost == null ? "仕入単価 未確認" : `仕入単価 ${yen(cost)}`;
             }}
             emptyMessage="今月の商品を準備してください。"
@@ -78,107 +79,9 @@ export function Events({roundId=null,onManageProducts=null,phase='all'}) {
           </div>
         </section>
       )}
-      {phase !== 'order' && <h2>おやつ使用・財政請求</h2>}
+      {phase !== 'order' && !roundId && <h2>おやつ使用・財政請求</h2>}
       {phase !== 'order' && <>
-      {events.map((e) => (
-          <section className="card" key={e.id}>
-            <div className="section-head">
-              <h2>{e.name}</h2>
-              <Button secondary onClick={() => setEdit(e)}>
-                使用数・仕入単価を編集
-              </Button>
-            </div>
-            <p>
-              {e.date} {e.test && <Tag>テスト</Tag>}
-            </p>
-            <Summary
-              label="財政への請求額（おやつ使用分のみ）"
-              value={yen(eventClaim(e))}
-            />
-            {e.lines.map((l) => {
-              const moved = transferredQty(state, l.id),
-                remaining = l.qty - l.used - moved;
-              return (
-                <div className="event-line" key={l.id}>
-                  <h3>{l.name}</h3>
-                  <div className="count-grid">
-                    <span>
-                      注文<strong>{l.qty}</strong>
-                    </span>
-                    <span>
-                      おやつ使用<strong>{l.used}</strong>
-                    </span>
-                    <span>
-                      振替済<strong>{moved}</strong>
-                    </span>
-                    <span>
-                      未処理余剰<strong>{remaining}</strong>
-                    </span>
-                  </div>
-                  <p>
-                    仕入単価 {l.cost == null ? "未確認" : yen(l.cost)} ／
-                    財政請求{" "}
-                    {l.cost == null && l.used
-                      ? "未確定"
-                      : yen(l.used * (l.cost || 0))}
-                  </p>
-                  {l.cost == null && <p className="notice">仕入単価が未確認です。使用数と仕入単価を入力してください。</p>}
-                  {l.cost == null && <Button secondary onClick={() => setEdit(e)}>使用数・仕入単価を入力</Button>}
-                  <Button
-                    disabled={remaining < 1 || l.cost == null}
-                    secondary
-                    onClick={() => setMove({ event: e, line: l })}
-                  >
-                    余剰を販売用へ振替
-                  </Button>
-                  {state.stocks
-                    .filter((st) => st.eventLineId === l.id && st.qty > 0)
-                    .map((st) => (
-                      <div key={st.id} className="line">
-                        <small>
-                          {st.date} 振替 {st.qty}個・販売済み{" "}
-                          {soldQty(state, st.id)}個
-                        </small>
-                        <Button
-                          secondary
-                          disabled={soldQty(state, st.id) > 0}
-                          onClick={async () => {
-                            if (
-                              confirm(
-                                "この振替を戻して、おやつ用の未処理余剰に戻しますか？",
-                              )
-                            )
-                              await save(
-                                (s) => undoTransfer(s, st.id),
-                                "おやつ余剰の振替を取消",
-                              );
-                          }}
-                        >
-                          振替を戻す
-                        </Button>
-                      </div>
-                    ))}
-                </div>
-              );
-            })}
-            {e.note && <p>{e.note}</p>}
-            <details>
-              <summary>仕入の内訳</summary>
-              <p>おやつ用の注文全体 {yen(eventCost(e))}</p>
-              <p>
-                財政請求 {yen(eventClaim(e))} ／ 販売側へ振替{" "}
-                {yen(
-                  state.stocks
-                    .filter((st) => st.eventId === e.id)
-                    .reduce((a, st) => a + st.qty * st.cost, 0),
-                )}
-              </p>
-              <p className="muted">
-                未処理余剰は財政請求・販売利益へ加えません。同じ納品日の「納品・精算」でまとめて確認できます。
-              </p>
-            </details>
-          </section>
-        ))}
+      {events.map(e=><SnackUsage key={e.id} event={e} onTransfer={line=>setMove({event:e,line})}/>)}
       {!events.length && (
         <Empty>
           上の商品一覧で注文数量を入力して保存します。
@@ -308,7 +211,7 @@ function EventEditor({ event, onClose, roundId=null }) {
                   onChange={(v) => put(i, "cost", v)}
                 />
               )}
-              <p>未処理余剰：{l.qty - l.used - moved}個</p>
+              <p>未処理余剰：{receivedQuantity(l) - l.used - moved}個</p>
               {!state.stocks.some((st) => st.eventLineId === l.id) && (
                 <Button
                   secondary
@@ -368,7 +271,7 @@ function EventEditor({ event, onClose, roundId=null }) {
 }
 function TransferEditor({ event, line, onClose }) {
   const { state, save } = useApp();
-  const remaining = line.qty - line.used - transferredQty(state, line.id);
+  const remaining = receivedQuantity(line) - line.used - transferredQty(state, line.id);
   const [qty, setQty] = useState(remaining),
     [amount, setAmount] = useState(
       price(
@@ -423,4 +326,28 @@ function TransferEditor({ event, line, onClose }) {
       </Button>
     </Modal>
   );
+}
+
+function SnackUsage({event:e,onTransfer}) {
+ const {state,save}=useApp();
+ const [used,setUsed]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.used])));
+ const [costs,setCosts]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.cost])));
+ const dirty=e.lines.some(l=>used[l.id]!==l.used||costs[l.id]!==l.cost);
+ return <section className="snack-usage" data-unsaved={dirty}>
+  <h3>{e.name}</h3>
+  {e.lines.map(l=>{const moved=transferredQty(state,l.id),remaining=receivedQuantity(l)-(used[l.id]||0)-moved;
+   const masterCost=state.products.find(p=>p.id===l.productId)?.cost;
+   return <div className="event-line" key={l.id}><div className="product-row"><span className="grow">{l.name}<small>入荷 {receivedQuantity(l)}個 ／ 余剰 {remaining}個{moved?` ／ 振替済 ${moved}個`:''}</small></span>
+    <Qty label={`${l.name} おやつ使用数`} max={receivedQuantity(l)-moved} value={used[l.id]||0} onChange={n=>setUsed({...used,[l.id]:n})}/></div>
+    <details className="snack-cost"><summary>仕入単価 {costs[l.id]==null?(masterCost==null?'未登録':`基準 ${yen(masterCost)}`):yen(costs[l.id])} ・変更</summary>
+     {costs[l.id]==null&&masterCost!=null&&!moved&&<button type="button" className="text-action" onClick={()=>setCosts({...costs,[l.id]:masterCost})}>基準単価 {yen(masterCost)}を今回に適用</button>}
+     {!moved&&<Money label={`${l.name} 今回の仕入単価`} value={costs[l.id]} onChange={n=>setCosts({...costs,[l.id]:n})}/>}
+    </details>
+    {remaining>0&&<button type="button" className="text-action" disabled={dirty||l.cost==null} onClick={()=>onTransfer(l)}>余剰を販売用へ振替 ›</button>}
+    {state.stocks.filter(st=>st.eventLineId===l.id&&st.qty>0).map(st=><div className="line" key={st.id}><small>振替 {st.qty}個 ／ 販売 {soldQty(state,st.id)}個</small><button type="button" className="text-action" disabled={soldQty(state,st.id)>0} onClick={()=>{if(confirm('振替を戻しますか？'))save(s=>undoTransfer(s,st.id),'余剰振替取消');}}>戻す</button></div>)}
+   </div>;
+  })}
+  <div className="snack-claim"><span>財政請求</span><strong>{yen(eventClaim({...e,lines:e.lines.map(l=>({...l,used:used[l.id]||0,cost:costs[l.id]}))}))}</strong>
+   <Button disabled={!dirty} onClick={()=>save(s=>{const current=s.events.find(x=>x.id===e.id);for(const l of current.lines){l.used=used[l.id]||0;l.cost=costs[l.id];}},'おやつ使用数・今回原価を保存')}>保存</Button></div>
+ </section>;
 }

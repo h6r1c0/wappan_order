@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { uid, price, yen, normalize, snapshot, newRound, today, productAvailable, monthKey, faxProducts } from "./domain";
 import {
+  buyerCompare,
   useApp,
   Button,
   Field,
@@ -549,7 +550,7 @@ export function Masters() {
           <Button secondary onClick={() => setEditor({ type: "buyer" })}>
             ＋ 購入者を追加
           </Button>
-          {state.buyers.slice().sort((a,b)=>a.name.localeCompare(b.name,'ja')).map((b) => (
+          {state.buyers.slice().sort(buyerCompare).map((b) => (
             <button
               className="clickable line master-row"
               key={b.id}
@@ -611,6 +612,7 @@ function BuyerEditor({ buyer, onClose }) {
           required
           onChange={(e) => set({ ...b, name: e.target.value })}
         />
+        <Field label="よみがな（五十音索引）" value={b.kana||''} onChange={e=>set({...b,kana:e.target.value})}/>
         <Check
           label="購入者の選択一覧に表示する"
           checked={b.active}

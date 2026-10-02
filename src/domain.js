@@ -1,3 +1,4 @@
+import { deliveredQuantity, receivedQuantity, validateFulfillment } from './shortages.js';
 import { permanentProduct } from "./excel.js";
 import { bundleUsed, movedOut, bundleCost, validateCommerce } from "./commerce.js";
 export const uid = () => crypto.randomUUID();
@@ -135,8 +136,8 @@ export function newRound(state, date, test = false) {
   };
 }
 export const orderAmount = (round, order) =>
-  sum(round.products.map((p) => p.price * (order?.quantities[p.id] || 0) +
-    (p.cutFee || 0) * Math.min(order?.cutQuantities?.[p.id] || 0, order?.quantities[p.id] || 0)));
+  sum(round.products.map((p) => p.price * deliveredQuantity(order,p.id) +
+    (p.cutFee || 0) * Math.min(order?.cutQuantities?.[p.id] || 0, deliveredQuantity(order,p.id))));
 export const roundRevenue = (r) =>
   sum(Object.values(r.orders).map((o) => orderAmount(r, o)));
 export const productTotals = (r, orders = r.orders) =>
@@ -159,7 +160,7 @@ export function orderDraft(state, round, buyer) {
 }
 export const soldQty = (s, id) =>
   sum(s.sales.filter((x) => !x.void && x.stockId === id).map((x) => x.qty)) + bundleUsed(s,id);
-export const stockRemaining = (s, stock) => stock.qty - soldQty(s, stock.id) - movedOut(s,stock.id);
+export const stockRemaining = (s, stock) => receivedQuantity(stock) - soldQty(s, stock.id) - movedOut(s,stock.id);
 // A recorded sale may still have an unknown destination; it is no longer stock on hand.
 export function stockAllocation(s, stock) {
   const unconfirmed = sum(s.sales.filter(x => !x.void && x.stockId === stock.id &&
@@ -167,14 +168,14 @@ export function stockAllocation(s, stock) {
   const assigned = soldQty(s, stock.id) - unconfirmed;
   const remaining = stockRemaining(s, stock);
   const moved = movedOut(s, stock.id);
-  return { ordered: stock.qty, assigned, unconfirmed, remaining, moved };
+  return { ordered: stock.qty, received:receivedQuantity(stock), assigned, unconfirmed, remaining, moved };
 }
 export const transferredQty = (s, lineId) =>
   sum(s.stocks.filter((x) => x.eventLineId === lineId).map((x) => x.qty));
 export const eventCost = (e) =>
   e.lines.some((l) => l.cost == null)
     ? null
-    : sum(e.lines.map((l) => l.qty * l.cost));
+    : sum(e.lines.map((l) => receivedQuantity(l) * l.cost));
 export const eventClaim = (e) =>
   e.lines.some((l) => l.used > 0 && l.cost == null)
     ? null
@@ -188,7 +189,7 @@ export function invoiceDeductions(s, r) {
     sum(
       r.stockIds.map((id) => {
         const st = s.stocks.find((x) => x.id === id);
-        return st.qty * st.cost;
+        return receivedQuantity(st) * st.cost;
       }),
     )
   );
@@ -211,7 +212,7 @@ export function transfer(s, event, line, qty, sellingPrice, date) {
   integer(sellingPrice, "販売価格");
   if (!qty) throw Error("振替数は1以上にしてください");
   if (line.cost == null) throw Error("仕入単価を確認して入力してください");
-  if (qty > line.qty - line.used - transferredQty(s, line.id))
+  if (qty > receivedQuantity(line) - line.used - transferredQty(s, line.id))
     throw Error("余剰数を超えています");
   s.stocks.push({
     id: uid(),
@@ -394,10 +395,10 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
     for (const [id, o] of Object.entries(r.orders)) {
       const amount = orderAmount(r, o);
       if (amount) for (const product of r.products) {
-        const qty = o.quantities[product.id] || 0;
+        const qty = deliveredQuantity(o,product.id);
         if (qty) add(id, s.buyers.find((b) => b.id === id)?.name || o.name,
           'normal', product.price * qty + (product.cutFee || 0) * Math.min(o.cutQuantities?.[product.id] || 0, qty),
-          `${r.date} ${product.name} ×${qty}${o.cutQuantities?.[product.id] ? `（カット ${o.cutQuantities[product.id]}個）` : ''}`, product.category);
+          `${r.date} ${product.name} ×${qty}${o.cutQuantities?.[product.id] ? `（カット ${Math.min(o.cutQuantities[product.id],qty)}個）` : ''}`, product.category);
       }
     }
   for (const sale of s.sales.filter(
@@ -471,9 +472,9 @@ export function report(s, from, to, year) {
       provisional: (()=>{const st=s.stocks.find(st=>st.id===sale.stockId),mid=sale.marketId||st?.marketId;return mid && s.markets?.find(m=>m.id===mid)?.expense==null;})(),
     });
   for(const x of (s.bundleSales||[]).filter(x=>!x.void&&inRange(x.date))){
-    const m=s.markets.find(m=>m.id===x.marketId),r=s.rounds.find(r=>r.id===m?.roundId);if(r?.test)continue;
+    const m=s.markets.find(m=>m.id===x.marketId),r=s.rounds.find(r=>r.id===(x.roundId||m?.roundId));if(r?.test)continue;
     const cost=bundleCost(x),revenue=x.price*x.qty;
-    rows.push({id:x.id,date:x.date,type:'外部セット販売',name:x.name,revenue,cost,profit:cost==null?null:revenue-cost,provisional:m?.expense==null});
+    rows.push({id:x.id,date:x.date,type:'外部セット販売',name:x.name,revenue,cost,profit:cost==null?null:revenue-cost,provisional:!!m&&m.expense==null});
   }
   for(const m of (s.markets||[]).filter(m=>inRange(m.date)&&!s.rounds.find(r=>r.id===m.roundId)?.test)){
     if(m.expenseMode==='apply'&&m.expense!=null)rows.push({id:m.id,date:m.date,type:'外部販売経費',name:m.name,revenue:0,cost:0,profit:-m.expense,expense:m.expense});
@@ -648,7 +649,7 @@ export function validate(s) {
       integer(l.qty, "行事注文数");
       integer(l.used, "行事使用数");
       if (l.cost != null) integer(l.cost, "仕入単価");
-      if (l.used + transferredQty(s, l.id) > l.qty)
+      if (l.used + transferredQty(s, l.id) > receivedQuantity(l))
         throw Error("行事使用数と振替数が注文数を超えています");
     }
   }
@@ -722,6 +723,7 @@ export function validate(s) {
         throw Error('集金履歴の注文回・購入者・金額・理由を確認してください');
     }
   }
+  validateFulfillment(s);
   validateCommerce(s);
   if (s.schema===2 && (!Array.isArray(s.externalDestinations) || new Set(s.externalDestinations).size !== s.externalDestinations.length || s.externalDestinations.some(x=>!String(x).trim()))) throw Error("外部販売先候補を確認してください");
   Object.values(s.goals).forEach((v) => integer(v, "目標額"));
