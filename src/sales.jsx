@@ -4,6 +4,7 @@ import { TaskIcon } from "./task-icon";
 import {
   delivery,
   salesOrderQuantities,
+  salesCutQuantities,
   setSalesOrderQuantities,
 } from './commerce';
 import {
@@ -31,6 +32,7 @@ import {
   BuyerPicker,
   ProductQuantityEditor,
 } from "./ui";
+const quantitySignature = quantities => JSON.stringify(Object.entries(quantities).filter(([,qty])=>qty>0).sort(([a],[b])=>a.localeCompare(b)));
 export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='all'}) {
   const { state, save } = useApp();
   const titleRef = useRef(null);
@@ -44,11 +46,15 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
   const [orderQuantities, setOrderQuantities] = useState(() =>
     roundId ? salesOrderQuantities(state, roundId) : {},
   );
+  const [orderCuts, setOrderCuts] = useState(() => roundId ? salesCutQuantities(state, roundId) : {});
+  const [cutFees, setCutFees] = useState(() => Object.fromEntries(
+    (state.rounds.find(item=>item.id===roundId)?.products||[]).map(product => [product.id,product.cutFee ?? null])));
   const [reviewing, setReviewing] = useState(() => roundId &&
     Object.values(salesOrderQuantities(state, roundId)).some(q => q > 0));
   const [showPersonal, setShowPersonal] = useState(false);
   const round = state.rounds.find((item) => item.id === roundId);
   const savedOrderQuantities = roundId ? salesOrderQuantities(state, roundId) : {};
+  const savedCuts = roundId ? salesCutQuantities(state, roundId) : {};
   const stocks = state.stocks.filter(st =>
     (!roundId || st.roundId === roundId) &&
     (!marketId || st.marketId === marketId || st.roundId === roundId)
@@ -77,25 +83,39 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
       {phase === 'all' && step('order', '① 販売用として注文する')}
       {mode === 'order' && !round && <p>納品回を選んでください。</p>}
       {mode === 'order' && round && <section className="work-section order-editor"
-        data-unsaved={JSON.stringify(orderQuantities) !== JSON.stringify(savedOrderQuantities)}>
+        data-unsaved={quantitySignature(orderQuantities) !== quantitySignature(savedOrderQuantities) ||
+          quantitySignature(orderCuts) !== quantitySignature(savedCuts)}>
         <h2>{reviewing ? '今回の販売用注文' : '販売用として注文する'}</h2>
         {!reviewing && <>
         <Check label="個人注文数を表示" checked={showPersonal} onChange={setShowPersonal}/>
         <ProductQuantityEditor products={round.products} quantities={orderQuantities}
-          onChange={setOrderQuantities}
+          onChange={quantities => {setOrderQuantities(quantities);setOrderCuts(Object.fromEntries(
+            Object.entries(orderCuts).map(([id,qty])=>[id,Math.min(qty,quantities[id]||0)])));}}
+          cutQuantities={orderCuts}
+          onCutChange={setOrderCuts}
+          cutFees={cutFees}
+          onCutFeeChange={(id,value) => setCutFees({...cutFees,[id]:value})}
           secondaryLabel={showPersonal ? product => {
             const count = Object.values(round.orders).reduce((n, order) => n + (order.quantities[product.id] || 0), 0);
             return count ? `個人注文 ${count}個` : null;
           } : null}
           emptyMessage="今月の商品を準備してください。"/>
         <div className="sticky-action"><span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
-          <Button onClick={async () => {
-            if (await save((s) => setSalesOrderQuantities(s, roundId, orderQuantities),
+          <Button disabled={round.products.some(p=>orderCuts[p.id]>0&&cutFees[p.id]==null)} onClick={async () => {
+            if (await save((s) => {
+              const current=s.rounds.find(item=>item.id===roundId);
+              for(const product of current.products) if(orderCuts[product.id]>0&&cutFees[product.id]!=null){
+                product.cutFee=cutFees[product.id];
+                const master=s.products.find(item=>item.id===product.id);
+                if(master)master.cutFee=cutFees[product.id];
+              }
+              setSalesOrderQuantities(s, roundId, orderQuantities, orderCuts);
+            },
               "販売用の注文数量を保存")) setReviewing(true);
           }}>保存</Button></div></>}
         {Object.values(savedOrderQuantities).some(q=>q>0) && <section className="sales-order-summary" aria-label="今回の販売用注文">
           {!reviewing && <h3>保存済みの注文</h3>}
-          {round.products.filter(p=>savedOrderQuantities[p.id]>0).map(p=><div className="sales-order-line" key={p.id}><span>{p.name}</span><strong>{savedOrderQuantities[p.id]}個</strong></div>)}
+          {round.products.filter(p=>savedOrderQuantities[p.id]>0).map(p=><div className="sales-order-line" key={p.id}><span>{p.name}{savedCuts[p.id]>0&&<small> カット {savedCuts[p.id]}個</small>}</span><strong>{savedOrderQuantities[p.id]}個</strong></div>)}
           <div className="sales-order-total">合計 {Object.values(savedOrderQuantities).reduce((n,q)=>n+q,0)}個</div>
         </section>}
         {reviewing && <Button secondary onClick={() => setReviewing(false)}>数量を編集</Button>}

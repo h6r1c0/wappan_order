@@ -91,37 +91,51 @@ export function salesOrderQuantities(s, roundId) {
   }
   return quantities;
 }
-export function setSalesOrderQuantities(s, roundId, quantities) {
+export function salesCutQuantities(s, roundId) {
+  const quantities = {};
+  for (const stock of s.stocks.filter(item => item.roundId === roundId && item.cut && !item.sourceStockId && !item.eventId))
+    quantities[stock.productId] = (quantities[stock.productId] || 0) + stock.qty;
+  return quantities;
+}
+export function setSalesOrderQuantities(s, roundId, quantities, cutQuantities = null) {
   const round = s.rounds.find((item) => item.id === roundId);
   if (!round) throw Error("納品回が見つかりません");
+  const cuts = cutQuantities ?? salesCutQuantities(s, roundId);
   for (const product of round.products) {
     const target = Number(quantities[product.id] || 0);
     requireInt(target, `${product.name}の数量`);
+    const cutTarget = Number(cuts[product.id] || 0);
+    requireInt(cutTarget, `${product.name}のカット数量`);
+    if (cutTarget > target || (cutTarget && (product.cutFee == null || !(product.cutSupported ?? product.name.includes('食パン')))))
+      throw Error(`${product.name}のカット数量・加算額を確認してください`);
+    for (const cut of [false, true]) {
+    const variantTarget = cut ? cutTarget : target - cutTarget;
     const stocks = s.stocks.filter(
       (item) =>
         item.roundId === roundId &&
         !item.sourceStockId &&
         !item.eventId &&
-        item.productId === product.id,
+        item.productId === product.id && !!item.cut === cut,
     );
     const current = sum(stocks.map((item) => item.qty));
     const committed = sum(stocks.map((item) => item.qty - remaining(s, item)));
-    if (target < committed)
+    if (variantTarget < committed)
       throw Error(
         `${product.name}は${committed}個を販売・セット使用済みです。先に販売記録を取り消してください`,
       );
-    let difference = target - current;
+    let difference = variantTarget - current;
     if (difference > 0) {
       if (stocks.length) stocks[0].qty += difference;
       else {
         s.stocks.push({
           id: crypto.randomUUID(),
           productId: product.id,
-          name: product.name,
+          name: cut ? `${product.name}（カット）` : product.name,
           category: product.category,
           qty: difference,
-          price: product.price,
+          price: product.price + (cut ? product.cutFee : 0),
           cost: product.cost ?? null,
+          ...(cut ? { cut: true, cutFee: product.cutFee } : {}),
           date: round.date,
           test: round.test,
           note: "",
@@ -143,6 +157,7 @@ export function setSalesOrderQuantities(s, roundId, quantities) {
         if (!remove) break;
       }
       if (remove) throw Error(`${product.name}の販売済み数量を確認してください`);
+    }
     }
   }
   syncDeliveryLinks(s);

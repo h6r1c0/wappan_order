@@ -32,6 +32,22 @@ test('旧注文回に仕入単価記録がない場合、現在のマスター�
  validate(s);
 });
 
+test('販売用の食パンは通常とカットを別在庫にし価格・残数を保つ',()=>{
+ const {s,r}=setup();
+ const bread=r.products.find(p=>p.id==='bread');
+ bread.cutFee=15;
+ setSalesOrderQuantities(s,r.id,{bread:3},{bread:2});
+ const stocks=s.stocks.filter(st=>st.productId==='bread');
+ assert.equal(stocks.length,2);
+ assert.deepEqual(stocks.map(st=>[!!st.cut,st.qty,st.price]),[[false,1,bread.price],[true,2,bread.price+15]]);
+ assert.equal(salesOrderQuantities(s,r.id).bread,3);
+ const cut=stocks.find(st=>st.cut);
+ addSale(s,cut,{date:r.date,qty:1,paid:true});
+ assert.throws(()=>setSalesOrderQuantities(s,r.id,{bread:3},{bread:0}),/販売/);
+ assert.equal(stockRemaining(s,cut),1);
+ validate(s);
+});
+
 test('商品名の「1個」と注文数量を混同せず、割当・未確認・振替・在庫が注文数に一致する',()=>{
  const {s,r}=setup();
  const stock={id:'pkg',productId:'walnut',name:'ライ麦くるみレーズン 1個',category:'パン',qty:2,price:300,cost:200,date:r.date,test:false,roundId:r.id};

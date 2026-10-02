@@ -371,6 +371,12 @@ test('個人注文のカット加算と販売用の個人注文数参照', async
   await page.getByRole('button',{name:'販売用',exact:true}).click();
   await page.getByLabel('個人注文数を表示').check();
   await expect(page.locator('.product-row').filter({hasText:'湯種食パン'})).toContainText('個人注文 1個');
+  await page.getByRole('button',{name:'湯種食パン 数量を増やす'}).click();
+  await page.getByLabel('カット',{exact:true}).check();
+  await page.getByRole('button',{name:'保存',exact:true}).click();
+  await expect(page.getByRole('region',{name:'今回の販売用注文'})).toContainText('カット 1個');
+  expect(shared.state.stocks.find(stock=>stock.productId==='bread'&&stock.cut).price).toBe(
+    shared.state.rounds[0].products.find(product=>product.id==='bread').price+15);
 });
 
 test('集計と商品管理: 年度利益はテストを除外、検索はカテゴリ横断', async ({page,context}) => {
