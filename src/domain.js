@@ -432,9 +432,9 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
 export function collectionDueItems(s, roundId, buyerId) {
   const target=s.rounds.find(r=>r.id===roundId);
   if(!target) throw Error('注文回が見つかりません');
-  const eligible=s.rounds.filter(r=>r.test===target.test && (r.date<target.date || r.date===target.date&&r.id<=target.id))
+  const eligible=s.rounds.filter(r=>(r.test===target.test || r.collectionLive) && (r.date<target.date || r.date===target.date&&r.id<=target.id))
     .sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
-  const items=(s.receivableItems||[]).filter(x=>x.buyerId===buyerId && x.kind==='opening' && !target.test && x.date<=target.date)
+  const items=(s.receivableItems||[]).filter(x=>x.buyerId===buyerId && x.kind==='opening' && (!target.test || target.collectionLive) && x.date<=target.date)
     .map(x=>({...x,roundId:null,balance:x.amount}));
   for(const r of eligible){
     const total=collections(s,'','',r.id,r.test).find(x=>x.id===buyerId)?.total||0;
@@ -473,7 +473,7 @@ export function collectionDueItems(s, roundId, buyerId) {
 export function collectionPosition(s, roundId, buyerId) {
   const round = s.rounds.find((r) => r.id === roundId);
   if (!round) throw Error('注文回が見つかりません');
-  const earlier = s.rounds.filter((r) => r.test === round.test &&
+  const earlier = s.rounds.filter((r) => (r.test === round.test || r.collectionLive) &&
     (r.date < round.date || (r.date === round.date && r.id < round.id)));
   const billedBefore = sum(earlier.map((r) =>
     collections(s, '', '', r.id, r.test).find((row) => row.id === buyerId)?.total || 0));
@@ -486,7 +486,7 @@ export function collectionPosition(s, roundId, buyerId) {
     entry.roundId === roundId && entry.buyerId === buyerId);
   const received = sum(entries.map((entry) => entry.received));
   const adjusted = sum(entries.map((entry) => entry.adjustment));
-  const opening=sum((s.receivableItems||[]).filter(x=>x.kind==='opening'&&x.buyerId===buyerId&&!round.test&&x.date<=round.date).map(x=>x.amount));
+  const opening=sum((s.receivableItems||[]).filter(x=>x.kind==='opening'&&x.buyerId===buyerId&&(!round.test||round.collectionLive)&&x.date<=round.date).map(x=>x.amount));
   const reconciled=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&earlier.some(r=>r.id===x.roundId)).map(x=>x.amount));
   const carry = billedBefore + opening - receivedBefore - reconciled;
   const confirmedHistorical=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&x.roundId===roundId).map(x=>x.amount));

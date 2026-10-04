@@ -59,7 +59,7 @@ export function RoundCollections({round,rows}) {
       const buyer=state.buyers.find(x=>x.id===id);
       return buyer&&<BuyerCollection key={id} round={round} buyer={buyer} row={rows.find(x=>x.id===id)}/>;
     })}
-    {!round.test&&<div className="opening-register"><button type="button" className="text-action" onClick={()=>setAdding(!adding)}>＋ アプリ導入前の未収を登録 {adding?'⌃':'›'}</button>
+    {(!round.test||round.collectionLive)&&<div className="opening-register"><button type="button" className="text-action" onClick={()=>setAdding(!adding)}>＋ アプリ導入前の未収を登録 {adding?'⌃':'›'}</button>
       {adding&&<div className="collection-detail"><Field label="購入者"><select value={buyerId} onChange={e=>setBuyerId(e.target.value)}><option value="">選択してください</option>{state.buyers.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></Field>
       <Field label="対象日" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
       <Money label="未収額" value={amount} onChange={setAmount}/>

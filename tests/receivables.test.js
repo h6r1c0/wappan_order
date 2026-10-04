@@ -68,3 +68,9 @@ test('堀さんの既知6商品2,130円と追加2点380円を分け、受取0/2,
   assert.equal(collectionPosition(s,r.id,'hori').balance,0);
   assert.equal(validate(s),s);
 });
+test('9/11試験回を年度集計から除外したまま集金のみ次の通常回へ引き継ぐ',()=>{
+  const {s,sept,next}=setup();
+  sept.test=true;sept.collectionLive=true;
+  assert.equal(collectionPosition(s,next.id,'hori').carry,810);
+  assert.equal(collectionPosition(s,next.id,'hori').balance,1240);
+});
