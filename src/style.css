@@ -2158,7 +2158,7 @@ header small {
   .purpose-next button { font-size:.82rem; }
   .buyer-index { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:thin; }
   .buyer-index button { flex:0 0 34px; }
-  .buyer-index button:nth-last-child(2) { flex-basis:50px; }
+  .buyer-index button:nth-last-child(2) { flex-basis:56px; white-space:nowrap; }
   .buyer-index button:last-child { flex-basis:48px; }
   .buyer-grid .buyer { min-height:42px; }
   .product-entry { border-bottom:1px solid var(--line); }
