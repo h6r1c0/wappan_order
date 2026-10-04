@@ -383,13 +383,13 @@ export const isSaleTest = (s, sale) =>
   s.stocks.find((x) => x.id === sale.stockId)?.test;
 export function collections(s, from, to, roundId = null, includeTest = false) {
   const map = new Map();
-  const add = (id, name, kind, amount, description, category = 'その他') => {
+  const add = (id, name, kind, amount, description, category = 'その他', unpriced = false) => {
     if (!map.has(id))
       map.set(id, { id, name, normal: 0, onsite: 0, lines: [], categories: { パン: 0, 焼き菓子: 0, その他: 0 } });
     const row = map.get(id);
     row[kind] += amount;
     row.categories[category in row.categories ? category : 'その他'] += amount;
-    row.lines.push({ description, amount, category });
+    row.lines.push({ description, amount, category, unpriced });
   };
   for (const r of s.rounds.filter(
     (r) =>
@@ -402,7 +402,7 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
         const qty = deliveredQuantity(o,product.id);
         if (qty) add(id, s.buyers.find((b) => b.id === id)?.name || o.name,
           'normal', product.price == null ? 0 : product.price * qty + (product.cutFee || 0) * Math.min(o.cutQuantities?.[product.id] || 0, qty),
-          `${r.date} ${product.name} ×${qty}${o.cutQuantities?.[product.id] ? `（カット ${Math.min(o.cutQuantities[product.id],qty)}個）` : ''}`, product.category);
+          `${r.date} ${product.name} ×${qty}${o.cutQuantities?.[product.id] ? `（カット ${Math.min(o.cutQuantities[product.id],qty)}個）` : ''}`, product.category, product.price == null);
       }
     }
   for (const sale of s.sales.filter(

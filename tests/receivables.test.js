@@ -44,3 +44,27 @@ test('開始残高は元注文を捏造せず個別消込と繰越を行う',()=
   assert.equal(Object.keys(sept.orders).length,1);
   assert.equal(validate(s),s);
 });
+test('堀さんの既知6商品2,130円と追加2点380円を分け、受取0/2,130/2,510を照合',()=>{
+  const s=initialState();
+  const r=newRound(s,'2026-09-11');s.rounds.push(r);
+  r.products=[
+    {id:'a',name:'抹茶シフォンケーキ',price:640,category:'焼き菓子'},
+    {id:'b',name:'甘夏サンドクッキー',price:490,category:'焼き菓子'},
+    {id:'c',name:'ミニブッセ',price:460,category:'焼き菓子'},
+    {id:'d',name:'パン・オ・レザン',price:180,category:'パン'},
+    {id:'e',name:'メロンパン',price:170,category:'パン'},
+    {id:'f',name:'紅茶メロンパン',price:190,category:'パン'},
+    {id:'donut',name:'ツイストドーナツ 2個入り',price:190,cost:156,category:'パン'},
+  ];
+  r.orders.hori={name:'堀',quantities:{a:1,b:1,c:1,d:1,e:1,f:1,donut:2}};
+  s.receivableItems.push({id:'late-donut',kind:'additional',buyerId:'hori',roundId:r.id,date:r.date,amount:380,notifiedAmount:2130,reason:'商品請求漏れ',note:'9/11 ツイストドーナツ 2個入り ×2 請求漏れ'});
+  assert.equal(orderAmount(r,r.orders.hori),2510);
+  assert.equal(collectionPosition(s,r.id,'hori').balance,2510);
+  assert.deepEqual(collectionDueItems(s,r.id,'hori').items.map(x=>x.balance),[2130,380]);
+  s.collectionEntries.push({id:'bag',roundId:r.id,buyerId:'hori',date:r.date,received:2130,adjustment:0,note:'当初の袋'});
+  assert.equal(collectionPosition(s,r.id,'hori').balance,380);
+  assert.deepEqual(collectionDueItems(s,r.id,'hori').items.map(x=>x.balance),[0,380]);
+  s.collectionEntries.push({id:'late',roundId:r.id,buyerId:'hori',date:r.date,received:380,adjustment:0,note:'追加分'});
+  assert.equal(collectionPosition(s,r.id,'hori').balance,0);
+  assert.equal(validate(s),s);
+});

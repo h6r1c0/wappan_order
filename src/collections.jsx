@@ -34,7 +34,7 @@ function BuyerCollection({round,buyer,row}) {
         <h3>内訳</h3><div className="collection-categories">{Object.entries(row.categories||{}).filter(([,v])=>v>0).map(([k,v])=><span key={k}>{k} {yen(v)}</span>)}</div>
         <div className="collection-lines"><div className="collection-line heading"><span>商品名</span><span>数量</span><span>金額</span></div>
         {row.lines.map((line,i)=>{const m=line.description.match(/^(?:\d{4}-\d{2}-\d{2} )?(.*?) ×(\d+)(.*)$/);
-          return <div className="collection-line" key={i}><span>{m?.[1]||line.description}{m?.[3]||''}</span><span>{m?.[2]||'—'}</span><span>{line.amount===0&&unresolved.length?'未確認':yen(line.amount)}</span></div>;})}</div>
+          return <div className="collection-line" key={i}><span>{m?.[1]||line.description}{m?.[3]||''}</span><span>{m?.[2]||'—'}</span><span>{line.unpriced?'未確認':yen(line.amount)}</span></div>;})}</div>
       </div>}
       {items.length>0&&<div className="collection-items"><h3>未収・追加請求の内訳</h3>{items.map(x=><div className="collection-item" key={x.id}><span>{x.date.slice(5).replace('-','/')} {x.reason}：{x.note}</span><strong>{x.balance?yen(x.balance):'精算済み'}</strong></div>)}</div>}
       <Field label="支払い対象"><select value={target} onChange={e=>{setTarget(e.target.value);setReceived(null);}}><option value="">古い未収から順に充当</option>
