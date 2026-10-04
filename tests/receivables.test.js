@@ -74,3 +74,14 @@ test('9/11試験回を年度集計から除外したまま集金のみ次の通�
   assert.equal(collectionPosition(s,next.id,'hori').carry,810);
   assert.equal(collectionPosition(s,next.id,'hori').balance,1240);
 });
+test('支払済みと確認した過去回は未収の予定額に再加算しない',()=>{
+  const {s,sept,next}=setup();
+  s.buyers.push({id:'yogo',name:'余語',active:true,fixed:[]});
+  sept.orders.yogo={name:'余語',quantities:{brown:1}};
+  s.receivableItems.push({id:'old',kind:'opening',buyerId:'yogo',date:'2026-07-24',amount:1670,reason:'未払い / 未受取',note:'7/24分 未受取'});
+  s.collectionReconciliations.push({id:'confirmed',buyerId:'yogo',roundId:sept.id,amount:430,note:'9月分支払済み・日付未記録'});
+  assert.equal(collectionPosition(s,sept.id,'yogo').confirmedHistorical,430);
+  assert.equal(collectionPosition(s,sept.id,'yogo').balance,1670);
+  assert.equal(collectionPosition(s,next.id,'yogo').carry,1670);
+  assert.equal(validate(s),s);
+});

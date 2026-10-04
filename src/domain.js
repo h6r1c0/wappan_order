@@ -490,7 +490,7 @@ export function collectionPosition(s, roundId, buyerId) {
   const reconciled=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&earlier.some(r=>r.id===x.roundId)).map(x=>x.amount));
   const carry = billedBefore + opening - receivedBefore - reconciled;
   const confirmedHistorical=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&x.roundId===roundId).map(x=>x.amount));
-  return { carry, current, received, adjusted, balance: carry + current - received - adjusted - confirmedHistorical,
+  return { carry, current, received, adjusted, confirmedHistorical, balance: carry + current - received - adjusted - confirmedHistorical,
     entries, due:collectionDueItems(s,roundId,buyerId).items.filter(x=>x.balance>0) };
 }
 export function report(s, from, to, year) {
