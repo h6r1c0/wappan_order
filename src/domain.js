@@ -104,9 +104,9 @@ export function initialState() {
     goals: { 2026: 50000 },
   };
 }
-export function snapshot(p) {
+export function snapshot(p, {snackOnly=false}={}) {
   const amount = price(p);
-  if (amount == null) throw Error(`${p.name}の販売価格を設定してください`);
+  if (amount == null && !(snackOnly && p.cost != null && p.lifecycle === 'permanent')) throw Error(`${p.name}の販売価格を設定してください`);
   return { id: p.id, name: p.name, category: p.category, price: amount, cost: p.cost ?? null,
     cutFee: p.cutFee ?? null,
     cutSupported: p.cutSupported ?? p.name.includes('食パン'),
@@ -124,9 +124,9 @@ export function newRound(state, date, test = false) {
     products: faxProducts(state.products)
       .filter(
         (p) =>
-          productAvailable(p, date) && price(p) != null,
+          productAvailable(p, date) && (price(p) != null || (p.lifecycle === 'permanent' && p.cost != null)),
       )
-      .map(snapshot),
+      .map(p=>snapshot(p,{snackOnly:true})),
     orders: {},
     planned: null,
     invoice: null,
@@ -136,7 +136,7 @@ export function newRound(state, date, test = false) {
   };
 }
 export const orderAmount = (round, order) =>
-  sum(round.products.map((p) => p.price * deliveredQuantity(order,p.id) +
+  sum(round.products.map((p) => (p.price ?? 0) * deliveredQuantity(order,p.id) +
     (p.cutFee || 0) * Math.min(order?.cutQuantities?.[p.id] || 0, deliveredQuantity(order,p.id))));
 export const roundRevenue = (r) =>
   sum(Object.values(r.orders).map((o) => orderAmount(r, o)));
@@ -153,7 +153,7 @@ export function orderDraft(state, round, buyer) {
     name: buyer.name,
     quantities: Object.fromEntries(
       buyer.fixed
-        .filter((f) => round.products.some((p) => p.id === f.productId))
+        .filter((f) => round.products.some((p) => p.id === f.productId && p.price != null))
         .map((f) => [f.productId, f.qty]),
     ),
   };
@@ -597,7 +597,12 @@ export function validate(s) {
     if (!["入力中", "注文確定", "納品済み", "精算済み"].includes(r.status))
       throw Error("注文状態が不正です");
     unique(r.products);
-    for (const p of r.products) integer(p.price, "販売価格");
+    for (const p of r.products) {
+      if (p.price == null) {
+        if (p.cost == null || Object.values(r.orders).some(o=>(o.quantities[p.id]||0)>0) || s.stocks.some(st=>st.roundId===r.id&&st.productId===p.id&&st.qty>0))
+          throw Error(`${p.name}の販売価格を設定してください`);
+      } else integer(p.price, "販売価格");
+    }
     for (const [bid, o] of Object.entries(r.orders)) {
       if (!s.buyers.some((b) => b.id === bid))
         throw Error("購入者が見つかりません");

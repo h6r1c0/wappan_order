@@ -70,6 +70,24 @@ async function backend(context, shared) {
         return json({ message: e.message }, 400);
       }
     }
+    if (url.pathname.includes('/rest/v1/rpc/wappan_admin_list'))
+      return shared.staff?.[0]?.role==='admin' ? json(shared.staff) : json({code:'42501',message:'FORBIDDEN'},403);
+    if (url.pathname.includes('/rest/v1/rpc/wappan_admin_change')) {
+      if (!shared.staff) return json({code:'42501',message:'FORBIDDEN'},403);
+      const {action_arg,target_arg}=route.request().postDataJSON();
+      const target=shared.staff.find(x=>x.id===target_arg);
+      if(action_arg==='disable' && target.role==='admin' && shared.staff.filter(x=>x.active&&x.role==='admin').length===1)
+        return json({code:'P0001',message:'LAST_ADMIN'},400);
+      if(action_arg==='transfer') { target.role='admin'; shared.staff[0].role='staff'; }
+      if(action_arg==='disable')target.active=false;
+      return json('ok');
+    }
+    if (url.pathname.includes('/functions/v1/staff-invite')) {
+      if (!shared.staff) return json({error:'管理者のみ操作できます'},403);
+      const email=route.request().postDataJSON().email;
+      shared.staff.push({id:'00000000-0000-0000-0000-000000000002',email,role:'staff',active:true});
+      return json({result:'added'});
+    }
     return json({});
   });
 }
@@ -147,6 +165,25 @@ test('ログアウト後、画面に入力された認証情報で再ログイ�
   await page.getByRole('button',{name:'ログイン',exact:true}).click();
   await expect(page.getByRole('button',{name:/新しい注文を始める/})).toBeVisible();
   expect(shared.authBody).toContain('reused-password');
+});
+
+test('設定の係招待と管理者引継ぎ、最後の管理者保護',async({page,context})=>{
+  const shared={state:preparedState(),revision:0,staff:[{id:'00000000-0000-0000-0000-000000000001',email:'staff@example.test',role:'admin',active:true}]};
+  await backend(context,shared);page.on('dialog',d=>d.accept());await login(page);
+  for(const width of [320,375,430]){
+    await page.setViewportSize({width,height:812});
+    await nav(page,'設定');
+    await page.getByRole('tab',{name:'係・権限',exact:true}).click();
+    await expect(page.getByText('staff@example.test')).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.screenshot({path:`test-results/settings-${width}.png`});
+  }
+  await page.getByLabel('係をメールで招待').fill('next@example.test');
+  await page.getByRole('button',{name:'招待',exact:true}).click();
+  await expect(page.getByText('next@example.test')).toBeVisible();
+  await page.getByRole('button',{name:/管理者を引き継ぐ/}).click();
+  await expect(page.locator('.staff-settings')).toHaveCount(0);
+  expect(shared.staff.find(x=>x.email==='next@example.test').role).toBe('admin');
 });
 
 test('業務順: 注文開始、個人・販売・おやつ、発注数とスマホ幅', async ({page,context}) => {
@@ -302,7 +339,7 @@ test('10月初回のExcel準備と同月再利用、LINE候補、固定注文追
   await openRound(page,'2026-10-30');
   await expect(page.getByText('商品情報を更新')).toBeVisible();
   await expect(page.getByRole('button',{name:'10月のExcel注文表を取り込む'})).toHaveCount(0);
-  await nav(page,'商品・購入者');
+  await nav(page,'設定');
   await page.getByRole('button',{name:'購入者',exact:true}).click();
   await page.getByRole('button',{name:/ホリ.*固定注文/}).click();
   await expect(page.getByRole('dialog').locator('.product-row')).toHaveCount(2);
@@ -401,7 +438,7 @@ test('集計と商品管理: 年度利益はテストを除外、検索はカテ
   await expect(page.locator('.hero>strong')).toHaveText('330円');
   await expect(page.getByText('販売額',{exact:true})).toBeVisible();
   await expect(page.getByText('仕入額',{exact:true})).toBeVisible();
-  await nav(page,'商品・購入者');
+  await nav(page,'設定');
   await page.getByRole('button',{name:'焼き菓子',exact:true}).click();
   await page.getByLabel('商品を探す').fill('黒糖');
   await expect(page.locator('.master-row').filter({hasText:'黒糖ブレッド'})).toBeVisible();

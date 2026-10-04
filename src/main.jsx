@@ -7,13 +7,14 @@ import { AppContext, Button, Field } from "./ui";
 import { Orders } from "./orders";
 import { Reports } from "./reports";
 import { Masters } from "./masters";
+import { StaffSettings } from "./staff-settings";
 import "./style.css";
 function App() {
   const [session, setSession] = useState(null),
     [authLoading, setAuthLoading] = useState(true),
     [state, setState] = useState(null),
     [revision, setRevision] = useState(0),
-    [page, setPage] = useState("注文"),
+    [page, setPage] = useState("業務"),
     [message, setMessage] = useState(""),
     [saving, setSaving] = useState(false),
     [loading, setLoading] = useState(false),
@@ -213,20 +214,22 @@ function App() {
             <>
               <main key={epoch} aria-busy={saving}>
                 <fieldset disabled={saving} className="workspace">
-                  {page === "注文" ? (
+                  {page === "業務" ? (
                     <Orders />
                   ) : page === "集計" ? (
                     <Reports />
-                  ) : (
-                    <Masters />
-                  )}
+                  ) : page === "設定" ? <Settings userId={session.user.id}/> : <section className="usage-guide"><h1>使い方</h1>
+                    <ol><li>注文を入力する</li><li>発注数を確認して注文確定</li><li>納品後、欠品・販売先・おやつ・仕入額を確認</li><li>集金を記録する</li></ol>
+                    <p>欠品時は③納品・精算で配分を確認してから確定します。</p>
+                  </section>}
                 </fieldset>
               </main>
               <nav aria-label="主な業務">
                 {[
-                  ["注文", "order"],
+                  ["業務", "order"],
                   ["集計", "report"],
-                  ["商品・購入者", "people"],
+                  ["設定", "people"],
+                  ["使い方", "event"],
                 ].map(([label, icon]) => (
                   <button
                     type="button"
@@ -265,6 +268,16 @@ function App() {
       )}
     </>
   );
+}
+function Settings({ userId }) {
+  const [area,setArea]=useState('商品・購入者');
+  return <>
+    <div className="settings-nav" role="tablist" aria-label="設定の対象">
+      {['商品・購入者','係・権限'].map(label=><button type="button" key={label} role="tab" aria-selected={area===label}
+        onClick={()=>setArea(label)}>{label}</button>)}
+    </div>
+    {area==='商品・購入者'?<Masters/>:<StaffSettings userId={userId}/>}
+  </>;
 }
 function Login({ notify }) {
   const [email, setEmail] = useState(""),

@@ -508,20 +508,14 @@ export function Masters() {
       </div>
       {tab === "商品" ? (
         <>
-          <div className="actions compact-actions">
-            <Button secondary onClick={() => setEditor({ type: "product" })}>
-              ＋ 商品を追加
-            </Button>
-            <Button secondary onClick={() => setImporting(true)}>
-              Excelから取り込む
-            </Button>
-          </div>
           <Field
             label="商品を探す"
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          <div className="master-actions"><button type="button" className="text-action" onClick={()=>setEditor({type:'product'})}>＋ 商品を追加</button>
+            <button type="button" className="text-action" onClick={()=>setImporting(true)}>Excelから取り込む ›</button></div>
           <div className="tabs category-tabs">{['パン','焼き菓子','すべて'].map(c=><Button key={c} secondary={category!==c} onClick={()=>setCategory(c)}>{c!=='すべて'&&<Cat category={c}/>} {c}</Button>)}</div>
           {faxProducts(state.products)
             .filter(p=>query.trim()||category==='すべて'||p.category===category)
@@ -547,10 +541,9 @@ export function Masters() {
         </>
       ) : (
         <>
-          <Button secondary onClick={() => setEditor({ type: "buyer" })}>
-            ＋ 購入者を追加
-          </Button>
-          {state.buyers.slice().sort(buyerCompare).map((b) => (
+          <Field label="購入者を探す" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>
+          <button type="button" className="text-action" onClick={()=>setEditor({type:'buyer'})}>＋ 購入者を追加</button>
+          {state.buyers.slice().sort(buyerCompare).filter(b=>normalize(b.name).includes(normalize(query))).map((b) => (
             <button
               className="clickable line master-row"
               key={b.id}

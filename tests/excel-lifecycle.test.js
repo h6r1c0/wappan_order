@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { analyzeSheet, displayedPrice, permanentProduct, readExcel } from "../src/excel.js";
 import { initialState, newRound, productAvailable, snapshot, price, addSale, stockRemaining, collections, report, validate, monthProductsImported } from "../src/domain.js";
-import { upgrade } from "../src/commerce.js";
+import { upgrade, setSnackOrderQuantities } from "../src/commerce.js";
 
 test("表示された整数税込価格を使い、不明な小数は確定しない", () => {
   assert.equal(displayedPrice({v:394.20000000000005,w:"394 "}),394);
@@ -32,7 +32,22 @@ test("商品ライフサイクルと価格履歴、例外定番", () => {
   const next=newRound(s,"2026-10-01");
   for (const id of ["milk","brown","donut","galette"]) assert.ok(next.products.some(p=>p.id===id));
   assert.ok(!next.products.some(p=>["once","seasonal"].includes(p.id)));
-  for(const name of ["ミルクスティック","ミルクスティックパン","ツイストドーナツ","黒糖ブレッド"]) assert.equal(permanentProduct(name),true);
+  for(const name of ["ミルクスティック","ミルクスティックパン","ツイストドーナツ","黒糖ブレッド","くるみパン 1個入り"]) assert.equal(permanentProduct(name),true);
+});
+test("常設の1個入りくるみパンと販売価格未確認のおやつ商品を区別して保持する", () => {
+  const s=initialState();
+  const one={...s.products.find(p=>p.id==='walnut'),id:'walnut-one',name:'くるみパン 1個入り',manual:170,mode:'manual',lifecycle:'permanent'};
+  const two={...one,id:'walnut-two',name:'くるみパン 2個入り',gross:346,mode:'auto',manual:null,cost:null};
+  s.products.push(one,two);
+  const donut=s.products.find(p=>p.id==='donut');
+  donut.cost=156;donut.lifecycle='permanent';
+  const round=newRound(s,'2026-10-16');s.rounds.push(round);
+  assert.equal(round.products.find(p=>p.id==='donut').price,null);
+  assert.deepEqual(round.products.filter(p=>p.name.startsWith('くるみパン')).map(p=>p.id),['walnut-one','walnut-two']);
+  setSnackOrderQuantities(s,round.id,{'walnut-one':2,donut:3});
+  upgrade(s);validate(s);
+  assert.equal(s.events.find(e=>e.roundId===round.id).lines.find(l=>l.productId==='donut').cost,156);
+  assert.throws(()=>{round.orders.hori={name:'ホリ',quantities:{donut:1}};validate(s);},/販売価格を設定/);
 });
 test("一度取り込んだ月内商品を同じ月の複数納品日で再利用する", () => {
   const s=initialState();

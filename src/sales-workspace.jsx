@@ -92,14 +92,14 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
       setDirty(false);
       setLastSaved('登録しました');
       setTouchedIds((ids) => [...new Set([...ids, ...picked.map((stock) => stock.id)])]);
-      setQuantities(mode==='product' && selectedStock && stockRemaining(state,selectedStock)+pendingFor(state,selectedStock).reduce((n,s)=>n+s.qty,0)>Number(quantities[selectedStock.id]) ? {[selectedStock.id]:1} : {});
+      setQuantities({});
       if (mode === 'product') requestAnimationFrame(() =>
         document.querySelector('.sales-workspace .sale-status')?.scrollIntoView({block:'start'}));
     }
   };
   const destinationFields = <>
       <div className="choice-grid" aria-label="販売先種別">
-        <Button secondary={destinationType !== 'buyer'} onClick={() => {setDestinationType('buyer');setDirty(true);}}>登録済み購入者</Button>
+        <Button secondary={destinationType !== 'buyer'} onClick={() => {setDestinationType('buyer');setDirty(true);}}>購入者</Button>
         <Button secondary={destinationType !== 'external'} onClick={() => {setDestinationType('external');setDirty(true);}}>外部購入者</Button>
 
       </div>
@@ -126,7 +126,7 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
       <Field label="商品を探す"><input type="search" value={query} onChange={(e) => setQuery(e.target.value)}/></Field>
       {!selectedStock && <div className="sales-product-list">{stocks.filter((stock) =>
         (query.trim() || category === 'ALL' || stock.category === category) && normalize(stock.name).includes(normalize(query)))
-        .map((stock) => <Button key={stock.id} secondary onClick={() => { setStockId(stock.id); setDirty(true); setQuantities({[stock.id]:stockRemaining(state,stock)+pendingFor(state,stock).reduce((n,s)=>n+s.qty,0)>0?1:0}); }}>
+        .map((stock) => <Button key={stock.id} secondary onClick={() => { setStockId(stock.id); setDirty(false); setQuantities({}); }}>
           <span>{stock.name}</span><small>未割当 {pendingFor(state, stock).reduce((n, sale) => n + sale.qty, 0)+stockRemaining(state,stock)}個</small>
         </Button>)}</div>}
       {selectedStock && <Button secondary onClick={() => { setStockId(''); setDirty(false); setQuantities({}); setLastSaved(''); }}>別の商品を選ぶ</Button>}
@@ -143,8 +143,8 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
         {selectedStock && (() => {
           const pending = pendingFor(state, selectedStock).reduce((n, sale) => n + sale.qty, 0);
           const max = stockRemaining(state, selectedStock) + (destinationType === 'unknown' ? 0 : pending);
-          return max > 0 && <div className="assignment-quantity"><span>割当数量</span><Qty label={`${selectedStock.name} 割当数量`} min={1} max={max}
-            value={Number(quantities[selectedStock.id])||1} onChange={n=>{setDirty(true);setLastSaved('');setQuantities({[selectedStock.id]:n});}}/></div>;
+          return max > 0 && <div className="assignment-quantity"><span>割当数量</span><Qty label={`${selectedStock.name} 割当数量`} min={0} max={max}
+            value={Number(quantities[selectedStock.id])||0} onChange={n=>{setDirty(true);setLastSaved('');setQuantities({[selectedStock.id]:n});}}/></div>;
         })()}
       </div>}
       {mode === 'product' && selectedStock &&

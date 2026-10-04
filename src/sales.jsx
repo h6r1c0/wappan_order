@@ -88,7 +88,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
         <h2>{reviewing ? '今回の販売用注文' : '販売用として注文する'}</h2>
         {!reviewing && <>
         <Check label="個人注文数を表示" checked={showPersonal} onChange={setShowPersonal}/>
-        <ProductQuantityEditor products={round.products} quantities={orderQuantities}
+        <ProductQuantityEditor products={round.products.filter(p=>p.price!=null)} quantities={orderQuantities}
           onChange={quantities => {setOrderQuantities(quantities);setOrderCuts(Object.fromEntries(
             Object.entries(orderCuts).map(([id,qty])=>[id,Math.min(qty,quantities[id]||0)])));}}
           cutQuantities={orderCuts}
@@ -144,10 +144,15 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
       </Button>}
       {stocks.slice().sort((a,b)=>(round?.products.findIndex(p=>p.id===a.productId)??0)-(round?.products.findIndex(p=>p.id===b.productId)??0)).map((st) => {
         const remaining = stockRemaining(state, st);
+        const buyers = new Map();
+        state.sales.filter(s=>s.stockId===st.id&&!s.void).forEach(s=>{
+          const name=s.pending||s.destinationType==='unknown'?'販売先未割当':s.destinationType==='buyer'?
+            (state.buyers.find(b=>b.id===s.buyerId)?.name||s.buyerName):s.destinationName&&s.destinationName!=='外部販売（名称未入力）'?s.destinationName:'外部';
+          buyers.set(name,(buyers.get(name)||0)+s.qty);
+        });
         return <details className={`stock-card ${remaining<1?'sold-out':''}`} key={st.id}>
-          <summary className="product-row"><span className="grow"><strong>{st.name}</strong>
-            <small>{yen(st.price)} ／ 注文 {st.qty}個 ／ 販売記録 {soldQty(state,st.id)}個</small></span>
-            <strong>残数 {remaining}個</strong></summary>
+          <summary className="sale-result-row"><strong>{st.name}</strong>
+            <span>{[...buyers].map(([name,qty])=>`${name} ${qty}`).join(' ／ ')||'割当なし'}{remaining>0?` ／ 残り ${remaining}`:''}</span></summary>
           <div className="actions"><Button disabled={remaining<1} onClick={() => setSelling(st)}>1商品ずつ販売を記録</Button>
             <Button secondary onClick={() => setEdit(st)}>販売履歴を確認・修正</Button></div>
         </details>;

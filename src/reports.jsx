@@ -81,9 +81,7 @@ export function Reports() {
             />
           </>
         )}
-        <Button secondary onClick={() => setGoal(true)}>
-          目標額を変更
-        </Button>
+        <button type="button" className="text-action" onClick={() => setGoal(true)}>目標額を変更 ›</button>
       </section>
       <Check label="期間を指定して確認" checked={custom} onChange={setCustom} />
       {custom && (
@@ -105,13 +103,15 @@ export function Reports() {
       {start > end && (
         <p className="notice">開始日と終了日を確認してください。</p>
       )}
-      <div className="tabs">
-        {["利益", "個人請求", "過去実績・調整"].map((t) => (
+      <div className="tabs report-tabs">
+        {["利益", "個人請求"].map((t) => (
           <Button key={t} secondary={t !== tab} onClick={() => setTab(t)}>
             {t}
           </Button>
         ))}
       </div>
+      <button type="button" className="text-action report-correction" aria-expanded={tab==='過去実績・調整'}
+        onClick={()=>setTab(tab==='過去実績・調整'?'利益':'過去実績・調整')}>管理・補正：過去実績・調整 {tab==='過去実績・調整'?'▾':'›'}</button>
       {tab === "利益" && (
         <>
           <div className="report-totals">

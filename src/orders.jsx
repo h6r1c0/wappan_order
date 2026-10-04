@@ -1,6 +1,6 @@
 import {Shortage} from './shortage-ui';
 import {receivedQuantity, updateDeliveryStatus} from './shortages';
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { deliveryTotals, setSalesOrderQuantities, salesOrderQuantities, salesCutQuantities } from './commerce';
 import {LineImport} from './line-import.jsx';
 import {Sales} from './sales';
@@ -119,8 +119,10 @@ function Round({ round: r, initialTab = null, back }) {
     [buyerId, setBuyerId] = useState(null),
     [draft, setDraft] = useState(null),
     [cutFees, setCutFees] = useState(() => Object.fromEntries(r.products.map(p => [p.id, p.cutFee ?? null]))),
+    [personalClosed,setPersonalClosed] = useState(r.status!=='入力中'),
     [settings, setSettings] = useState(false),
     [products, setProducts] = useState(false), [lineImport,setLineImport]=useState(false), [excelImport,setExcelImport]=useState(false);
+  useEffect(()=>{if(r.status!=='入力中')setPersonalClosed(true);},[r.status]);
   const choose = (id, newBuyer) => {
     if (
       draft &&
@@ -219,6 +221,8 @@ function Round({ round: r, initialTab = null, back }) {
       {tab==='おやつ用'&&<Events roundId={r.id} phase="order" onManageProducts={() => setProducts(true)}/>}
       {tab === "個人注文" && (
         <>
+          {personalClosed&&<button type="button" className="text-action" onClick={()=>setPersonalClosed(false)}>注文を編集 ›</button>}
+          {!personalClosed&&<>
           <section className="personal-start">
           <div className="section-head">
               <h2>購入者ごとの注文</h2>
@@ -238,8 +242,10 @@ function Round({ round: r, initialTab = null, back }) {
                   固定注文のうち、この回にない商品があります。「この納品日の商品」で追加してください。価格未確認の商品は先に商品管理で価格を設定してください。
                 </p>
               )}
+              {currentBuyer?.fixed.some(f => r.products.some(p=>p.id===f.productId&&p.price==null)) &&
+                <p className="notice compact-notice">販売価格未確認の固定注文は、この回の個人注文に加えていません。</p>}
               <ProductQuantityEditor
-                products={r.products}
+                products={r.products.filter(p=>p.price!=null)}
                 quantities={draft.quantities}
                 onChange={(quantities) => setDraft({ ...draft, quantities,
                   cutQuantities: Object.fromEntries(Object.entries(draft.cutQuantities || {}).map(([id, qty]) => [id, Math.min(qty, quantities[id] || 0)])) })}
@@ -281,6 +287,7 @@ function Round({ round: r, initialTab = null, back }) {
               </div>
             </section>
           )}
+          </>}
           {Object.keys(r.orders).length > 0 && <h3 className="saved-list-heading">今回の注文</h3>}
           {Object.entries(r.orders).map(([id, o]) => (
             <details className="personal-saved" key={`${id}-${id === lastSavedBuyer ? 'saved' : 'other'}`}
@@ -609,10 +616,10 @@ function RoundProducts({ round: r, onClose }) {
           <Button
             secondary
             key={p.id}
-            disabled={price(p) == null}
-            onClick={() => setItems([...items, snapshot(p)])}
+            disabled={price(p) == null && !(p.lifecycle === 'permanent' && p.cost != null)}
+            onClick={() => setItems([...items, snapshot(p,{snackOnly:true})])}
           >
-            ＋ {p.name} {price(p) == null ? "（価格未確認）" : yen(price(p))}
+            ＋ {p.name} {price(p) == null ? "（おやつ用のみ・販売価格未確認）" : yen(price(p))}
           </Button>
         ))}
       <Button

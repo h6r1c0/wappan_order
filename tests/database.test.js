@@ -7,7 +7,7 @@ import { upgrade } from "../src/commerce.js";
 test("Postgres: migration/RLS/許可された係だけ保存/競合拒否/振替検証/監査履歴", async () => {
   const db = new PGlite();
   await db.exec(
-    `create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated;`,
+    `create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key,email text unique); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated;`,
   );
   const migrations = new URL('../supabase/migrations/', import.meta.url);
   for (const file of (await fs.readdir(migrations)).filter(f=>f.endsWith('.sql')).sort()) {
@@ -15,7 +15,7 @@ test("Postgres: migration/RLS/許可された係だけ保存/競合拒否/振替
   }
   const id = "00000000-0000-0000-0000-000000000001";
   await db.exec(
-    `insert into auth.users values('${id}'); insert into wappan_private.wappan_staff values('${id}');`,
+    `insert into auth.users values('${id}','admin@example.test'); insert into wappan_private.wappan_staff(user_id) values('${id}');`,
   );
   const state = initialState();
   await db.exec("set role anon");
@@ -120,5 +120,31 @@ test("Postgres: migration/RLS/許可された係だけ保存/競合拒否/振替
   await db.query("select public.wappan_save(6,$1,'external sale pending payment')",[state]);
   state.collectionEntries[0].received = 1.5;
   await assert.rejects(() => db.query("select public.wappan_save(7,$1,'invalid collection')",[state]),/Invalid collection entry amount/);
+  await db.exec(`reset role; update wappan_private.wappan_staff set role='admin' where user_id='${id}'; set role authenticated`);
+  assert.equal((await db.query('select public.wappan_admin_is_admin() is_admin')).rows[0].is_admin,true);
+  assert.equal((await db.query('select public.wappan_admin_list() members')).rows[0].members.length,1);
+  const second='00000000-0000-0000-0000-000000000002';
+  await db.exec(`reset role; insert into auth.users values('${second}','staff@example.test'); set role authenticated`);
+  assert.equal((await db.query("select public.wappan_admin_register_email('staff@example.test') result")).rows[0].result,'added');
+  await assert.rejects(()=>db.query("select public.wappan_admin_change('disable',$1)",[id]),/LAST_ADMIN/);
+  await db.exec(`set "request.jwt.claim.sub"='${second}'`);
+  assert.equal((await db.query('select public.wappan_admin_is_admin() is_admin')).rows[0].is_admin,false);
+  await assert.rejects(()=>db.query('select public.wappan_admin_list()'),/FORBIDDEN/);
+  await assert.rejects(()=>db.query("select public.wappan_admin_register_email('someone@example.test')"),/FORBIDDEN/);
+  await assert.rejects(()=>db.query("select public.wappan_admin_change('disable',$1)",[id]),/FORBIDDEN/);
+  await db.exec(`set "request.jwt.claim.sub"='${id}'`);
+  await db.query("select public.wappan_admin_change('transfer',$1)",[second]);
+  assert.equal((await db.query('select public.wappan_admin_is_admin() is_admin')).rows[0].is_admin,false);
+  await db.exec(`set "request.jwt.claim.sub"='${second}'`);
+  assert.equal((await db.query('select public.wappan_admin_is_admin() is_admin')).rows[0].is_admin,true);
+  await assert.rejects(()=>db.query("select public.wappan_admin_change('disable',$1)",[second]),/LAST_ADMIN/);
+  await db.query("select public.wappan_admin_change('disable',$1)",[id]);
+  await db.exec(`set "request.jwt.claim.sub"='${id}'`);
+  assert.equal((await db.query('select * from public.wappan_workspace')).rows.length,0);
+  await assert.rejects(()=>db.query("select public.wappan_save(7,$1,'disabled')",[state]),/FORBIDDEN/);
+  await db.exec(`set "request.jwt.claim.sub"='${second}'`);
+  await assert.rejects(()=>db.query('select count(*) from wappan_private.staff_audit'),/permission denied/);
+  await db.exec('reset role');
+  assert.equal((await db.query('select count(*)::int n from wappan_private.staff_audit')).rows[0].n,3);
   await db.close();
 });

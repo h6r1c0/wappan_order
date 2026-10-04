@@ -277,7 +277,11 @@ export function BuyerPicker({
   const { state, save } = useApp();
   const [query, setQuery] = useState("");
   const candidates=state.buyers.filter(b=>b.id===value||(b.testOnly?includeTest:b.active));
-  const [group,setGroup] = useState(() => buyerGroup(candidates.find(b=>b.id===value)||candidates.slice().sort(buyerCompare)[0]||{name:''}));
+  const [group,setGroup] = useState(() => {
+    const selected=candidates.find(b=>b.id===value);
+    if(selected)return buyerGroup(selected);
+    return candidates.some(b=>buyerGroup(b)==='あ') ? 'あ' : buyerGroup(candidates.slice().sort(buyerCompare)[0]||{name:''});
+  });
   const [name, setName] = useState(suggestedName);
   const [adding, setAdding] = useState(!!suggestedName);
   useEffect(() => {
