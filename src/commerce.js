@@ -8,7 +8,7 @@ export function delivery(s,date,test=false) {
   return r;
 }
 export function upgrade(s) {
-  s.markets ??=[];s.bundles??=[];s.bundleSales??=[];s.externalDestinations??=[];s.aliases??={products:{},buyers:{}};s.productImports??=[];s.collectionEntries??=[];
+  s.markets ??=[];s.bundles??=[];s.bundleSales??=[];s.externalDestinations??=[];s.aliases??={products:{},buyers:{}};s.productImports??=[];s.collectionEntries??=[];s.receivableItems??=[];s.collectionReconciliations??=[];
   for(const sale of s.sales){
     sale.destinationType??=sale.pending?'unknown':sale.paid?'external':'buyer';
     sale.paymentStatus??=sale.pending?'unconfirmed':sale.paid?'paid':'later';

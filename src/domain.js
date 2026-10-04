@@ -53,7 +53,7 @@ export function initialState() {
     ["milk", "ミルクスティックパン", 280, null, "パン"],
     ["brown", "黒糖ブレッド", 430, null, "パン"],
     ["galette", "ガレット", null, null, "焼き菓子"],
-    ["donut", "ツイストドーナツ", null, null, "パン"],
+    ["donut", "ツイストドーナツ 2個入り", null, null, "パン"],
     ["bread", "湯種食パン", null, null, "パン"],
     ["walnut", "くるみパン", null, 138, "パン"],
     ["bean", "こしあんぱん", null, null, "パン"],
@@ -100,13 +100,13 @@ export function initialState() {
     events: [],
     history: [],
     adjustments: [],
-    collectionEntries: [],
+    collectionEntries: [], receivableItems: [], collectionReconciliations: [],
     goals: { 2026: 50000 },
   };
 }
 export function snapshot(p, {snackOnly=false}={}) {
   const amount = price(p);
-  if (amount == null && !(snackOnly && p.cost != null && p.lifecycle === 'permanent')) throw Error(`${p.name}の販売価格を設定してください`);
+  if (amount == null && !snackOnly) throw Error(`${p.name}の販売価格を設定してください`);
   return { id: p.id, name: p.name, category: p.category, price: amount, cost: p.cost ?? null,
     cutFee: p.cutFee ?? null,
     cutSupported: p.cutSupported ?? p.name.includes('食パン'),
@@ -124,7 +124,7 @@ export function newRound(state, date, test = false) {
     products: faxProducts(state.products)
       .filter(
         (p) =>
-          productAvailable(p, date) && (price(p) != null || (p.lifecycle === 'permanent' && p.cost != null)),
+          productAvailable(p, date) && (price(p) != null || p.lifecycle === 'permanent' || state.buyers.some(b=>b.fixed.some(f=>f.productId===p.id))),
       )
       .map(p=>snapshot(p,{snackOnly:true})),
     orders: {},
@@ -138,6 +138,10 @@ export function newRound(state, date, test = false) {
 export const orderAmount = (round, order) =>
   sum(round.products.map((p) => (p.price ?? 0) * deliveredQuantity(order,p.id) +
     (p.cutFee || 0) * Math.min(order?.cutQuantities?.[p.id] || 0, deliveredQuantity(order,p.id))));
+export const unpricedOrderLines = (round, order) => round.products.filter(p =>
+  p.price == null && deliveredQuantity(order,p.id) > 0).map(p => ({
+    productId:p.id, name:p.name, qty:deliveredQuantity(order,p.id),
+  }));
 export const roundRevenue = (r) =>
   sum(Object.values(r.orders).map((o) => orderAmount(r, o)));
 export const productTotals = (r, orders = r.orders) =>
@@ -153,7 +157,7 @@ export function orderDraft(state, round, buyer) {
     name: buyer.name,
     quantities: Object.fromEntries(
       buyer.fixed
-        .filter((f) => round.products.some((p) => p.id === f.productId && p.price != null))
+        .filter((f) => round.products.some((p) => p.id === f.productId))
         .map((f) => [f.productId, f.qty]),
     ),
   };
@@ -385,7 +389,7 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
     const row = map.get(id);
     row[kind] += amount;
     row.categories[category in row.categories ? category : 'その他'] += amount;
-    row.lines.push({ description, amount });
+    row.lines.push({ description, amount, category });
   };
   for (const r of s.rounds.filter(
     (r) =>
@@ -394,10 +398,10 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
   ))
     for (const [id, o] of Object.entries(r.orders)) {
       const amount = orderAmount(r, o);
-      if (amount) for (const product of r.products) {
+      if (amount || unpricedOrderLines(r,o).length) for (const product of r.products) {
         const qty = deliveredQuantity(o,product.id);
         if (qty) add(id, s.buyers.find((b) => b.id === id)?.name || o.name,
-          'normal', product.price * qty + (product.cutFee || 0) * Math.min(o.cutQuantities?.[product.id] || 0, qty),
+          'normal', product.price == null ? 0 : product.price * qty + (product.cutFee || 0) * Math.min(o.cutQuantities?.[product.id] || 0, qty),
           `${r.date} ${product.name} ×${qty}${o.cutQuantities?.[product.id] ? `（カット ${Math.min(o.cutQuantities[product.id],qty)}個）` : ''}`, product.category);
       }
     }
@@ -420,7 +424,51 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
     (x) => !x.void && x.destinationType === 'buyer' && (includeTest || !s.rounds.find(r=>r.id===x.chargeRoundId)?.test) &&
       (roundId ? x.chargeRoundId === roundId : from <= x.date && x.date <= to),
   )) add(sale.buyerId,s.buyers.find(b=>b.id===sale.buyerId)?.name||sale.destinationName,'onsite',sale.price*sale.qty,`${sale.date} ${sale.name} ×${sale.qty}`);
-  return [...map.values()].map((r) => ({ ...r, total: r.normal + r.onsite }));
+  return [...map.values()].map((r) => ({ ...r, total: r.normal + r.onsite,
+    unpriced: roundId ? unpricedOrderLines(s.rounds.find(x=>x.id===roundId),s.rounds.find(x=>x.id===roundId)?.orders[r.id] || {}) : [] }));
+}
+// Claims are distinct obligations. Additional claims are a labelled portion of the
+// round invoice, not a second charge. Opening balances have no invented order.
+export function collectionDueItems(s, roundId, buyerId) {
+  const target=s.rounds.find(r=>r.id===roundId);
+  if(!target) throw Error('注文回が見つかりません');
+  const eligible=s.rounds.filter(r=>r.test===target.test && (r.date<target.date || r.date===target.date&&r.id<=target.id))
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
+  const items=(s.receivableItems||[]).filter(x=>x.buyerId===buyerId && x.kind==='opening' && !target.test && x.date<=target.date)
+    .map(x=>({...x,roundId:null,balance:x.amount}));
+  for(const r of eligible){
+    const total=collections(s,'','',r.id,r.test).find(x=>x.id===buyerId)?.total||0;
+    const additions=(s.receivableItems||[]).filter(x=>x.kind==='additional'&&x.roundId===r.id&&x.buyerId===buyerId);
+    const noted=sum(additions.map(x=>x.amount));
+    if(total<noted) throw Error('追加請求が本来請求額を超えています');
+    if(total-noted>0) items.push({id:`round:${r.id}:${buyerId}`,kind:'round',roundId:r.id,date:r.date,amount:total-noted,balance:total-noted,reason:'未払い / 未受取',note:`${r.date} 請求分`});
+    for(const x of additions) items.push({...x,balance:x.amount});
+  }
+  items.sort((a,b)=>a.date.localeCompare(b.date)||
+    ({opening:0,round:1,additional:2}[a.kind]-{opening:0,round:1,additional:2}[b.kind])||
+    a.id.localeCompare(b.id));
+  const reconcile=(s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&eligible.some(r=>r.id===x.roundId));
+  for(const x of reconcile){
+    const item=items.find(i=>i.id===`round:${x.roundId}:${buyerId}`);
+    if(item) item.balance=Math.max(0,item.balance-x.amount);
+  }
+  let credit=0;
+  const entries=(s.collectionEntries||[]).filter(e=>e.buyerId===buyerId&&eligible.some(r=>r.id===e.roundId));
+  for(const entry of entries){
+    let amount=entry.received+entry.adjustment;
+    if(amount<0){credit+=-amount;continue;}
+    if(entry.itemId){
+      const chosen=items.find(x=>x.id===entry.itemId);
+      if(chosen){const used=Math.min(amount,chosen.balance);chosen.balance-=used;amount-=used;}
+    }
+    for(const item of items){
+      const used=Math.min(amount,item.balance);item.balance-=used;amount-=used;
+      if(!amount) break;
+    }
+    credit+=amount;
+  }
+  if(credit) for(const item of items){const used=Math.min(credit,item.balance);item.balance-=used;credit-=used;if(!credit)break;}
+  return {items,credit};
 }
 export function collectionPosition(s, roundId, buyerId) {
   const round = s.rounds.find((r) => r.id === roundId);
@@ -438,8 +486,12 @@ export function collectionPosition(s, roundId, buyerId) {
     entry.roundId === roundId && entry.buyerId === buyerId);
   const received = sum(entries.map((entry) => entry.received));
   const adjusted = sum(entries.map((entry) => entry.adjustment));
-  const carry = billedBefore - receivedBefore;
-  return { carry, current, received, adjusted, balance: carry + current - received - adjusted, entries };
+  const opening=sum((s.receivableItems||[]).filter(x=>x.kind==='opening'&&x.buyerId===buyerId&&!round.test&&x.date<=round.date).map(x=>x.amount));
+  const reconciled=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&earlier.some(r=>r.id===x.roundId)).map(x=>x.amount));
+  const carry = billedBefore + opening - receivedBefore - reconciled;
+  const confirmedHistorical=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&x.roundId===roundId).map(x=>x.amount));
+  return { carry, current, received, adjusted, balance: carry + current - received - adjusted - confirmedHistorical,
+    entries, due:collectionDueItems(s,roundId,buyerId).items.filter(x=>x.balance>0) };
 }
 export function report(s, from, to, year) {
   const inRange = (d) => from <= d && d <= to;
@@ -599,7 +651,7 @@ export function validate(s) {
     unique(r.products);
     for (const p of r.products) {
       if (p.price == null) {
-        if (p.cost == null || Object.values(r.orders).some(o=>(o.quantities[p.id]||0)>0) || s.stocks.some(st=>st.roundId===r.id&&st.productId===p.id&&st.qty>0))
+        if (s.stocks.some(st=>st.roundId===r.id&&st.productId===p.id&&st.qty>0))
           throw Error(`${p.name}の販売価格を設定してください`);
       } else integer(p.price, "販売価格");
     }
@@ -726,7 +778,19 @@ export function validate(s) {
       if (!round || !s.buyers.some((b) => b.id === entry.buyerId) ||
         (!entry.received && !entry.adjustment) || !String(entry.note || '').trim())
         throw Error('集金履歴の注文回・購入者・金額・理由を確認してください');
+      if(entry.itemId && !collectionDueItems({...s,collectionEntries:[]},entry.roundId,entry.buyerId).items.some(x=>x.id===entry.itemId)) throw Error('未収項目が見つかりません');
     }
+  }
+  unique(s.receivableItems||[]);
+  for(const x of s.receivableItems||[]){
+    date(x.date);integer(x.amount,'未収額');
+    if(!x.amount||!s.buyers.some(b=>b.id===x.buyerId)||!String(x.reason||'').trim()||!String(x.note||'').trim()||
+      !['opening','additional'].includes(x.kind)||x.kind==='additional'&&!s.rounds.some(r=>r.id===x.roundId)) throw Error('未収項目を確認してください');
+  }
+  unique(s.collectionReconciliations||[]);
+  for(const x of s.collectionReconciliations||[]){
+    integer(x.amount,'過去の受取確認額');
+    if(!x.amount||!s.buyers.some(b=>b.id===x.buyerId)||!s.rounds.some(r=>r.id===x.roundId)||!String(x.note||'').trim())throw Error('過去の受取確認を確認してください');
   }
   validateFulfillment(s);
   validateCommerce(s);

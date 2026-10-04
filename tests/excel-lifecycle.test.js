@@ -47,7 +47,8 @@ test("常設の1個入りくるみパンと販売価格未確認のおやつ商�
   setSnackOrderQuantities(s,round.id,{'walnut-one':2,donut:3});
   upgrade(s);validate(s);
   assert.equal(s.events.find(e=>e.roundId===round.id).lines.find(l=>l.productId==='donut').cost,156);
-  assert.throws(()=>{round.orders.hori={name:'ホリ',quantities:{donut:1}};validate(s);},/販売価格を設定/);
+  round.orders.hori={name:'ホリ',quantities:{donut:1}};
+  assert.equal(validate(s),s);
 });
 test("一度取り込んだ月内商品を同じ月の複数納品日で再利用する", () => {
   const s=initialState();

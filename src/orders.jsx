@@ -16,6 +16,7 @@ import {
   snapshot,
   orderDraft,
   orderAmount,
+  unpricedOrderLines,
   roundRevenue,
   roundCost,
   productTotals,
@@ -242,10 +243,10 @@ function Round({ round: r, initialTab = null, back }) {
                   固定注文のうち、この回にない商品があります。「この納品日の商品」で追加してください。価格未確認の商品は先に商品管理で価格を設定してください。
                 </p>
               )}
-              {currentBuyer?.fixed.some(f => r.products.some(p=>p.id===f.productId&&p.price==null)) &&
-                <p className="notice compact-notice">販売価格未確認の固定注文は、この回の個人注文に加えていません。</p>}
+              {unpricedOrderLines(r,draft).length>0 &&
+                <p className="notice compact-notice">⚠ 販売価格未確認：{unpricedOrderLines(r,draft).map(x=>`${x.name} ×${x.qty}`).join('、')}。商品は注文に残し、請求額は価格確定まで未確定です。</p>}
               <ProductQuantityEditor
-                products={r.products.filter(p=>p.price!=null)}
+                products={r.products}
                 quantities={draft.quantities}
                 onChange={(quantities) => setDraft({ ...draft, quantities,
                   cutQuantities: Object.fromEntries(Object.entries(draft.cutQuantities || {}).map(([id, qty]) => [id, Math.min(qty, quantities[id] || 0)])) })}
@@ -258,7 +259,7 @@ function Round({ round: r, initialTab = null, back }) {
               />
               <div className="sticky-action">
                 <span>
-                  合計 <strong>{yen(orderAmount({...r,products:r.products.map(p=>({...p,cutFee:cutFees[p.id]}))}, draft))}</strong>
+                  {unpricedOrderLines(r,draft).length?'確定済み金額':'合計'} <strong>{yen(orderAmount({...r,products:r.products.map(p=>({...p,cutFee:cutFees[p.id]}))}, draft))}</strong>
                 </span>
                 <Button
                   disabled={r.products.some(p => draft.cutQuantities?.[p.id] > 0 && cutFees[p.id] == null)}
@@ -294,7 +295,7 @@ function Round({ round: r, initialTab = null, back }) {
               open={id === lastSavedBuyer || undefined}>
               <summary className="completed-buyer">
                 <span className="completed-buyer-name">{state.buyers.find((b) => b.id === id)?.name || o.name}</span>
-                <strong>{yen(orderAmount(r, o))}</strong>
+                <strong>{unpricedOrderLines(r,o).length?'請求総額 未確定':yen(orderAmount(r, o))}</strong>
               </summary>
               <div className="saved-order-lines" aria-label={`${o.name}の注文内容`}>
                 {r.products.filter(p => (o.quantities[p.id] || 0) > 0).map(p =>
@@ -312,7 +313,7 @@ function Round({ round: r, initialTab = null, back }) {
       </div>}
       {tab === "集金" && (
         <>
-          <div className="collection-total"><span>今回の請求合計{r.reconciliationPending && <small>　照合中</small>}</span>
+          <div className="collection-total"><span>{rows.some(x=>x.unpriced.length)?'確定済み金額（価格未確認あり）':'今回の請求合計'}</span>
             <strong>{yen(rows.reduce((a, b) => a + b.total, 0))}</strong></div>
           <RoundCollections round={r} rows={rows} />
           <Button
@@ -320,7 +321,7 @@ function Round({ round: r, initialTab = null, back }) {
             onClick={async () => {
               try {
                 await copyText(
-                  (r.reconciliationPending ? "照合用・未確定（未確認価格・販売用商品の個人割当を含まない）\n" : "") + rows.map((x) => `${x.name}　${yen(x.total)}`).join("\n"),
+                  (r.reconciliationPending || rows.some(x=>x.unpriced.length) ? "照合用・未確定（未確認価格・販売用商品の個人割当を含まない）\n" : "") + rows.map((x) => `${x.name}　${x.unpriced.length?'請求総額 未確定':yen(x.total)}`).join("\n"),
                 );
                 notify("集金額をコピーしました");
               } catch (e) {

@@ -310,12 +310,50 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
   await page.getByRole('button',{name:'全額受取'}).click();
   await expect(page.locator('.collection-state')).toHaveText('受取済');
   await page.getByRole('button',{name:/編集・内訳/}).click();
-  await page.getByLabel('ホリ 実際受取額（返金はマイナス）').fill('-10');
+  await page.getByLabel('実際受取額（返金はマイナス）').fill('-10');
   await page.getByLabel('理由・メモ').fill('返金');
   await page.getByRole('button',{name:'受取額を保存'}).click();
   expect(shared.state.collectionEntries).toHaveLength(2);
   expect(shared.state.collectionEntries[1].received).toBe(-10);
   expect(shared.state.rounds[0].invoice).toBe(100);
+});
+
+test('請求漏れ・過去未収を一度の内訳展開で確認し、対象別に受け取る',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  shared.state.buyers.push({id:'yogo',name:'余語',active:true,fixed:[]});
+  const sep=newRound(shared.state,'2026-09-11');
+  sep.orders.hori={name:'堀',quantities:{brown:1,donut:2}};
+  sep.products.find(p=>p.id==='donut').price=190;
+  shared.state.rounds.push(sep);
+  shared.state.receivableItems=[
+    {id:'added',kind:'additional',buyerId:'hori',roundId:sep.id,date:sep.date,amount:380,reason:'商品請求漏れ',note:'9/11 ツイストドーナツ 2個入り ×2 請求漏れ'},
+    {id:'old',kind:'opening',buyerId:'yogo',date:'2026-07-24',amount:1670,reason:'未払い / 未受取',note:'7/24分 未受取'}
+  ];
+  const oct=newRound(shared.state,'2026-10-16');shared.state.rounds.push(oct);
+  await backend(context,shared);await login(page);
+  await page.locator('.round-list-item').filter({hasText:'2026/09/11'}).click();
+  await page.locator('.stage-4 > .stage-trigger').click();
+  const hori=page.locator('.collection-entry').filter({hasText:'堀'});
+  await expect(hori).toContainText('追加請求 380円');
+  await hori.getByRole('button',{name:/編集・内訳/}).click();
+  await expect(hori.locator('.collection-line')).toContainText(['商品名数量金額','黒糖ブレッド1430円','ツイストドーナツ2380円']);
+  await expect(hori.locator('.collection-line').nth(2)).not.toContainText('2026-09-11');
+  await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
+  await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
+  await page.locator('.stage-4 > .stage-trigger').click();
+  await expect(page.locator('.collection-entry').filter({hasText:'余語'})).toContainText('過去未収 1,670円');
+  for(const width of [320,375,430]){
+    await page.setViewportSize({width,height:812});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+  const yogo=page.locator('.collection-entry').filter({hasText:'余語'});
+  await yogo.getByRole('button',{name:/編集・内訳/}).click();
+  await yogo.getByLabel('支払い対象').selectOption('old');
+  await yogo.getByLabel('実際受取額（返金はマイナス）').fill('1670');
+  await yogo.getByLabel('理由・メモ').fill('7/24分を受取');
+  await yogo.getByRole('button',{name:'受取額を保存'}).click();
+  expect(shared.state.collectionEntries.at(-1).itemId).toBe('old');
+  expect(shared.state.collectionEntries.at(-1).received).toBe(1670);
 });
 
 test('10月初回のExcel準備と同月再利用、LINE候補、固定注文追加',async({page,context})=>{

@@ -18,7 +18,7 @@ export async function readExcel(file) {
   }));
 }
 const compact = (s) => String(s ?? "").normalize("NFKC").replace(/\s/g, "");
-export const permanentProduct = (name) => /^(ツイストドーナツ|ミルクスティック(?:パン)?|黒糖ブレッド|くるみパン1個入り)$/.test(compact(name));
+export const permanentProduct = (name) => /^(ツイストドーナツ(?:2個入り)?|ミルクスティック(?:パン)?|黒糖ブレッド|くるみパン1個入り)$/.test(compact(name));
 // Monetary values follow the workbook's visible integer format, never an
 // arbitrary truncation of a decimal whose display format is unknown.
 export function displayedPrice(cell, fallback) {
