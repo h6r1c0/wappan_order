@@ -333,10 +333,10 @@ test('請求漏れ・過去未収を一度の内訳展開で確認し、対象�
   await backend(context,shared);await login(page);
   await page.locator('.round-list-item').filter({hasText:'2026/09/11'}).click();
   await page.locator('.stage-4 > .stage-trigger').click();
-  const hori=page.locator('.collection-entry').filter({hasText:'堀'});
+  const hori=page.locator('.collection-entry').filter({hasText:'ホリ'});
   await expect(hori).toContainText('追加請求 380円');
   await hori.getByRole('button',{name:/編集・内訳/}).click();
-  await expect(hori.locator('.collection-line')).toContainText(['商品名数量金額','黒糖ブレッド1430円','ツイストドーナツ2380円']);
+  await expect(hori.locator('.collection-line')).toContainText(['商品名数量金額','黒糖ブレッド1430円','ツイストドーナツ 2個入り2380円']);
   await expect(hori.locator('.collection-line').nth(2)).not.toContainText('2026-09-11');
   await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
   await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
