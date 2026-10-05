@@ -123,10 +123,10 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
         {['パン', '焼き菓子', 'ALL'].map((item) =>
           <Button key={item} secondary={category !== item} onClick={() => setCategory(item)}>{item==='ALL'?'すべて':item}</Button>)}
       </div>
-      <Field label="商品を探す"><input type="search" value={query} onChange={(e) => setQuery(e.target.value)}/></Field>
+      <Field label="商品名を検索" type="search" placeholder="商品名を検索" value={query} onChange={(e) => setQuery(e.target.value)}/>
       {!selectedStock && <div className="sales-product-list">{stocks.filter((stock) =>
         (query.trim() || category === 'ALL' || stock.category === category) && normalize(stock.name).includes(normalize(query)))
-        .map((stock) => <Button key={stock.id} secondary onClick={() => { setStockId(stock.id); setDirty(false); setQuantities({}); }}>
+        .map((stock) => <Button key={stock.id} secondary onClick={() => { setStockId(stock.id); setDirty(false); setQuantities({[stock.id]:1}); }}>
           <span>{stock.name}</span><small>未割当 {pendingFor(state, stock).reduce((n, sale) => n + sale.qty, 0)+stockRemaining(state,stock)}個</small>
         </Button>)}</div>}
       {selectedStock && <Button secondary onClick={() => { setStockId(''); setDirty(false); setQuantities({}); setLastSaved(''); }}>別の商品を選ぶ</Button>}
@@ -158,8 +158,8 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
             (item !== '商品を選ぶ' && category !== item)}
             onClick={() => setCategory(item === '商品を選ぶ' ? 'パン' : item)}>{item==='ALL'?'すべて':item}</Button>)}
       </div>
-      {category !== '閉じる' && <Field label="商品を探す"><input type="search" value={query}
-        onChange={(e) => setQuery(e.target.value)}/></Field>}
+      {category !== '閉じる' && <Field label="商品名を検索" type="search" placeholder="商品名を検索" value={query}
+        onChange={(e) => setQuery(e.target.value)}/>}
       <div className="sales-allocation-list">
         {shown.filter((stock) => touchedIds.includes(stock.id) ||
           eligible.some((x) => x.id === stock.id)).map((stock) => {

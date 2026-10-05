@@ -31,7 +31,7 @@ export function Button({
 }
 export function Field({ label, children, ...props }) {
   return (
-    <label className="field">
+    <label className={`field ${props.type === 'search' ? 'search-field' : ''}`}>
       <span>{label}</span>
       {children || <input {...props} />}
     </label>
@@ -198,19 +198,19 @@ export function ProductQuantityEditor({
   onCutChange = null,
   cutFees = {},
   onCutFeeChange = null,
+  priceHeading = null,
 }) {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState(startCollapsed ? null : "パン");
+  const [category, setCategory] = useState("パン");
   const filtered = products.filter(
     (product) =>
-      category !== null &&
       (query.trim() || category === "ALL" || product.category === category) &&
       normalize(product.name).includes(normalize(query)),
   );
   const row = (product) => (
     <div className="product-entry" key={product.id}><div className="product-row">
       <span className="grow">
-        {product.name}
+        {product.name.startsWith('ツイストドーナツ 2個入り') ? <><span>ツイストドーナツ</span><small className="pack-spec">2個入り</small></> : product.name}
         {priceLabel(product) && <small>{priceLabel(product)}</small>}
         {secondaryLabel?.(product) && <small className="quantity-reference">{secondaryLabel(product)}</small>}
       </span>
@@ -229,6 +229,7 @@ export function ProductQuantityEditor({
   if (!products.length) return <Empty>{emptyMessage}</Empty>;
   return (
     <>
+      {priceHeading && <small className="list-unit-heading">{priceHeading}</small>}
       <div className="tabs category-tabs">
         {["パン", "焼き菓子", "ALL"].map((value) => (
           <Button
@@ -240,16 +241,15 @@ export function ProductQuantityEditor({
             {value === "ALL" ? "すべて" : value}
           </Button>
         ))}
-        {category !== null && startCollapsed && <button type="button" className="text-action" aria-label="商品一覧を閉じる" onClick={() => { setCategory(null); setQuery(""); }}>⌃</button>}
       </div>
-      {category !== null && <Field
-        placeholder="全商品から検索"
-        label="商品名で探す"
+      <Field
+        placeholder="商品名を検索（例：食パン）"
+        label="商品名を検索"
         type="search"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-      />}
-      {category !== null && filtered.map(row)}
+      />
+      {filtered.map(row)}
     </>
   );
 }
@@ -283,6 +283,7 @@ export function BuyerPicker({
     return candidates.some(b=>buyerGroup(b)==='あ') ? 'あ' : buyerGroup(candidates.slice().sort(buyerCompare)[0]||{name:''});
   });
   const [name, setName] = useState(suggestedName);
+  const [reading, setReading] = useState('');
   const [adding, setAdding] = useState(!!suggestedName);
   useEffect(() => {
     if (!suggestedName) return;
@@ -303,7 +304,7 @@ export function BuyerPicker({
     : [];
   return (
     <>
-      <div className="buyer-search-add"><Field label="購入者を探す" type="search" placeholder="名前を検索" value={query} onChange={e => setQuery(e.target.value)} />
+      <div className="buyer-search-add"><Field label="名前を検索" type="search" placeholder="名前を検索" value={query} onChange={e => setQuery(e.target.value)} />
         {allowAdd && <button type="button" className="text-action" onClick={() => setAdding(!adding)}>＋ 追加</button>}
       </div>
       {!query && <div className="buyer-index" role="group" aria-label="購入者の五十音索引">
@@ -331,8 +332,9 @@ export function BuyerPicker({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
+                <Field label="よみがな" value={reading} onChange={e => setReading(e.target.value)} />
                 <Button
-                  disabled={!name.trim()}
+                  disabled={!name.trim() || !reading.trim()}
                   onClick={async () => {
                     const clean = name.trim();
                     const existing = state.buyers.find(
@@ -345,7 +347,7 @@ export function BuyerPicker({
                       return;
                     }
                     const id = crypto.randomUUID();
-                    const buyer = { id, name: clean, active: true, fixed: [] };
+                    const buyer = { id, name: clean, kana: reading.trim(), active: true, fixed: [] };
                     if (
                       await save(
                         (s) => s.buyers.push(buyer),
@@ -353,6 +355,7 @@ export function BuyerPicker({
                       )
                     ) {
                       setName("");
+                      setReading("");
                       setAdding(false);
                       onChange(id, buyer);
                     }

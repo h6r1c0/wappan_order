@@ -121,7 +121,7 @@ function App() {
   return (
     <>
       <header className={!session ? 'login-header' : 'workspace-header'}>
-        {session ? <strong className="workspace-brand">わっぱん係</strong> : <>
+        {session ? <img className="workspace-logo" src={new URL("../wappan_title_logo_display.png", import.meta.url).href} alt="わっぱん" /> : <>
           <img className="school-logo"
             src={new URL("../ohisama_header_logo.png", import.meta.url).href}
             alt="おひさま保育園" />
@@ -220,7 +220,7 @@ function App() {
                     <Reports />
                   ) : page === "設定" ? <Settings userId={session.user.id}/> : <section className="usage-guide"><h1>使い方</h1>
                     <ol><li>注文を入力する</li><li>発注数を確認して注文確定</li><li>納品後、欠品・販売先・おやつ・仕入額を確認</li><li>集金を記録する</li></ol>
-                    <p>欠品時は③納品・精算で配分を確認してから確定します。</p>
+                    <p>欠品時は03 納品・精算で配分を確認してから確定します。</p>
                   </section>}
                 </fieldset>
               </main>

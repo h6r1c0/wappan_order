@@ -80,7 +80,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
     {phase === 'all' && <div className="work-title" ref={titleRef}><span className="eyebrow">販売用 {round?.date ? `・${round.date.replaceAll('-', '/')} 着` : ''}</span>
       <h1>販売用の作業</h1></div>}
     <div className="sales-steps">
-      {phase === 'all' && step('order', '① 販売用として注文する')}
+      {phase === 'all' && step('order', '01 販売用として注文する')}
       {mode === 'order' && !round && <p>納品回を選んでください。</p>}
       {mode === 'order' && round && <section className="work-section order-editor"
         data-unsaved={quantitySignature(orderQuantities) !== quantitySignature(savedOrderQuantities) ||
@@ -100,6 +100,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
             return count ? `個人注文 ${count}個` : null;
           } : null}
           emptyMessage="今月の商品を準備してください。"/>
+        <Check label="個人注文数を表示" checked={showPersonal} onChange={setShowPersonal}/>
         <div className="sticky-action"><span>入力数 <strong>{Object.values(orderQuantities).reduce((a,b)=>a+b,0)}個</strong></span>
           <Button disabled={round.products.some(p=>orderCuts[p.id]>0&&cutFees[p.id]==null)} onClick={async () => {
             if (await save((s) => {
@@ -121,9 +122,8 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
         {reviewing && <Button secondary onClick={() => setReviewing(false)}>数量を編集</Button>}
         {!reviewing && onManageProducts && <Button secondary onClick={onManageProducts}>商品を追加・変更</Button>}
       </section>}
-      {phase !== 'order' && step('assign', phase === 'after' ? '売れた商品の販売先を割り当てる' : '② 売れた商品の販売先を割り当てる')}
+      {phase !== 'order' && step('assign', phase === 'after' ? '売れた商品の販売先を割り当てる' : '02 売れた商品の販売先を割り当てる')}
       {mode === 'assign' && <section className="work-section sales-step-body">
-            <h2>入力方法を選ぶ</h2>
             <div className="sales-mode-grid">
               {[["buyer", "購入者から入力"], ["product", "商品から入力"]].map(([input, text]) =>
                 <Button key={input} secondary={inputMode !== input} aria-expanded={inputMode === input}
@@ -135,7 +135,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
             </div>
             {inputMode && <SalesWorkspace key={inputMode} stocks={stocks} roundId={roundId} mode={inputMode}/>}
       </section>}
-      {phase !== 'order' && step('history', phase === 'after' ? '残数・販売履歴' : '③ 残数・販売履歴を確認する')}
+      {phase !== 'order' && step('history', phase === 'after' ? '残数・販売履歴' : '03 残数・販売履歴を確認する')}
     </div>
     {mode === 'history' && <section className="work-section history-section">
       <h2>残数・販売履歴</h2>

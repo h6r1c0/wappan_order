@@ -115,6 +115,9 @@ export function Orders() {
 function Round({ round: r, initialTab = null, back }) {
   const { state, save, notify } = useApp();
   const [tab, setTab] = useState(initialTab),
+    [returnStage, setReturnStage] = useState(null),
+    [adjustProduct, setAdjustProduct] = useState(null),
+    [adjustQty, setAdjustQty] = useState(0),
     [lastPurpose, setLastPurpose] = useState("個人注文"),
     [lastSavedBuyer, setLastSavedBuyer] = useState(null),
     [buyerId, setBuyerId] = useState(null),
@@ -155,6 +158,8 @@ function Round({ round: r, initialTab = null, back }) {
     if (draft && JSON.stringify(draft) !== JSON.stringify(orderDraft(state, r, currentBuyer)) &&
       !confirm("未保存の個人注文を閉じますか？")) return;
     if (draft && next !== '個人注文') { setDraft(null); setBuyerId(null); }
+    if (activeStage === '発注' && next === '販売用') setReturnStage('発注');
+    else if (next === '発注') setReturnStage(null);
     setTab(next);
     if (next) requestAnimationFrame(() => document.querySelector('.stage.active > .stage-trigger')?.scrollIntoView({block:'start',behavior:'smooth'}));
     if (PURPOSES.includes(next)) setLastPurpose(next);
@@ -189,7 +194,7 @@ function Round({ round: r, initialTab = null, back }) {
             <button type="button" className="stage-trigger" aria-expanded={activeStage === stage}
               aria-controls={`stage-body-${index + 1}`}
               onClick={() => moveTo(activeStage === stage ? null : stage === "注文" ? lastPurpose : stage)}>
-              <span className="stage-number">{["①", "②", "③", "④"][index]}</span>
+              <span className="stage-number">{String(index + 1).padStart(2, '0')}</span>
               <span>{stage}</span>
               <span className="stage-chevron" aria-hidden="true">{activeStage === stage ? "⌄" : "›"}</span>
             </button>
@@ -218,7 +223,9 @@ function Round({ round: r, initialTab = null, back }) {
                   </button>
                 ))}
               </div></>}
-      {tab==='販売用'&&<Sales roundId={r.id} phase="order" onManageProducts={() => setProducts(true)}/>}
+      {tab==='販売用'&&<>{returnStage === '発注' && <button type="button" className="text-action return-context" onClick={() => moveTo('発注')}>‹ 発注一覧へ戻る</button>}
+        <Sales roundId={r.id} phase="order" onManageProducts={() => setProducts(true)}/>
+        {returnStage === '発注' && <button type="button" className="text-action return-context" onClick={() => moveTo('発注')}>‹ 発注一覧へ戻る</button>}</>}
       {tab==='おやつ用'&&<Events roundId={r.id} phase="order" onManageProducts={() => setProducts(true)}/>}
       {tab === "個人注文" && (
         <>
@@ -316,21 +323,20 @@ function Round({ round: r, initialTab = null, back }) {
           <div className="collection-total"><span>{rows.some(x=>x.unpriced.length)?'確定済み金額（価格未確認あり）':'今回の請求合計'}</span>
             <strong>{yen(rows.reduce((a, b) => a + b.total, 0))}</strong></div>
           <RoundCollections round={r} rows={rows} />
-          <Button
-            secondary
+          <button type="button" className="text-action"
             onClick={async () => {
               try {
                 await copyText(
                   (r.reconciliationPending || rows.some(x=>x.unpriced.length) ? "照合用・未確定（未確認価格・販売用商品の個人割当を含まない）\n" : "") + rows.map((x) => `${x.name}　${x.unpriced.length?'請求総額 未確定':yen(x.total)}`).join("\n"),
                 );
-                notify("集金額をコピーしました");
+                notify("購入者別の請求額をコピーしました");
               } catch (e) {
                 notify(e.message);
               }
             }}
           >
-            集金額をコピー
-          </Button>
+            購入者別の請求額をコピー ›
+          </button>
         </>
       )}
       {tab === "発注" && (
@@ -338,10 +344,14 @@ function Round({ round: r, initialTab = null, back }) {
           <h2>発注一覧</h2>
           {deliveryTotals(state,r).map((p) => (
             <div className="delivery-total-row" key={p.id}>
-              <span>{p.name}</span>
-              <span className="delivery-total-quantity"><strong>{p.qty}個</strong><small>{[["個人",p.personal],["販売",p.sales],["おやつ",p.snack]].filter(([,n])=>n>0).map(([name,n])=>`${name}${n}`).join("｜")}</small></span>
-              {r.status==='入力中' && <div className="fax-adjust"><small>販売用</small><Qty label={`${p.name} 販売用の最終調整`} value={p.sales} min={salesCutQuantities(state,r.id)[p.id]||0}
-                onChange={n=>save(s=>setSalesOrderQuantities(s,r.id,{...salesOrderQuantities(s,r.id),[p.id]:n}),'発注前の販売用数量を調整')}/></div>}
+              <span className="delivery-name">{p.name}</span>
+              <span className="delivery-parts">{[["個人",p.personal],["販売",p.sales],["おやつ",p.snack]].filter(([,n])=>n>0).map(([name,n])=>`${name}${n}`).join("｜")}</span>
+              <strong className="delivery-amount">{p.qty}個</strong>
+              {r.status==='入力中' && <div className="fax-adjust">{adjustProduct===p.id ? <>
+                <Qty label={`${p.name} 販売用の最終調整`} value={adjustQty} min={salesCutQuantities(state,r.id)[p.id]||0} onChange={setAdjustQty}/>
+                <Button onClick={async()=>{if(await save(s=>setSalesOrderQuantities(s,r.id,{...salesOrderQuantities(s,r.id),[p.id]:adjustQty}),'発注前の販売用数量を調整'))setAdjustProduct(null);}}>保存</Button>
+                <button type="button" className="text-action" onClick={()=>setAdjustProduct(null)}>取消</button>
+              </> : <button type="button" className="text-action" onClick={()=>{setAdjustProduct(p.id);setAdjustQty(p.sales);}}>販売{p.sales}を調整 ›</button>}</div>}
             </div>
           ))}
           {!productTotals(r).length && (
@@ -367,7 +377,7 @@ function Round({ round: r, initialTab = null, back }) {
           </button>
           {r.planned && r.products.some((p) => (productTotals(r, r.planned).find((x) => x.id === p.id)?.qty||0)!==(productTotals(r).find((x) => x.id === p.id)?.qty||0)) && (
             <details>
-              <summary>発注確定後に変更あり</summary>
+              <summary>発注確定時との数量差</summary>
               {productTotals(r, r.planned).map((p) => (
                 <p key={p.id}>
                   {p.name}：{p.qty}
@@ -664,9 +674,6 @@ function RoundProducts({ round: r, onClose }) {
 
 function SetPreparation({roundId}) {
   const {state}=useApp();
-  const [open,setOpen]=useState(state.bundles.some(b=>(b.roundId||state.markets.find(m=>m.id===b.marketId)?.roundId)===roundId));
-  return <section className="set-preparation"><div className="line"><h3>セット販売</h3><div className="segmented" role="group" aria-label="セット販売">
-    <button type="button" className={!open?'selected':''} onClick={()=>setOpen(false)}>なし</button>
-    <button type="button" className={open?'selected':''} onClick={()=>setOpen(true)}>あり</button>
-  </div></div>{open&&<Markets roundId={roundId} section="sets"/>}</section>;
+  const hasSets=state.bundles.some(b=>(b.roundId||state.markets.find(m=>m.id===b.marketId)?.roundId)===roundId);
+  return <details className="set-preparation"><summary>セット販売 {hasSets?'（設定あり）':''} ›</summary><Markets roundId={roundId} section="sets"/></details>;
 }

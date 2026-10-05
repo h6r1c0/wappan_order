@@ -6,6 +6,7 @@ import {useApp, Button, Field, Qty, copyText} from './ui';
 export function Shortage({round:r}) {
   const {state,save,notify}=useApp();
   const [productId,setProductId]=useState(''), [received,setReceived]=useState(null);
+  const [choice,setChoice]=useState(r.shortageConfirmation || '');
   const [method,setMethod]=useState('manual'), [allocations,setAllocations]=useState({}), [review,setReview]=useState(false);
   const rows=productId ? shortageRecipients(state,r,productId) : [];
   const ordered=rows.reduce((n,p)=>n+p.qty,0), allocated=rows.reduce((n,p)=>n+(allocations[p.key]||0),0);
@@ -16,12 +17,14 @@ export function Shortage({round:r}) {
     <h3>欠品確認</h3>
     <div className="segmented" role="group" aria-label="欠品確認">
       {[['none','なし'],['yes','あり']].map(([value,label])=><button type="button" key={value}
-        aria-pressed={r.shortageConfirmation===value} className={r.shortageConfirmation===value?'selected':''}
+        aria-pressed={choice===value} className={choice===value?'selected':''}
         disabled={value==='none' && latest.length>0}
-        onClick={()=>save(s=>{const round=s.rounds.find(x=>x.id===r.id);round.shortageConfirmation=value;
-          round.shortageReviewComplete=value==='none';updateDeliveryStatus(round);},'欠品確認')}>{label}</button>)}
+        onClick={()=>setChoice(value)}>{label}</button>)}
     </div>
-    {!r.shortageConfirmation && <small className="required-check">なし／ありを選んでください</small>}
+    {choice!==r.shortageConfirmation && <div className="shortage-save"><Button onClick={async()=>{
+      if(await save(s=>{const round=s.rounds.find(x=>x.id===r.id);round.shortageConfirmation=choice;
+        round.shortageReviewComplete=choice==='none';updateDeliveryStatus(round);},'欠品確認')) setChoice(choice);
+    }}>欠品確認を保存</Button><button type="button" className="text-action" onClick={()=>setChoice(r.shortageConfirmation||'')}>取消</button></div>}
     {r.shortageConfirmation==='yes' && <div className="shortage-editor">
       <Field label="欠品商品"><select value={productId} onChange={e=>reset(e.target.value)}>
         <option value="">商品を選ぶ</option>{deliveryTotals(state,r).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}

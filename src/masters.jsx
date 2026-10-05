@@ -185,7 +185,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
   };
   return (
     <Modal title="今月のExcel注文表を取り込む" onClose={onClose}>
-      <p>① Excelを選ぶ → ② 読取結果を確認 → ③ 登録</p>
+      <p>01 Excelを選ぶ → 02 読取結果を確認 → 03 登録</p>
       <Field label="Excelファイルを選ぶ">
         <input
           aria-label="Excelファイルを選ぶ"
@@ -509,8 +509,9 @@ export function Masters() {
       {tab === "商品" ? (
         <>
           <Field
-            label="商品を探す"
+            label="商品名を検索"
             type="search"
+            placeholder="商品名を検索"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -541,9 +542,9 @@ export function Masters() {
         </>
       ) : (
         <>
-          <Field label="購入者を探す" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>
+          <Field label="購入者名を検索" type="search" placeholder="購入者名を検索" value={query} onChange={e=>setQuery(e.target.value)}/>
           <button type="button" className="text-action" onClick={()=>setEditor({type:'buyer'})}>＋ 購入者を追加</button>
-          {state.buyers.slice().sort(buyerCompare).filter(b=>normalize(b.name).includes(normalize(query))).map((b) => (
+          {state.buyers.slice().sort(buyerCompare).filter(b=>normalize(b.name).includes(normalize(query))||normalize(b.kana||'').includes(normalize(query))).map((b) => (
             <button
               className="clickable line master-row"
               key={b.id}
@@ -573,7 +574,7 @@ export function Masters() {
 }
 function FixedProductPicker({products,onPick}) {
   const [query,setQuery]=useState('');
-  return <div className="fixed-picker"><Field label="商品名で探す" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>
+  return <div className="fixed-picker"><Field label="商品名を検索" type="search" placeholder="商品名を検索" value={query} onChange={e=>setQuery(e.target.value)}/>
     {query.trim() && products.filter(p=>normalize(p.name).includes(normalize(query))).map(p=><button type="button" className="master-row" key={p.id} onClick={()=>{onPick(p);setQuery('');}}>{p.name} ＋</button>)}
   </div>;
 }
@@ -605,7 +606,7 @@ function BuyerEditor({ buyer, onClose }) {
           required
           onChange={(e) => set({ ...b, name: e.target.value })}
         />
-        <Field label="よみがな（五十音索引）" value={b.kana||''} onChange={e=>set({...b,kana:e.target.value})}/>
+        <Field label="よみがな" required={!buyer} value={b.kana||''} onChange={e=>set({...b,kana:e.target.value})}/>
         <Check
           label="購入者の選択一覧に表示する"
           checked={b.active}

@@ -29,11 +29,15 @@ function BuyerCollection({round,buyer,row}) {
     {prior.length>0&&<p className="collection-alert">⚠ 過去未収 {yen(prior.reduce((a,x)=>a+x.balance,0))}<small>{prior.map(x=>`${x.date.slice(5).replace('-','/')} ${x.note} ${yen(x.balance)}`).join(' ／ ')}</small></p>}
     {unresolved.length>0&&<p className="collection-alert">⚠ 販売価格未確認：{unresolved.map(x=>`${x.name} ×${x.qty}`).join('、')}<small>確定済み金額 {yen(position.current)}。請求総額を確定する前に価格を登録してください。</small></p>}
     {open&&<div className="collection-detail">
-      <div className="collection-totals"><span>今回請求 {yen(position.current)}</span><span>過去繰越 {yen(position.carry)}</span>
-        {position.confirmedHistorical>0&&<span>支払済み確認 −{yen(position.confirmedHistorical)}</span>}
-        <strong>集金予定 {yen(position.current+position.carry-position.confirmedHistorical)}</strong><span>この回の受取記録 {yen(position.received)}</span></div>
+      <div className="collection-totals" aria-label="今回請求と前回繰越の合計">
+        <div><small>今回請求</small><strong>{yen(position.current)}</strong></div><b aria-hidden="true">＋</b>
+        <div><small>前回繰越</small><strong>{yen(position.carry-position.confirmedHistorical)}</strong></div><b aria-hidden="true">＝</b>
+        <div><small>集金予定</small><strong>{yen(position.current+position.carry-position.confirmedHistorical)}</strong></div>
+      </div>
+      {position.confirmedHistorical>0&&<small className="collection-note">過去の支払済み確認 {yen(position.confirmedHistorical)}を繰越から除外</small>}
+      {position.received>0&&<small className="collection-note">この回の受取記録 {yen(position.received)}</small>}
       {row&&<div className="collection-breakdown">
-        <h3>内訳</h3><div className="collection-categories">{Object.entries(row.categories||{}).filter(([,v])=>v>0).map(([k,v])=><span key={k}>{k} {yen(v)}</span>)}</div>
+        <h3>内訳</h3><div className="collection-categories">{Object.entries(row.categories||{}).filter(([,v])=>v>0).map(([k,v])=><div key={k}><span>{k}</span><strong>{yen(v)}</strong></div>)}</div>
         <div className="collection-lines"><div className="collection-line heading"><span>商品名</span><span>数量</span><span>金額</span></div>
         {row.lines.map((line,i)=>{const m=line.description.match(/^(?:\d{4}-\d{2}-\d{2} )?(.*?) ×(\d+)(.*)$/);
           return <div className="collection-line" key={i}><span>{m?.[1]||line.description}{m?.[3]||''}</span><span>{m?.[2]||'—'}</span><span>{line.unpriced?'未確認':yen(line.amount)}</span></div>;})}</div>

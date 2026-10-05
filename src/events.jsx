@@ -48,7 +48,7 @@ export function Events({roundId=null,onManageProducts=null,phase='all'}) {
   return (
     <>
       {phase !== 'after' && <div className="section-head">
-        <h1>おやつ用</h1>
+        <h2>おやつ用</h2>
         {onManageProducts && <Button secondary onClick={onManageProducts}>商品を追加・変更</Button>}
       </div>}
       {phase !== 'after' && round && (
@@ -59,14 +59,14 @@ export function Events({roundId=null,onManageProducts=null,phase='all'}) {
             JSON.stringify(savedOrderQuantities)
           }
         >
-          <h2>おやつ用の注文入力</h2>
           <ProductQuantityEditor
             products={round.products}
             quantities={orderQuantities}
             onChange={setOrderQuantities}
+            priceHeading="商品　仕入単価　数量"
             priceLabel={(product) => {
               const cost = product.cost ?? (round.status === '入力中' ? state.products.find((item) => item.id === product.id)?.cost : null);
-              return cost == null ? "仕入単価 未確認" : `仕入単価 ${yen(cost)}`;
+              return cost == null ? "未確認" : yen(cost);
             }}
             emptyMessage="今月の商品を準備してください。"
           />
@@ -75,7 +75,7 @@ export function Events({roundId=null,onManageProducts=null,phase='all'}) {
             <Button onClick={() => save(
               (s) => setSnackOrderQuantities(s, roundId, orderQuantities),
               "おやつ用の注文数量を保存",
-            )}>おやつ用を保存</Button>
+            )}>保存</Button>
           </div>
         </section>
       )}

@@ -2211,3 +2211,76 @@ header small {
   .staff-notice { font-size:.82rem; color:#385c47; }
   .usage-guide ol { padding-left:25px; }
 }
+
+/* 業務上の役割を形と密度で区別する。色は状態を示す小さな面に使う。 */
+@media screen {
+  :root { --ink:#29312d; --muted:#63716a; --line:#dce4df; color:var(--ink); background:#fff; }
+  body, header, main { background:#fff; }
+  body { font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif; color:var(--ink); }
+  h1,h2,h3 { color:var(--ink); }
+  .workspace-header { border-bottom:0; box-shadow:none; }
+  .workspace-logo { width:104px; height:32px; object-fit:contain; object-position:left center; margin-right:auto; }
+  .login form > .button { display:block; margin:12px auto 0; width:auto; min-width:132px; padding-inline:20px; background:#245c47!important; border-color:#245c47!important; }
+  .home-start .button { width:auto; min-height:44px; padding:8px 15px; background:#245c47!important; border-color:#245c47!important; }
+  .round-list-item.status-入力中 .tag { background:#e7edf1; color:#324f65; }
+  .round-list-item.status-納品済み .tag { background:#fff0d0; color:#805318; }
+  .round-list-item.status-精算済み .tag { background:#dff2e8; color:#246246; }
+  .stage-3 { --stage-color:#a45625; --stage-surface:#fff1e4; }
+  .stage-4 { --stage-color:#a53e55; --stage-surface:#fff0f0; }
+  .stage-number { font-family:Georgia,"Times New Roman",serif; font-size:1.04rem; font-weight:700; letter-spacing:.02em; width:29px; }
+  .stage-trigger { font-weight:680; }
+  .stage.active > .stage-trigger { font-weight:760; }
+  .field input,.field select,.field textarea,.qty input { border-radius:3px; background:#fff; min-height:40px; }
+  .field.search-field > span { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  .field.search-field input { min-height:38px; border-radius:3px; }
+  .buyer-search-add { align-items:center; }
+  .buyer-search-add .text-action { align-self:center; }
+  .category-tabs .button,.category-tabs .button.secondary { min-height:36px; }
+  .qty > button { width:30px; min-width:30px; height:42px; min-height:42px; }
+  .product-entry .product-row { min-height:45px; }
+  .product-entry .cut-option { display:flex; justify-content:flex-end; }
+  .pack-spec { color:var(--muted); font-weight:400; margin-left:5px; white-space:nowrap; }
+  .list-unit-heading { display:block; color:var(--muted); font-size:.75rem; margin:4px 0; }
+  .order-editor .sticky-action { background:#fff; border:0; border-top:1px solid var(--line); padding:7px 0; box-shadow:none; }
+  .order-editor .sticky-action > span { font-size:.8rem; color:var(--muted); }
+  .line-candidate { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:5px 0; border-bottom:1px solid var(--line); }
+  .line-candidate .field { flex:1 1 130px; min-width:0; margin:0; }
+  .line-candidate .qty { margin-left:auto; }
+  .delivery-total-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,auto) auto; align-items:center; gap:3px 7px; }
+  .delivery-total-row .delivery-name { min-width:0; font-size:.86rem; font-weight:500; line-height:1.3; }
+  .delivery-parts { color:var(--muted); font-size:.7rem; white-space:nowrap; }
+  .delivery-amount { font-size:.88rem; white-space:nowrap; font-variant-numeric:tabular-nums; text-align:right; }
+  .fax-adjust { grid-column:1/-1; }
+  .fax-adjust .button { min-height:38px; padding:5px 10px; }
+  .return-context { display:block; margin:3px 0 8px; }
+  .shortage-save { display:flex; align-items:center; gap:8px; margin:5px 0; }
+  .shortage-save .button { min-height:38px; padding:5px 12px; }
+  .set-preparation { border-top:1px solid var(--line); }
+  .set-preparation > summary { cursor:pointer; font-size:.83rem; color:var(--muted); min-height:40px; display:flex; align-items:center; }
+  .after-work { border-bottom:1px solid var(--line); }
+  .after-work > summary { font-weight:600; }
+  .after-work .sales-steps { margin-left:12px; border-left:2px solid #dce8e2; padding-left:10px; }
+  .after-work .sales-step { color:#456054; font-size:.85rem; }
+  .after-work .sales-step.selected { border-left:3px solid #36785b; padding-left:7px; background:#f2f8f4; }
+  .collection-state.is-due { background:#ffebeb; color:#a33344; }
+  .collection-actions .collection-pay { background:#226647!important; border-color:#226647!important; }
+  .collection-totals { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1.14fr); gap:2px; align-items:end; margin:6px 0; }
+  .collection-totals > div { min-width:0; text-align:center; }
+  .collection-totals small { display:block; color:var(--muted); font-size:.69rem; white-space:nowrap; }
+  .collection-totals strong { display:block; font-size:.95rem; width:auto; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .collection-totals > b { font-size:.85rem; font-weight:400; padding-bottom:1px; }
+  .collection-note { display:block; color:var(--muted); font-size:.75rem; }
+  .collection-categories { display:block; }
+  .collection-categories > div { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid var(--line); }
+  .collection-categories strong { color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
+  .staff-invite .field { margin:0; }
+  .staff-invite .button { min-height:40px; }
+}
+@media (max-width:375px) {
+  .delivery-total-row { grid-template-columns:minmax(0,1fr) auto; }
+  .delivery-parts { grid-column:1; grid-row:2; }
+  .delivery-amount { grid-column:2; grid-row:1; }
+  .collection-totals { gap:1px; }
+  .collection-totals small { font-size:.62rem; }
+  .collection-totals strong { font-size:.79rem; }
+}
