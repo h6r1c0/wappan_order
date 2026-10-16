@@ -621,7 +621,8 @@ test('納品前の販売記録表と個人仕分け表をA4で印刷し、注文
   await expect(page.locator('.sales-print-name').last()).toContainText('2種×2個');
   const x=await page.locator('.sales-print-blank').evaluateAll(nodes=>nodes.map(n=>Math.round(n.getBoundingClientRect().x)));
   expect(new Set(x)).toHaveProperty('size',4);
-  expect(x[0]).toBe(x[4]);expect(x[1]).toBe(x[5]);expect(x[2]).toBe(x[6]);
+  expect(x[0]).toBe(x[1]); // first column is fixed across products
+  expect(x[1]).toBe(x[5]);expect(x[2]).toBe(x[6]);expect(x[3]).toBe(x[7]);
   const salesLayout=await page.locator('.sales-print-page').evaluate(el=>({
     heading:el.querySelector('.print-heading').getBoundingClientRect().height,
     underline:el.querySelector('.sales-print-blank').getBoundingClientRect().width,
