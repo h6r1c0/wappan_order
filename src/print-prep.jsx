@@ -3,9 +3,18 @@ import {createPortal,flushSync} from 'react-dom';
 import {salesPrintRows,sortingPrintRows,sortingPages} from './print-prep.js';
 
 const printedDate = date => date.replaceAll('-','/');
+// Mobile Safari may treat repeated window.print() calls from the same document
+// as repeated JavaScript dialogs. Keep subsequent sheets printable through its
+// native Share > Print command without another scripted dialog.
+let safariPrintIssued=false;
+const isMobileSafari=()=>/iP(?:hone|ad|od)/.test(navigator.userAgent)
+  && /Safari/.test(navigator.userAgent)
+  && !/(?:CriOS|FxiOS|EdgiOS)/.test(navigator.userAgent)
+  && !navigator.standalone;
 
 export function PrintPrep({state,round}) {
   const [job,setJob]=useState(null);
+  const [sharePrint,setSharePrint]=useState(false);
   const printing=useRef(false);
   const sales=job?.kind==='sales' ? salesPrintRows(state,round) : [];
   const pages=job?.kind==='sorting' ? sortingPages(sortingPrintRows(state,round)) : [];
@@ -14,7 +23,10 @@ export function PrintPrep({state,round}) {
     printing.current=true;
     // Keep the printable DOM mounted: Safari can return before its PDF preview
     // has finished rendering. A later click replaces this one small sheet.
-    flushSync(()=>setJob({kind,roundId:round.id}));
+    const useShare=isMobileSafari() && safariPrintIssued;
+    flushSync(()=>{setJob({kind,roundId:round.id});setSharePrint(useShare);});
+    if(useShare){printing.current=false;return;}
+    if(isMobileSafari())safariPrintIssued=true;
     try{window.print();}finally{window.setTimeout(()=>{printing.current=false;},1500);}
   };
   return <>
@@ -22,6 +34,7 @@ export function PrintPrep({state,round}) {
       <h3>納品前の印刷</h3>
       <div><button type="button" className="text-action" onClick={()=>start('sales')}>販売記録表を印刷 ›</button>
         <button type="button" className="text-action" onClick={()=>start('sorting')}>個人仕分け表を印刷 ›</button></div>
+      {sharePrint && <small role="status" className="print-share-help">帳票を切り替えました。Safariの共有から「プリント」を選んでください。</small>}
     </section>
     {job && createPortal(<div id="wappan-print-root" data-print-kind={job.kind}>
       {job.kind==='sales' ? <section className="print-page sales-print-page">

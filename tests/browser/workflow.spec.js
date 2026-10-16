@@ -620,8 +620,17 @@ test('納品前の販売記録表と個人仕分け表をA4で印刷し、注文
   await expect(page.locator('.sales-print-blank')).toHaveCount(8);
   await expect(page.locator('.sales-print-name').last()).toContainText('2種×2個');
   const x=await page.locator('.sales-print-blank').evaluateAll(nodes=>nodes.map(n=>Math.round(n.getBoundingClientRect().x)));
-  expect(new Set(x)).toHaveProperty('size',3);
-  expect(x[1]).toBe(x[4]);expect(x[2]).toBe(x[5]);expect(x[3]).toBe(x[6]);
+  expect(new Set(x)).toHaveProperty('size',4);
+  expect(x[0]).toBe(x[4]);expect(x[1]).toBe(x[5]);expect(x[2]).toBe(x[6]);
+  const salesLayout=await page.locator('.sales-print-page').evaluate(el=>({
+    heading:el.querySelector('.print-heading').getBoundingClientRect().height,
+    underline:el.querySelector('.sales-print-blank').getBoundingClientRect().width,
+    border:getComputedStyle(el.querySelector('.sales-print-row')).borderBottomStyle,
+  }));
+  expect(salesLayout.heading).toBeLessThan(50);
+  expect(salesLayout.underline).toBeGreaterThan(70);
+  expect(salesLayout.underline).toBeLessThan(85); // 20mm at 96 CSS px/in
+  expect(salesLayout.border).toBe('none');
   await page.pdf({path:'test-results/sales-print-a4.pdf',preferCSSPageSize:true,printBackground:true});
   await page.emulateMedia({media:'screen'});
   await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
@@ -633,6 +642,8 @@ test('納品前の販売記録表と個人仕分け表をA4で印刷し、注文
   await expect(page.locator('.sorting-print-person').first()).toHaveCSS('grid-row-end','span 4');
   await expect(page.locator('.sorting-print-page')).toHaveCount(1);
   await expect(page.locator('.sorting-print-line').first()).toContainText('白黒うさぎチョコパン');
+  const sortingBottom=await page.locator('.sorting-print-page').evaluate(el=>el.getBoundingClientRect().height);
+  expect(sortingBottom).toBeLessThan(960); // 247mm, leaving Safari pagination headroom
   await page.pdf({path:'test-results/sorting-print-a4.pdf',preferCSSPageSize:true,printBackground:true});
   expect(shared.revision).toBe(0);expect(shared.state).toEqual(unchanged);
 });

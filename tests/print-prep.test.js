@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,newRound,addSale} from '../src/domain.js';
 import {setSalesOrderQuantities} from '../src/commerce.js';
-import {salesPrintRows,sortingPrintRows,sortingPages,sortingSpan,sortingPrintName} from '../src/print-prep.js';
+import {salesPrintRows,salesPrintName,sortingPrintRows,sortingPages,sortingSpan,sortingPrintName} from '../src/print-prep.js';
 
 function fixture(){
   const state=initialState();
@@ -39,6 +39,13 @@ test('古い注文回は完売後も帳票へ載せ、別注文回の在庫を�
   assert.deepEqual(salesPrintRows(state,next).map(x=>x.name),['黒糖ブレッド']);
 });
 
+test('販売記録表だけ一時的な資料注記を除き、規格と注文スナップショットを保つ',()=>{
+  const historic='くるみパン【1個・9月11日資料】';
+  assert.equal(salesPrintName(historic),'くるみパン 1個入り');
+  assert.equal(salesPrintName('くるみパン 2個入り'),'くるみパン 2個入り');
+  assert.equal(historic,'くるみパン【1個・9月11日資料】');
+});
+
 test('個人仕分け表は注文のある購入者だけを画面と同じ読み順・FAX順で扱う',()=>{
   const {state,round}=fixture();
   state.buyers=[{id:'y',name:'山﨑',kana:'やまざき'}, {id:'a',name:'淺野',kana:'あさの'}, {id:'none',name:'堀',kana:'ほり'}];
@@ -63,6 +70,7 @@ test('仕分けの略称は規格や識別を守り、衝突時は正式名称�
   assert.equal(sortingPrintName(products[2].name,products),'白黒うさぎチョコパン');
   assert.equal(sortingPrintName(products[3].name,products),'くるみパン 1個入り');
   assert.equal(sortingPrintName(products[4].name,products),'くるみパン 2個入り');
+  assert.equal(sortingPrintName('シナモンレーズンクッキー',products),'シナモンRクッキー');
   products.push({name:'甘夏サンドクッキー'});
   assert.equal(sortingPrintName(products[0].name,products),products[0].name);
 });

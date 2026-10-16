@@ -11,7 +11,13 @@ export function salesPrintRows(state, round) {
     .map((stock, index) => ({stock, index, qty: receivedQuantity(stock)}))
     .filter(row => row.qty > 0)
     .sort((a,b) => (order.get(a.stock.productId) ?? Infinity) - (order.get(b.stock.productId) ?? Infinity) || a.index-b.index)
-    .map(({stock,qty}) => ({id:stock.id, name:stock.name, price:stock.price, qty}));
+    .map(({stock,qty}) => ({id:stock.id, name:salesPrintName(stock.name), price:stock.price, qty}));
+}
+
+// The stock snapshot is authoritative; remove only temporary source-note text
+// from the paper label. Keep pack sizes that distinguish products.
+export function salesPrintName(name) {
+  return name.replace(/【(?:(\d+個)・)?\d+月\d+日資料】$/,(_,pack)=>pack?` ${pack}入り`:'');
 }
 
 export function sortingPrintRows(state, round) {
@@ -29,7 +35,7 @@ export function sortingPrintRows(state, round) {
 // Only known, unambiguous names receive a shorter label on the cut-out sheet.
 // The full snapshot remains in the order and in the sales record sheet.
 const shortLabels = new Map([
-  ['シナモンレーズンクッキー','シナモンレーズン'],
+  ['シナモンレーズンクッキー','シナモンRクッキー'],
   ['Ｆ.Ｔ.ジンジャークッキー','ジンジャークッキー'],
   ['Ｆ.Ｔ.鳩ココアクッキー','鳩ココアクッキー'],
   ['F.T.エスプレッソクッキー','エスプレッソクッキー'],
@@ -59,9 +65,11 @@ export function sortingPrintName(name, products) {
 }
 
 // Physical height estimate: 16mm for name/padding, 5.5mm per product line.
+// Leave Safari substantial page-bottom headroom rather than filling the A4 box.
+const sortingGridHeight=235;
 export function sortingSpan(lines, rowCount=4) {
   const units=lines.reduce((n,line)=>n+Math.max(1,Math.ceil([...(line.printName||line.name)].length/11)),0);
-  return Math.min(4,Math.max(1,Math.ceil((16+units*5.5)/(250/rowCount))));
+  return Math.min(4,Math.max(1,Math.ceil((16+units*5.5)/(sortingGridHeight/rowCount))));
 }
 
 function arrange(rows,rowCount,pageCount=0) {

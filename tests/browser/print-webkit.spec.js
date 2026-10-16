@@ -29,7 +29,7 @@ test('WebKit相当: 販売済みの帳票、連打防止、再印刷と仕分け
   await page.getByRole('button',{name:'ログイン',exact:true}).click();
   await page.locator('.round-list-item').click();
   await page.locator('.stage-3 > .stage-trigger').click();
-  await page.evaluate(()=>{window.__prints=0;window.print=()=>{window.__prints++};});
+  await page.evaluate(()=>{window.__prints=0;window.__alerts=0;window.print=()=>{window.__prints++};window.alert=window.confirm=()=>{window.__alerts++};});
   for(const width of [320,375,430]){
     await page.setViewportSize({width,height:812});
     await expect(page.getByRole('button',{name:'販売記録表を印刷'})).toBeVisible();
@@ -52,4 +52,23 @@ test('WebKit相当: 販売済みの帳票、連打防止、再印刷と仕分け
   await expect(page.locator('.sorting-print-page')).toHaveCount(1);
   await expect(page.locator('.sorting-print-person')).toHaveCount(1);
   await page.screenshot({path:'test-results/print-webkit-sorting.png'});
+  expect(await page.evaluate(()=>window.__alerts)).toBe(0);
+  const extent=await page.locator('.sorting-print-page').evaluate(el=>el.getBoundingClientRect().height);
+  expect(extent).toBeLessThan(960);
+  await page.emulateMedia({media:'screen'});
+  await page.waitForTimeout(1550);
+  await page.getByRole('button',{name:'販売記録表を印刷'}).click();
+  expect(await page.evaluate(()=>window.__prints)).toBe(3);
+  expect(await page.evaluate(()=>window.__alerts)).toBe(0);
+  await page.evaluate(()=>Object.defineProperty(navigator,'userAgent',{configurable:true,
+    get:()=> 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1'}));
+  await page.waitForTimeout(1550);
+  await page.getByRole('button',{name:'個人仕分け表を印刷'}).click();
+  expect(await page.evaluate(()=>window.__prints)).toBe(4);
+  await page.waitForTimeout(1550);
+  await page.getByRole('button',{name:'販売記録表を印刷'}).click();
+  expect(await page.evaluate(()=>window.__prints)).toBe(4);
+  await expect(page.getByRole('status')).toContainText('Safariの共有から「プリント」');
+  await page.emulateMedia({media:'print'});
+  await expect(page.locator('.sales-print-row')).toHaveCount(1);
 });
