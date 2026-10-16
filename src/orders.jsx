@@ -9,6 +9,7 @@ import {Events} from './events';
 import {Markets} from './markets';
 import {ExcelImport} from './masters';
 import {TaskIcon} from './task-icon';
+import {PrintPrep} from './print-prep.jsx';
 import {
   newRound,
   productAvailable,
@@ -403,6 +404,7 @@ function Round({ round: r, initialTab = null, back }) {
       {tab === "納品・精算" && (
         <>
           <h2>納品・精算</h2>
+          <PrintPrep state={state} round={r}/>
           <Shortage round={r}/>
           {r.shortageConfirmation && <>
           <SetPreparation roundId={r.id}/>

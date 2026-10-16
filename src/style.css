@@ -2284,3 +2284,38 @@ header small {
   .collection-totals small { font-size:.62rem; }
   .collection-totals strong { font-size:.79rem; }
 }
+#wappan-print-root { display: none; }
+.print-prep-actions { border-bottom: 1px solid #e1e5df; padding: 4px 0 10px; margin-bottom: 12px; }
+.print-prep-actions h3 { font-size: .9rem; margin: 0 0 4px; }
+.print-prep-actions > div { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.print-prep-actions .text-action { min-height: 36px; padding: 4px 0; }
+
+@page { size: A4 portrait; margin: 10mm; }
+@media print {
+  html, body { margin: 0 !important; padding: 0 !important; background: white !important; color: #111 !important; }
+  body > #root { display: none !important; }
+  #wappan-print-root { display: block !important; width: 190mm; margin: 0; padding: 0; font-family: "Noto Sans JP", sans-serif; color: #111; }
+  #wappan-print-root, #wappan-print-root * { box-sizing: border-box; }
+  #wappan-print-root .print-page { width: 190mm; margin: 0; padding: 0; }
+  #wappan-print-root .print-heading { height: 20mm; display: flex; align-items: baseline; justify-content: space-between; border-bottom: .35mm solid #333; gap: 5mm; }
+  #wappan-print-root .print-heading h1 { font-size: 16pt; font-weight: 700; margin: 0; line-height: 16mm; }
+  #wappan-print-root .print-heading span { font-size: 10pt; white-space: nowrap; }
+  #wappan-print-root .sales-print-labels, #wappan-print-root .sales-print-row { display: grid; grid-template-columns: 68mm 18mm 104mm; width: 190mm; }
+  #wappan-print-root .sales-print-labels { font-size: 8.5pt; line-height: 8mm; border-bottom: .25mm solid #777; }
+  #wappan-print-root .sales-print-row { align-items: start; padding: 2mm 0; border-bottom: .2mm solid #aaa; break-inside: avoid; page-break-inside: avoid; }
+  #wappan-print-root .sales-print-name { padding-right: 3mm; font-size: 10pt; line-height: 5mm; overflow-wrap: anywhere; }
+  #wappan-print-root .sales-print-price { font-size: 9pt; white-space: nowrap; line-height: 5mm; }
+  #wappan-print-root .sales-print-names { display: grid; grid-template-columns: repeat(3, 32mm); column-gap: 4mm; row-gap: 1.5mm; }
+  #wappan-print-root .sales-print-blank { display: block; width: 30mm; height: 9mm; border-bottom: .25mm solid #333; }
+  #wappan-print-root .print-empty { font-size: 11pt; margin: 8mm 0; }
+  #wappan-print-root .sorting-print-page { height: 277mm; break-after: page; page-break-after: always; }
+  #wappan-print-root .sorting-print-page:last-child { break-after: auto; page-break-after: auto; }
+  #wappan-print-root .sorting-print-page .print-heading { height: 19mm; }
+  #wappan-print-root .print-page-number { position: absolute; margin-top: -5mm; font-size: 8pt; }
+  #wappan-print-root .sorting-print-grid { display: grid; width: 190mm; height: 254mm; grid-template-columns: repeat(4, 47.5mm); grid-template-rows: repeat(4, 63.5mm); }
+  #wappan-print-root .sorting-print-person { border: .25mm dashed #777; padding: 2.8mm; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
+  #wappan-print-root .sorting-print-person h2 { font-size: 15pt; font-weight: 700; line-height: 8mm; margin: 0 0 2mm; }
+  #wappan-print-root .sorting-print-line { display: grid; grid-template-columns: minmax(0,1fr) 7mm; column-gap: 1mm; align-items: start; font-size: 9.5pt; line-height: 4.5mm; margin-bottom: 1mm; }
+  #wappan-print-root .sorting-print-line span { overflow-wrap: anywhere; }
+  #wappan-print-root .sorting-print-line strong { font-weight: 600; text-align: right; white-space: nowrap; }
+}

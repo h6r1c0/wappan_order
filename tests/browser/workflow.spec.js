@@ -583,3 +583,48 @@ test('発注前の販売数を一覧上で調整し、工程移動で見出し�
   await expect.poll(async()=>page.locator('.stage-3 > .stage-trigger').evaluate(e=>e.getBoundingClientRect().top)).toBeLessThan(650);
   await page.locator('.stage-3 > .stage-trigger').click();await expect(page.locator('.stage-3 .stage-content')).toHaveCount(0);
 });
+
+test('納品前の販売記録表と個人仕分け表をA4で印刷し、注文データを変えない',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  const round=newRound(shared.state,'2026-09-11');shared.state.rounds.push(round);
+  setSalesOrderQuantities(shared.state,round.id,{milk:1,brown:7});
+  const brownStock=shared.state.stocks.find(x=>x.productId==='brown');
+  brownStock.name='白うさぎと黒うさぎのチョコパン　2種×2個';
+  for(let i=0;i<25;i++)round.products.push({id:`extra-${i}`,name:i===0?'白うさぎと黒うさぎのチョコパン　2種×2個':`商品${i}`,category:'パン',price:200,faxOrder:100+i});
+  shared.state.buyers=Array.from({length:16},(_,i)=>({id:`buyer-${i}`,name:`購入者${i+1}`,kana:`あ${String(i).padStart(2,'0')}`,active:true,fixed:[]}));
+  for(let i=0;i<16;i++)round.orders[`buyer-${i}`]={name:`購入者${i+1}`,quantities:i===0?
+    Object.fromEntries(round.products.filter(p=>p.id.startsWith('extra-')).map(p=>[p.id,1])):{milk:1}};
+  const unchanged=structuredClone(shared.state);
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
+  await page.locator('.stage-3 > .stage-trigger').click();
+  await expect(page.getByRole('button',{name:'販売記録表を印刷'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'個人仕分け表を印刷'})).toBeVisible();
+  await expect(page.getByRole('group',{name:'欠品確認'})).toBeVisible();
+  await page.evaluate(()=>{window.__prints=0;window.print=()=>{window.__prints++}});
+  for(const width of [320,375,430,1280]){
+    await page.setViewportSize({width,height:812});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.screenshot({path:`test-results/print-entry-${width}.png`});
+  }
+  await page.getByRole('button',{name:'販売記録表を印刷'}).click();
+  await expect.poll(()=>page.evaluate(()=>window.__prints)).toBe(1);
+  await page.emulateMedia({media:'print'});
+  await expect(page.locator('#wappan-print-root')).toBeVisible();
+  await expect(page.locator('.sales-print-row')).toHaveCount(2);
+  await expect(page.locator('.sales-print-blank')).toHaveCount(8);
+  await expect(page.locator('.sales-print-name').last()).toContainText('2種×2個');
+  const x=await page.locator('.sales-print-blank').evaluateAll(nodes=>nodes.map(n=>Math.round(n.getBoundingClientRect().x)));
+  expect(new Set(x)).toHaveProperty('size',3);
+  expect(x[1]).toBe(x[4]);expect(x[2]).toBe(x[5]);expect(x[3]).toBe(x[6]);
+  await page.pdf({path:'test-results/sales-print-a4.pdf',preferCSSPageSize:true,printBackground:true});
+  await page.emulateMedia({media:'screen'});
+  await page.getByRole('button',{name:'個人仕分け表を印刷'}).click();
+  await expect.poll(()=>page.evaluate(()=>window.__prints)).toBe(2);
+  await page.emulateMedia({media:'print'});
+  await expect(page.locator('.sorting-print-person')).toHaveCount(16);
+  await expect(page.locator('.sorting-print-person').first()).toHaveCSS('grid-row-end','span 4');
+  await expect(page.locator('.sorting-print-page')).toHaveCount(2);
+  await expect(page.locator('.sorting-print-line').first()).toContainText('2種×2個');
+  await page.pdf({path:'test-results/sorting-print-a4.pdf',preferCSSPageSize:true,printBackground:true});
+  expect(shared.revision).toBe(0);expect(shared.state).toEqual(unchanged);
+});

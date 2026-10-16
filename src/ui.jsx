@@ -1,5 +1,7 @@
 import React, { useEffect, useLayoutEffect, useState, createContext, useContext } from "react";
 import { normalize, yen } from "./domain";
+import {kana,buyerReading,buyerCompare} from './buyer-order.js';
+export {buyerReading,buyerCompare} from './buyer-order.js';
 
 const breadCategoryIcon = new URL(
   "../wappan_icon_category_bread_final.png",
@@ -262,9 +264,6 @@ export function Summary({ label, value, note }) {
     </div>
   );
 }
-const kana = text => String(text||'').normalize('NFKC').replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));
-export const buyerReading = buyer => kana(buyer.kana || (/^[ぁ-ゖァ-ヶー]+$/.test(buyer.name) ? buyer.name : ''));
-export const buyerCompare = (a,b) => (buyerReading(a)||'ん'+a.name).localeCompare(buyerReading(b)||'ん'+b.name,'ja');
 const kanaGroups = [['あ','あいうえお'],['か','かきくけこがぎぐげご'],['さ','さしすせそざじずぜぞ'],['た','たちつてとだぢづでど'],['な','なにぬねの'],['は','はひふへほばびぶべぼぱぴぷぺぽ'],['ま','まみむめも'],['や','やゆよ'],['ら','らりるれろ'],['わ','わをん']];
 const buyerGroup = b => kanaGroups.find(([,letters])=>letters.includes(buyerReading(b)[0]||'!'))?.[0] || 'その他';
 export function BuyerPicker({
