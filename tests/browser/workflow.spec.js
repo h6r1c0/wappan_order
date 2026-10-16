@@ -158,6 +158,7 @@ test('ログアウト後、画面に入力された認証情報で再ログイ�
   await login(page);
   await page.getByRole('button',{name:'ログアウト'}).click();
   await expect(page.getByRole('img',{name:'わっぱん'})).toBeVisible();
+  await expect(page.getByLabel('メールアドレス',{exact:true})).toBeVisible();
   // ブラウザの自動入力が React の change を送らない場合を模擬する。
   await page.evaluate(() => {
     document.querySelector('input[name="email"]').value='staff@example.test';
