@@ -14,6 +14,8 @@ function fixture(){
 test('販売記録表は販売用の未販売数量と注文表順、当時の価格だけを読み取る',()=>{
   const {state,round}=fixture();
   assert.deepEqual(salesPrintRows(state,round),[]);
+  setSalesOrderQuantities(state,round.id,{milk:1});
+  assert.deepEqual(salesPrintRows(state,round).map(x=>[x.name,x.qty]),[['ミルクスティックパン',1]]);
   setSalesOrderQuantities(state,round.id,{brown:7,milk:1});
   const before=structuredClone(state);
   assert.deepEqual(salesPrintRows(state,round).map(x=>[x.name,x.price,x.qty]),[
