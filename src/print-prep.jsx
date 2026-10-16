@@ -1,22 +1,22 @@
-import React,{useEffect,useState} from 'react';
-import {createPortal} from 'react-dom';
+import React,{useRef,useState} from 'react';
+import {createPortal,flushSync} from 'react-dom';
 import {salesPrintRows,sortingPrintRows,sortingPages} from './print-prep.js';
 
 const printedDate = date => date.replaceAll('-','/');
 
 export function PrintPrep({state,round}) {
   const [job,setJob]=useState(null);
-  useEffect(() => {
-    if (!job) return;
-    const clear=()=>setJob(null);
-    window.addEventListener('afterprint',clear);
-    // Give React and the print media layout a frame before opening the native dialog.
-    const frame=requestAnimationFrame(()=>requestAnimationFrame(()=>window.print()));
-    return ()=>{cancelAnimationFrame(frame);window.removeEventListener('afterprint',clear);};
-  },[job]);
+  const printing=useRef(false);
   const sales=job?.kind==='sales' ? salesPrintRows(state,round) : [];
   const pages=job?.kind==='sorting' ? sortingPages(sortingPrintRows(state,round)) : [];
-  const start=kind=>setJob({kind,token:crypto.randomUUID()});
+  const start=kind=>{
+    if(printing.current)return;
+    printing.current=true;
+    // Keep the printable DOM mounted: Safari can return before its PDF preview
+    // has finished rendering. A later click replaces this one small sheet.
+    flushSync(()=>setJob({kind,roundId:round.id}));
+    try{window.print();}finally{window.setTimeout(()=>{printing.current=false;},1500);}
+  };
   return <>
     <section className="print-prep-actions" aria-label="納品前の印刷">
       <h3>納品前の印刷</h3>
@@ -33,13 +33,13 @@ export function PrintPrep({state,round}) {
           <div className="sales-print-names" aria-label={`${row.name} ${row.qty}個分の名前欄`}>
             {Array.from({length:row.qty},(_,i)=><span className="sales-print-blank" key={i} aria-label={`${i+1}人目`}/>)}</div>
         </div>) : <p className="print-empty">販売用の商品はありません</p>}
-      </section> : (pages.length ? pages : [[]]).map((page,index)=><section className="print-page sorting-print-page" key={index}>
+      </section> : (pages.length ? pages : [Object.assign([],{rowCount:4})]).map((page,index)=><section className="print-page sorting-print-page" key={index}>
         <div className="print-heading"><h1>個人注文仕分け表</h1><span>納品日 {printedDate(round.date)}</span></div>
         {pages.length>1&&<small className="print-page-number">{index+1} / {pages.length}</small>}
-        {page.length ? <div className="sorting-print-grid">{page.map(row=><div className="sorting-print-person" key={row.id}
+        {page.length ? <div className="sorting-print-grid" style={{'--sort-rows':page.rowCount}}>{page.map(row=><div className="sorting-print-person" key={row.id}
           style={{gridColumn:row.col,gridRow:`${row.top} / span ${row.span}`}}>
           <h2>{row.name}</h2><div className="sorting-print-lines">{row.lines.map(line=><div className="sorting-print-line" key={line.id}>
-            <span>{line.name}</span><strong>×{line.qty}</strong></div>)}</div>
+            <span className={(line.printName||line.name).length<=11?'short-print-name':''} title={line.name}>{line.printName||line.name}</span><strong>×{line.qty}</strong></div>)}</div>
         </div>)}</div> : <p className="print-empty">個人注文はありません</p>}
       </section>)}
     </div>,document.body)}

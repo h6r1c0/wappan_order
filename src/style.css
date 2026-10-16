@@ -2308,14 +2308,15 @@ header small {
   #wappan-print-root .sales-print-names { display: grid; grid-template-columns: repeat(3, 32mm); column-gap: 4mm; row-gap: 1.5mm; }
   #wappan-print-root .sales-print-blank { display: block; width: 30mm; height: 9mm; border-bottom: .25mm solid #333; }
   #wappan-print-root .print-empty { font-size: 11pt; margin: 8mm 0; }
-  #wappan-print-root .sorting-print-page { height: 277mm; break-after: page; page-break-after: always; }
-  #wappan-print-root .sorting-print-page:last-child { break-after: auto; page-break-after: auto; }
-  #wappan-print-root .sorting-print-page .print-heading { height: 19mm; }
+  #wappan-print-root .sorting-print-page { break-inside: avoid; page-break-inside: avoid; }
+  #wappan-print-root .sorting-print-page + .sorting-print-page { break-before: page; page-break-before: always; }
+  #wappan-print-root .sorting-print-page .print-heading { height: 17mm; }
   #wappan-print-root .print-page-number { position: absolute; margin-top: -5mm; font-size: 8pt; }
-  #wappan-print-root .sorting-print-grid { display: grid; width: 190mm; height: 254mm; grid-template-columns: repeat(4, 47.5mm); grid-template-rows: repeat(4, 63.5mm); }
-  #wappan-print-root .sorting-print-person { border: .25mm dashed #777; padding: 2.8mm; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
+  #wappan-print-root .sorting-print-grid { display: grid; width: 190mm; height: 250mm; grid-template-columns: repeat(4, 47.5mm); grid-template-rows: repeat(var(--sort-rows), minmax(0, 1fr)); }
+  #wappan-print-root .sorting-print-person { border: .25mm dashed #777; padding: 2.8mm; overflow: hidden; }
   #wappan-print-root .sorting-print-person h2 { font-size: 15pt; font-weight: 700; line-height: 8mm; margin: 0 0 2mm; }
   #wappan-print-root .sorting-print-line { display: grid; grid-template-columns: minmax(0,1fr) 7mm; column-gap: 1mm; align-items: start; font-size: 9.5pt; line-height: 4.5mm; margin-bottom: 1mm; }
   #wappan-print-root .sorting-print-line span { overflow-wrap: anywhere; }
+  #wappan-print-root .sorting-print-line .short-print-name { white-space: nowrap; font-size: 9pt; letter-spacing: -.1mm; }
   #wappan-print-root .sorting-print-line strong { font-weight: 600; text-align: right; white-space: nowrap; }
 }
