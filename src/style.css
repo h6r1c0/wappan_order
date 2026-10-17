@@ -2139,15 +2139,20 @@ header small {
 .collection-totals { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:.86rem; }
 .collection-totals strong { width:100%; }
 .collection-breakdown h3,.collection-items h3 { font-size:.9rem; margin:8px 0 4px; }
-.collection-source-totals { display:grid; gap:3px; padding:4px 0; }
-.collection-source-totals > div { display:flex; justify-content:space-between; gap:12px; font-size:.85rem; }
-.collection-source-totals strong { font-variant-numeric:tabular-nums; }
 .collection-categories { display:flex; gap:12px; flex-wrap:wrap; font-size:.8rem; color:var(--muted); }
 .collection-line { display:grid; grid-template-columns:minmax(0,1fr) 2.7em 5.2em; gap:6px; padding:4px 0; border-bottom:1px solid var(--line); font-size:.84rem; align-items:start; }
 .collection-line span:nth-child(2),.collection-line span:nth-child(3) { text-align:right; font-variant-numeric:tabular-nums; }
 .collection-line.heading { font-size:.75rem; color:var(--muted); }
 .collection-item { display:flex; justify-content:space-between; gap:8px; border-bottom:1px solid var(--line); padding:4px 0; font-size:.8rem; }
 .collection-item strong { white-space:nowrap; }
+.collection-entry .collection-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:5px; }
+.collection-entry .collection-edit { grid-column:auto; grid-row:auto; min-height:36px; }
+.opening-register { margin-top:8px; border-top:1px solid var(--line); padding-top:8px; }
+}
+
+.collection-source-totals { display:grid; gap:3px; padding:4px 0; }
+.collection-source-totals > div { display:flex; justify-content:space-between; gap:12px; font-size:.85rem; }
+.collection-source-totals strong { font-variant-numeric:tabular-nums; }
 .snack-billing { margin:8px 0; border-top:1px solid var(--line); }
 .snack-billing > summary { padding:9px 0; font-weight:600; cursor:pointer; }
 .snack-billing-body { display:grid; gap:8px; padding:6px 0 12px; }
@@ -2160,10 +2165,6 @@ header small {
 .snack-household-amount .money-input { max-width:120px; }
 .snack-billing-preview { display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px 12px; font-weight:600; }
 .snack-billing-preview small { color:var(--muted); font-weight:400; }
-.collection-entry .collection-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:5px; }
-.collection-entry .collection-edit { grid-column:auto; grid-row:auto; min-height:36px; }
-.opening-register { margin-top:8px; border-top:1px solid var(--line); padding-top:8px; }
-}
 
 /* Small-screen working density: each row carries one decision, auxiliary actions stay quiet. */
 @media screen {
