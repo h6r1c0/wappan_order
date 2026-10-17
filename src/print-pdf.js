@@ -45,28 +45,32 @@ export async function createPrintPdf(model,fontBytes) {
   };
   const salesPage=()=>{
     const page=newPage();
-    text(page,'商品名',12,25.6,8.5);text(page,'価格',76,25.6,8.5);
-    text(page,'購入者名（1個につき1名）',93,25.6,8.5);
-    line(page,12,28,197,28,{gray:.65,width:.2});return page;
+    text(page,'商品名',12,25.6,8.5);text(page,'価格',64,25.6,8.5);
+    text(page,'購入者名（1個につき1名）',83,25.6,8.5);
+    line(page,12,28,199,28,{gray:.65,width:.2});return page;
   };
   if(model.kind==='sales'){
     let page=salesPage(),top=28;
     if(!model.sales.length)text(page,'販売用の商品はありません',12,39,11);
     for(const row of model.sales){
-      const names=wrap(row.name,10,61);
+      // Keep the recognizable product phrase together when the narrow sales
+      // column would otherwise leave only the last character on line two.
+      const salesName=font.widthOfTextAtSize(row.name,10)>mm(50)
+        ?row.name.replace('のチョコパン','の\nチョコパン'):row.name;
+      const names=wrap(salesName,10,50);
       let remaining=row.qty;
       while(remaining>0){
         // Fit whole handwriting rows, then continue this product on a fresh
         // page if necessary. A large quantity never creates a clipped row.
         const nameHeight=names.length*5;
         if(top+Math.max(nameHeight,7)+2.4>287){page=salesPage();top=28;}
-        const capacity=Math.max(1,Math.floor((287-top-2.4+1)/8))*4;
+        const capacity=Math.max(1,Math.floor((287-top-2.4+1)/8))*5;
         const count=Math.min(remaining,capacity);
-        const rowHeight=Math.max(nameHeight,Math.ceil(count/4)*8-1)+2.4;
+        const rowHeight=Math.max(nameHeight,Math.ceil(count/5)*8-1)+2.4;
         names.forEach((part,i)=>text(page,part,12,top+5+i*5,10));
-        text(page,row.price==null?'未確認':`${row.price.toLocaleString('ja-JP')}円`,76,top+5,9);
+        text(page,row.price==null?'未確認':`${row.price.toLocaleString('ja-JP')}円`,64,top+5,9);
         for(let i=0;i<count;i++){
-          const x=93+(i%4)*26,y=top+1.2+7+Math.floor(i/4)*8;
+          const x=83+(i%5)*24,y=top+1.2+7+Math.floor(i/5)*8;
           line(page,x,y,x+20,y);
         }
         top+=rowHeight;remaining-=count;

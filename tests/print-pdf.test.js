@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {PDFDocument,PDFName} from 'pdf-lib';
+import {PDFDocument,PDFName,decodePDFRawStream} from 'pdf-lib';
 import {createPrintPdf} from '../src/print-pdf.js';
 import {sortingPages} from '../src/print-prep.js';
 const font=await readFile(new URL('../src/assets/fonts/NotoSansJP-Regular.ttf',import.meta.url));
@@ -36,6 +36,32 @@ test('PDFの仕分けは16人・大枠混在を1枚、21人を2枚にし、空�
 });
 
 test('販売記録の多数の下線は行の途中で切らず、次ページに続ける',async()=>{
-  const bytes=await createPrintPdf({kind:'sales',date:'2026-10-16',sales:[{name:'黒糖ブレッド',price:430,qty:150}]},font);
+  const bytes=await createPrintPdf({kind:'sales',date:'2026-10-16',sales:[{name:'黒糖ブレッド',price:430,qty:200}]},font);
   assert.equal((await PDFDocument.load(bytes)).getPageCount(),2);
+});
+
+test('販売記録表の1～10個は20mmの固定5列で、6本目以降を先頭列へ折り返す',async()=>{
+  const quantities=[1,4,5,6,7,10];
+  const bytes=await createPrintPdf({kind:'sales',date:'2026-09-11',sales:quantities.map(q=>({name:`商品${q}個`,price:12340,qty:q}))},font);
+  const doc=await PDFDocument.load(bytes);
+  assert.equal(doc.getPageCount(),1);
+  const page=doc.getPage(0),contents=page.node.Contents();
+  const stream=doc.context.lookup(contents.get(0));
+  const commands=new TextDecoder().decode(decodePDFRawStream(stream).decode());
+  const mm=pt=>pt*25.4/72;
+  const rows=[];
+  for(const match of commands.matchAll(/([\d.]+) ([\d.]+) m\n([\d.]+) ([\d.]+) l\nS/g)){
+    const [x,y,endX,endY]=match.slice(1).map(Number);
+    if(Math.abs(mm(endX-x)-20)>.01||Math.abs(y-endY)>.01)continue;
+    const prev=rows.at(-1);
+    if(prev&&Math.abs(prev.y-y)<.01)prev.starts.push(mm(x));
+    else rows.push({y,starts:[mm(x)]});
+  }
+  assert.deepEqual(rows.map(row=>row.starts.map(x=>Math.round(x))),[
+    [83],[83,107,131,155],[83,107,131,155,179],
+    [83,107,131,155,179],[83],
+    [83,107,131,155,179],[83,107],
+    [83,107,131,155,179],[83,107,131,155,179],
+  ]);
+  assert.ok(rows.every(row=>row.starts.every((x,i)=>x>=83&&x+20<=199.01&&(i===0||x-row.starts[i-1]>=23.99))));
 });
