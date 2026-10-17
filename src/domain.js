@@ -433,7 +433,7 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
     for(const item of event.billing.household||[]){
       const buyer=s.buyers.find(b=>b.id===item.buyerId),line=event.lines.find(l=>l.id===item.lineId);
       add(item.buyerId,buyer?.name||'', 'snack',item.qty*item.unitPrice,
-        `${event.date} ${event.name}・${line?.name||'共通単価'} ×${item.qty}`,'おやつ');
+        `${event.date} ${event.billing.label}・${line?.name||'共通単価'} ×${item.qty}`,'おやつ');
     }
   return [...map.values()].map((r) => ({ ...r, total: r.normal + r.onsite + r.snack,
     unpriced: roundId ? unpricedOrderLines(s.rounds.find(x=>x.id===roundId),s.rounds.find(x=>x.id===roundId)?.orders[r.id] || {quantities:{}}) : [] }));
@@ -544,7 +544,7 @@ export function report(s, from, to, year) {
   }
   for(const event of s.events.filter(e=>e.billing&&!e.test&&inRange(e.date))){
     const billing=snackBillingPreview(s,event);
-    if(billing.household)rows.push({id:`snack:${event.id}`,date:event.date,type:'おやつ家庭請求',name:event.name,
+    if(billing.household)rows.push({id:`snack:${event.id}`,date:event.date,type:'おやつ家庭請求',name:event.billing.label,
       revenue:billing.household,cost:billing.cost,profit:billing.profit,provisional:!billing.complete});
   }
   for (const h of s.history.filter((h) => !h.test && inRange(h.date)))
