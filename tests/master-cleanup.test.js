@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {initialState,newRound,addSale,updateSaleDestination,collections,report,productAvailable} from '../src/domain.js';
 import {marketUsage,removeUnusedMarket} from '../src/commerce.js';
 import {productDisplayName,productImportIdentity} from '../src/product-names.js';
+import {permanentProduct} from '../src/excel.js';
 
 test('商品名は規格を保ち、仕入先名と注文履歴を変更しない',()=>{
   const names=[['塩パン 1個','塩パン'],['くるみパン 1個入り','くるみパン 1個'],
@@ -10,6 +11,8 @@ test('商品名は規格を保ち、仕入先名と注文履歴を変更しな�
     ['ハイジの白パン 3個入り','ハイジの白パン 3個'],['ハイジの白パン 1個入り','ハイジの白パン 1個']];
   for(const [source,label] of names)assert.equal(productDisplayName(source),label);
   assert.notEqual(productImportIdentity(names[1][0]),productImportIdentity(names[2][0]));
+  assert.equal(permanentProduct('くるみパン 1個'),true);
+  assert.equal(permanentProduct('ツイストドーナツ 2個'),true);
   const state=initialState();const before=structuredClone(state);
   productDisplayName(state.products[3].name);
   assert.deepEqual(state,before);
