@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {PDFDocument,PDFName,decodePDFRawStream} from 'pdf-lib';
 import {createPrintPdf} from '../src/print-pdf.js';
-import {sortingPages} from '../src/print-prep.js';
+import {sortingPages,salesPrintName} from '../src/print-prep.js';
 const font=await readFile(new URL('../src/assets/fonts/NotoSansJP-Regular.ttf',import.meta.url));
 
 test('独立PDFはA4の帳票だけで印刷JavaScriptを持たず、読み取り元を変更しない',async()=>{
@@ -64,4 +64,21 @@ test('販売記録表の1～10個は20mmの固定5列で、6本目以降を先�
     [83,107,131,155,179],[83,107,131,155,179],
   ]);
   assert.ok(rows.every(row=>row.starts.every((x,i)=>x>=83&&x+20<=199.01&&(i===0||x-row.starts[i-1]>=23.99))));
+});
+
+test('長い現行商品名も顧客向け印刷名では商品列1行に収まり、5列レイアウトは変わらない',async()=>{
+  const originals=[
+    '白うさぎと黒うさぎのチョコパン　2種×2個',
+    'リーン天然酵母ちびハイジの白パン 6個',
+    '贅沢プレッツェルクロワッサン　1個、約90g',
+    '天然酵母食パン（大）約620g【スライス】',
+    '抹茶シフォンケーキ(冷） 直径12㎝型',
+    'シナモンレーズンクッキー',
+  ];
+  const doc=await PDFDocument.create();doc.registerFontkit((await import('@pdf-lib/fontkit')).default);
+  const embedded=await doc.embedFont(font,{subset:false});
+  const names=originals.map(salesPrintName);
+  assert.ok(names.every(name=>embedded.widthOfTextAtSize(name,10)<=50*72/25.4));
+  const bytes=await createPrintPdf({kind:'sales',date:'2026-10-16',sales:names.map(name=>({name,price:390,qty:5}))},font);
+  assert.equal((await PDFDocument.load(bytes)).getPageCount(),1);
 });

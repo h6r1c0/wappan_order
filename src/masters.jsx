@@ -59,6 +59,11 @@ export function ProductEditor({ product, onClose }) {
           required
           onChange={(e) => put("name", e.target.value)}
         />
+        <details defaultOpen={Boolean(product?.salesLabel)}>
+          <summary>販売記録表の表示名を調整</summary>
+          <Field label="印刷用表示名（必要な商品だけ）" value={p.salesLabel || ""}
+            onChange={(e) => put("salesLabel", e.target.value)} />
+        </details>
         <Field label="カテゴリー">
           <select
             value={p.category}
