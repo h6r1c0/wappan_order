@@ -1,6 +1,7 @@
 import { deliveredQuantity, receivedQuantity, validateFulfillment } from './shortages.js';
 import { permanentProduct } from "./excel.js";
 import { bundleUsed, movedOut, bundleCost, validateCommerce } from "./commerce.js";
+import {snackBillingPreview} from './snack-billing.js';
 export const uid = () => crypto.randomUUID();
 export const monthKey = (date) => String(date || "").slice(0, 7);
 export const monthProductsImported = (state, date) => {
@@ -180,10 +181,11 @@ export const eventCost = (e) =>
   e.lines.some((l) => l.cost == null)
     ? null
     : sum(e.lines.map((l) => receivedQuantity(l) * l.cost));
-export const eventClaim = (e) =>
-  e.lines.some((l) => l.used > 0 && l.cost == null)
-    ? null
-    : sum(e.lines.map((l) => l.used * (l.cost || 0)));
+export const eventClaim = (e) => e.billing
+  ? (e.billing.fiscal||[]).some(x=>x.qty>0&&e.lines.find(l=>l.id===x.lineId)?.cost==null)
+    ? null : sum((e.billing.fiscal||[]).map(x=>x.qty*(e.lines.find(l=>l.id===x.lineId)?.cost||0)))
+  : e.lines.some((l) => l.used > 0 && l.cost == null)
+    ? null : sum(e.lines.map((l) => l.used * (l.cost || 0)));
 export function invoiceDeductions(s, r) {
   const events = r.eventIds.map((id) => s.events.find((e) => e.id === id));
   if (events.some((e) => eventCost(e) == null)) return null;
@@ -387,7 +389,7 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
   const map = new Map();
   const add = (id, name, kind, amount, description, category = 'その他', unpriced = false) => {
     if (!map.has(id))
-      map.set(id, { id, name, normal: 0, onsite: 0, lines: [], categories: { パン: 0, 焼き菓子: 0, その他: 0 } });
+      map.set(id, { id, name, normal: 0, onsite: 0, snack:0, lines: [], categories: { パン: 0, 焼き菓子: 0, おやつ:0, その他: 0 } });
     const row = map.get(id);
     row[kind] += amount;
     row.categories[category in row.categories ? category : 'その他'] += amount;
@@ -426,7 +428,14 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
     (x) => !x.void && x.destinationType === 'buyer' && (includeTest || !s.rounds.find(r=>r.id===x.chargeRoundId)?.test) &&
       (roundId ? x.chargeRoundId === roundId : from <= x.date && x.date <= to),
   )) add(sale.buyerId,s.buyers.find(b=>b.id===sale.buyerId)?.name||sale.destinationName,'onsite',sale.price*sale.qty,`${sale.date} ${sale.name} ×${sale.qty}`);
-  return [...map.values()].map((r) => ({ ...r, total: r.normal + r.onsite,
+  for(const event of s.events.filter(e=>e.billing && (includeTest||!e.test) &&
+    (roundId?e.roundId===roundId:from<=e.date&&e.date<=to)))
+    for(const item of event.billing.household||[]){
+      const buyer=s.buyers.find(b=>b.id===item.buyerId),line=event.lines.find(l=>l.id===item.lineId);
+      add(item.buyerId,buyer?.name||'', 'snack',item.qty*item.unitPrice,
+        `${event.date} ${event.name}・${line?.name||'共通単価'} ×${item.qty}`,'おやつ');
+    }
+  return [...map.values()].map((r) => ({ ...r, total: r.normal + r.onsite + r.snack,
     unpriced: roundId ? unpricedOrderLines(s.rounds.find(x=>x.id===roundId),s.rounds.find(x=>x.id===roundId)?.orders[r.id] || {quantities:{}}) : [] }));
 }
 // Claims are distinct obligations. Additional claims are a labelled portion of the
@@ -533,6 +542,11 @@ export function report(s, from, to, year) {
   for(const m of (s.markets||[]).filter(m=>inRange(m.date)&&!s.rounds.find(r=>r.id===m.roundId)?.test)){
     if(m.expenseMode==='apply'&&m.expense!=null)rows.push({id:m.id,date:m.date,type:'外部販売経費',name:m.name,revenue:0,cost:0,profit:-m.expense,expense:m.expense});
   }
+  for(const event of s.events.filter(e=>e.billing&&!e.test&&inRange(e.date))){
+    const billing=snackBillingPreview(s,event);
+    if(billing.household)rows.push({id:`snack:${event.id}`,date:event.date,type:'おやつ家庭請求',name:event.name,
+      revenue:billing.household,cost:billing.cost,profit:billing.profit,provisional:!billing.complete});
+  }
   for (const h of s.history.filter((h) => !h.test && inRange(h.date)))
     rows.push({
       ...h,
@@ -603,13 +617,17 @@ export function validate(s) {
     "adjustments",
   ].forEach((k) => unique(s[k]));
   unique(
-    s.products.map((p) => ({ name: normalize(p.name) })),
+    s.products.filter((p) => p.active !== false && !p.retiredDuplicate).map((p) => ({ name: normalize(p.name) })),
     "name",
   );
-  unique(
-    s.buyers.map((p) => ({ name: normalize(p.name) })),
-    "name",
-  );
+  const buyerNames = new Map();
+  for (const buyer of s.buyers) {
+    const key=normalize(buyer.name);
+    buyerNames.set(key,[...(buyerNames.get(key)||[]),buyer]);
+  }
+  for (const people of buyerNames.values())
+    if (people.length>1 && people.filter(p=>p.sameNameConfirmed).length<people.length-1)
+      throw Error('同じ名前の購入者がいます。別人として登録する場合は確認してください');
   if (
     !Array.isArray(s.productImports) ||
     new Set(s.productImports).size !== s.productImports.length ||
@@ -711,6 +729,7 @@ export function validate(s) {
       if (l.used + transferredQty(s, l.id) > receivedQuantity(l))
         throw Error("行事使用数と振替数が注文数を超えています");
     }
+    if(e.billing)snackBillingPreview(s,e);
   }
   for (const st of s.stocks) {
     if (!st.name.trim()) throw Error("園内販売の商品名を入力してください");

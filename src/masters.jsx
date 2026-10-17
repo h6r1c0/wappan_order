@@ -21,9 +21,10 @@ const legacyImportAliases = new Map([
   ['湯種食パン','7af7810a-19b8-456c-8bbd-7b518fe913b6'],
   ['こしあんぱん','0a92558f-a76b-441a-bc62-939214f292ff'],
   ['りんごデニッシュ','e1e039f7-8342-4a7b-9edc-3ff4afa2369a'],
+  ['黒糖ブレッド 1個','brown'],
 ]);
 function matchedProduct(products,name) {
-  const candidates=products.filter(p=>!p.retiredDuplicate && (importIdentity(p.sourceName||p.name)===importIdentity(name)||importIdentity(p.name)===importIdentity(name)));
+  const candidates=products.filter(p=>p.active!==false&&!p.retiredDuplicate && (importIdentity(p.sourceName||p.name)===importIdentity(name)||importIdentity(p.name)===importIdentity(name)));
   if(candidates.length===1)return candidates[0];
   const alias=legacyImportAliases.get(productDisplayName(name));
   return alias ? products.find(p=>p.id===alias&&!p.retiredDuplicate) : null;

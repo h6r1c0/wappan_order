@@ -107,7 +107,6 @@ export function SalesWorkspace({ stocks, roundId, mode }) {
       <div className="choice-grid" aria-label="販売先種別">
         <Button secondary={destinationType !== 'buyer'} onClick={() => {setDestinationType('buyer');setDirty(true);}}>個人に請求</Button>
         <Button secondary={destinationType !== 'external'} onClick={() => {setDestinationType('external');setPaymentStatus('paid');setDirty(true);}}>支払い済み</Button>
-        <Button secondary={destinationType !== 'unknown'} onClick={() => {setDestinationType('unknown');setPaymentStatus('unconfirmed');setDirty(true);}}>未確認</Button>
 
       </div>
       {destinationType === 'buyer' && <BuyerPicker value={buyerId} onChange={id=>{setBuyerId(id);setDirty(true);}}

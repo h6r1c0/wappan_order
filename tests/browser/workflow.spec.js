@@ -518,6 +518,53 @@ test('購入者検索からの追加は氏名を引き継ぎ、読みを修正�
   await mobileShots(page,'new-buyer');
 });
 
+test('佐藤の新規登録は別名や非表示重複商品で阻まれず、読みを保持する',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  shared.state.products.push({...shared.state.products.find(x=>x.id==='bean'),id:'old-bean',active:false,retiredDuplicate:'bean'});
+  shared.state.buyers.push({id:'sasaki',name:'佐々木',kana:'ささき',active:true,fixed:[]});
+  await backend(context,shared);await login(page);await openRound(page);
+  await page.getByPlaceholder('名前を検索').fill('佐藤');
+  await page.getByRole('button',{name:'＋ 追加'}).click();
+  await expect(page.getByLabel('新しい購入者名')).toHaveValue('佐藤');
+  await page.getByLabel('よみがな').fill('さとう');
+  await page.getByRole('button',{name:'追加して選ぶ'}).click();
+  await expect(page.locator('.order-editor h2')).toContainText('佐藤');
+  expect(shared.state.buyers.find(b=>b.name==='佐藤')?.kana).toBe('さとう');
+});
+
+test('おやつの職員分と共通単価の家庭請求を確認後に保存し、集金内訳に分けて表示する',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  shared.state.buyers.push({id:'sato',name:'佐藤',kana:'さとう',active:true,fixed:[]});
+  const r=newRound(shared.state,'2026-10-16',true);r.status='注文確定';shared.state.rounds.push(r);
+  const e={id:'event-qa',roundId:r.id,date:r.date,name:'運動会リハ',test:true,entryMode:'round',lines:[
+    {id:'bean-qa',productId:'bean',name:'こしあんぱん',qty:6,used:0,cost:130},
+    {id:'apple-qa',productId:'apple',name:'りんごデニッシュ',qty:6,used:0,cost:151},
+  ]};shared.state.events.push(e);r.eventIds.push(e.id);
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
+  await openAfter(page,'おやつ使用・財政請求');
+  await page.locator('.snack-billing > summary').click();
+  await page.getByLabel('行事・おやつ名').fill('運動会リハのおやつ');
+  await setQty(page,'こしあんぱん 財政請求数',3);
+  await setQty(page,'りんごデニッシュ 財政請求数',3);
+  await page.getByRole('button',{name:'＋ 請求先'}).click();
+  await page.locator('.snack-household').getByLabel('購入者').selectOption('sato');
+  await page.locator('.snack-household').getByLabel('食べた商品').selectOption('');
+  await setQty(page,'食数',2);
+  await expect(page.getByLabel('請求単価')).toHaveValue('150');
+  await mobileShots(page,'snack-billing');
+  expect(shared.state.events[0].billing).toBeUndefined();
+  await page.getByRole('button',{name:'確認した請求を保存'}).click();
+  expect(shared.state.events[0].billing.household[0].unitPrice).toBe(150);
+  expect(shared.state.events[0].lines.every(l=>l.used===0)).toBe(true);
+  await page.locator('.stage-4 > .stage-trigger').click();
+  const entry=page.locator('.collection-entry').filter({hasText:'佐藤'});
+  await expect(entry).toContainText('300円');
+  await entry.getByRole('button',{name:'編集・内訳'}).click();
+  await expect(entry.locator('.collection-source-totals')).toContainText('おやつ');
+  await expect(entry.locator('.collection-source-totals')).toContainText('300円');
+  await mobileShots(page,'snack-collection');
+});
+
 async function mobileShots(page,prefix) {
   await closeToast(page);
   for (const width of [320,375,430]) {

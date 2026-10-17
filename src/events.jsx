@@ -1,5 +1,6 @@
 import {receivedQuantity} from './shortages';
 import {productDisplayName} from './product-names.js';
+import {SnackBilling} from './snack-billing.jsx';
 import React, { useState } from "react";
 import {
   delivery,
@@ -333,7 +334,7 @@ function SnackUsage({event:e,onTransfer}) {
  const {state,save}=useApp();
  const [used,setUsed]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.used])));
  const [costs,setCosts]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.cost])));
- const dirty=e.lines.some(l=>used[l.id]!==l.used||costs[l.id]!==l.cost);
+ const dirty=e.lines.some(l=>used[l.id]!==l.used||costs[l.id]!==l.cost||!l.usedConfirmed);
  return <section className="snack-usage" data-unsaved={dirty}>
   <h3>{e.name}</h3>
   {e.lines.map(l=>{const moved=transferredQty(state,l.id),remaining=receivedQuantity(l)-(used[l.id]||0)-moved;
@@ -348,7 +349,8 @@ function SnackUsage({event:e,onTransfer}) {
     {state.stocks.filter(st=>st.eventLineId===l.id&&st.qty>0).map(st=><div className="line" key={st.id}><small>振替 {st.qty}個 ／ 販売 {soldQty(state,st.id)}個</small><button type="button" className="text-action" disabled={soldQty(state,st.id)>0} onClick={()=>{if(confirm('振替を戻しますか？'))save(s=>undoTransfer(s,st.id),'余剰振替取消');}}>戻す</button></div>)}
    </div>;
   })}
-  <div className="snack-claim"><span>財政請求</span><strong>{yen(eventClaim({...e,lines:e.lines.map(l=>({...l,used:used[l.id]||0,cost:costs[l.id]}))}))}</strong>
-   <Button disabled={!dirty} onClick={()=>save(s=>{const current=s.events.find(x=>x.id===e.id);for(const l of current.lines){l.used=used[l.id]||0;l.cost=costs[l.id];}},'おやつ使用数・今回原価を保存')}>保存</Button></div>
+  <div className="snack-claim"><span>財政請求{e.billing?'（請求先別）':''}</span><strong>{yen(eventClaim({...e,lines:e.lines.map(l=>({...l,used:used[l.id]||0,cost:costs[l.id]}))}))}</strong>
+   <Button disabled={!dirty} onClick={()=>save(s=>{const current=s.events.find(x=>x.id===e.id);for(const l of current.lines){l.used=used[l.id]||0;l.usedConfirmed=true;l.cost=costs[l.id];}},'おやつ使用数・今回原価を保存')}>保存</Button></div>
+  <SnackBilling event={e}/>
  </section>;
 }

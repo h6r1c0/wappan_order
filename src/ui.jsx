@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState, createContext, useContext } from "react";
+import React, { useEffect, useLayoutEffect, useState, useRef, createContext, useContext } from "react";
 import { normalize, yen } from "./domain";
 import {kana,buyerReading,buyerCompare} from './buyer-order.js';
 import {productDisplayName,productSearchText} from './product-names.js';
@@ -282,12 +282,15 @@ export function BuyerPicker({
   const [name, setName] = useState(suggestedName);
   const [reading, setReading] = useState('');
   const [adding, setAdding] = useState(!!suggestedName);
+  const [separatePerson,setSeparatePerson] = useState(false);
+  const imeReading=useRef('');
   useEffect(() => {
     if (!suggestedName) return;
     setName(suggestedName);
     setAdding(true);
   }, [suggestedName]);
   const suggestedKey = normalize(name);
+  const exact = suggestedKey ? state.buyers.filter(b=>normalize(b.name)===suggestedKey) : [];
   const similar = suggestedKey
     ? state.buyers.filter((buyer) => {
         const key = normalize(buyer.name);
@@ -301,8 +304,9 @@ export function BuyerPicker({
     : [];
   return (
     <>
-      <div className="buyer-search-add"><Field label="名前を検索" type="search" placeholder="名前を検索" value={query} onChange={e => setQuery(e.target.value)} />
-        {allowAdd && <button type="button" className="text-action" onClick={() => {if (!adding) {const candidate=query.trim();setName(candidate || suggestedName);setReading(/^[ぁ-ゖァ-ヺー\s]+$/u.test(candidate) ? kana(candidate) : '');}setAdding(!adding);}}>＋ 追加</button>}
+      <div className="buyer-search-add"><Field label="名前を検索" type="search" placeholder="名前を検索" value={query} onChange={e => {setQuery(e.target.value);if(!e.target.value)imeReading.current='';}}
+        onCompositionUpdate={e=>{const candidate=kana(e.data||'');if(/^[ぁ-ゖー]+$/u.test(candidate))imeReading.current=candidate;}} />
+        {allowAdd && <button type="button" className="text-action" onClick={() => {if (!adding) {const candidate=query.trim();setName(candidate || suggestedName);setReading(/^[ぁ-ゖァ-ヺー\s]+$/u.test(candidate) ? kana(candidate) : imeReading.current);setSeparatePerson(false);}setAdding(!adding);}}>＋ 追加</button>}
       </div>
       {!query && <div className="buyer-index" role="group" aria-label="購入者の五十音索引">
         {[...kanaGroups.map(([name])=>name),'その他','すべて'].map(name=><button type="button" key={name}
@@ -313,6 +317,10 @@ export function BuyerPicker({
           {adding && (
             <div className="buyer-add">
               {suggestedName && <p className="notice compact-notice">LINEから読み取った名前です。確認・修正してから追加してください。</p>}
+              {exact.length > 0 && <div className="similar-buyers"><span>同じ名前の登録があります</span>
+                {exact.map(b=><Button secondary key={b.id} onClick={()=>{onChange(b.id,b);setAdding(false);}}>{b.name}を選ぶ{b.testOnly?'（テスト）':''}</Button>)}
+                <label><input type="checkbox" checked={separatePerson} onChange={e=>setSeparatePerson(e.target.checked)}/> 同姓同名の別人として登録</label>
+              </div>}
               {similar.length > 0 && (
                 <div className="similar-buyers">
                   <span>似た登録名があります</span>
@@ -331,20 +339,17 @@ export function BuyerPicker({
                 />
                 <Field label="よみがな" value={reading} onChange={e => setReading(e.target.value)} />
                 <Button
-                  disabled={!name.trim() || !reading.trim()}
+                  disabled={!name.trim() || !reading.trim() || (exact.length>0&&!separatePerson)}
                   onClick={async () => {
                     const clean = name.trim();
                     const existing = state.buyers.find(
                       (buyer) => normalize(buyer.name) === normalize(clean),
                     );
-                    if (existing) {
-                      setName("");
-                      setAdding(false);
-                      onChange(existing.id, existing);
+                    if (existing && !separatePerson) {
                       return;
                     }
                     const id = crypto.randomUUID();
-                    const buyer = { id, name: clean, kana: reading.trim(), active: true, fixed: [] };
+                    const buyer = { id, name: clean, kana: reading.trim(), active: true, fixed: [], ...(existing?{sameNameConfirmed:true}:{}) };
                     if (
                       await save(
                         (s) => s.buyers.push(buyer),
@@ -353,6 +358,7 @@ export function BuyerPicker({
                     ) {
                       setName("");
                       setReading("");
+                      setSeparatePerson(false);
                       setAdding(false);
                       onChange(id, buyer);
                     }
