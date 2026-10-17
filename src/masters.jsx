@@ -14,8 +14,20 @@ import {
   Empty,
 } from "./ui";
 import { readExcel, detectColumns, extractRows, analyzeSheet, permanentProduct } from "./excel";
+import {productDisplayName,productSearchText,productImportIdentity} from './product-names.js';
 const lifecycleLabels = { staple: "定番", once: "今回限り／月内", seasonal: "期間商品", permanent: "常設定番" };
-const importIdentity = name => normalize(name).replace(/^ミルクスティックパン$/, "ミルクスティック");
+const importIdentity = name => normalize(productImportIdentity(name));
+const legacyImportAliases = new Map([
+  ['湯種食パン','7af7810a-19b8-456c-8bbd-7b518fe913b6'],
+  ['こしあんぱん','0a92558f-a76b-441a-bc62-939214f292ff'],
+  ['りんごデニッシュ','e1e039f7-8342-4a7b-9edc-3ff4afa2369a'],
+]);
+function matchedProduct(products,name) {
+  const candidates=products.filter(p=>!p.retiredDuplicate && (importIdentity(p.sourceName||p.name)===importIdentity(name)||importIdentity(p.name)===importIdentity(name)));
+  if(candidates.length===1)return candidates[0];
+  const alias=legacyImportAliases.get(productDisplayName(name));
+  return alias ? products.find(p=>p.id===alias&&!p.retiredDuplicate) : null;
+}
 function Lifecycle({ value, onChange }) {
   return <Field label="商品区分"><select aria-label="商品区分" value={value || ""} onChange={e => onChange(e.target.value)}><option value="">区分を確認してください</option>{Object.entries(lifecycleLabels).map(([key, text]) => <option key={key} value={key}>{text}</option>)}</select></Field>;
 }
@@ -45,6 +57,13 @@ export function ProductEditor({ product, onClose }) {
           e.preventDefault();
           if (
             await save((s) => {
+              const original=p.name.trim();
+              p.sourceName=original===product?.name ? (product?.sourceName||original) : original;
+              p.name=productDisplayName(original);
+              const duplicate=matchedProduct(s.products,original);
+              if (duplicate && duplicate.id!==p.id) throw Error('同じ商品が登録済みです。既存の商品を編集してください');
+              if (importIdentity(original)===importIdentity('くるみパン'))
+                throw Error('くるみパンは1個・2個の規格を指定してください');
               const i = s.products.findIndex((x) => x.id === p.id);
               if (i < 0) s.products.push(p);
               else s.products[i] = p;
@@ -100,12 +119,6 @@ export function ProductEditor({ product, onClose }) {
           value={p.cost}
           onChange={(v) => put("cost", v)}
         />
-        {p.name.includes('食パン') && <Check label="カット注文に対応" checked={p.cutSupported ?? true} onChange={v=>put('cutSupported',v)}/>}
-        {(p.cutSupported ?? p.name.includes('食パン')) && <Money
-          label="カット加算額（未確認なら空欄）"
-          value={p.cutFee}
-          onChange={(v) => put("cutFee", v)}
-        />}
         <Lifecycle value={permanentProduct(p.name) ? "permanent" : p.lifecycle || "staple"} onChange={v => put("lifecycle", v)} />
         {p.lifecycle === "once" && <Field label="利用する注文回"><select value={p.roundId || ""} onChange={e => put("roundId", e.target.value)}><option value="">選んでください</option>{state.rounds.map(r => <option key={r.id} value={r.id}>{r.date}{r.test ? "（テスト）" : ""}</option>)}</select></Field>}
         <details open={p.lifecycle === "seasonal"}>
@@ -166,9 +179,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
     const seen = new Set();
     setRows(
       data.map((x, sourceIndex) => {
-        const p = state.products.find(
-            (p) => importIdentity(p.name) === importIdentity(x.name),
-          ),
+        const p = matchedProduct(state.products,x.name),
           duplicate = seen.has(normalize(x.name));
         seen.add(normalize(x.name));
         return {
@@ -364,9 +375,9 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                     }}
                   >
                     <option value="">同名商品を更新／なければ新規追加</option>
-                    {state.products.map((p) => (
+                    {state.products.filter(p=>!p.retiredDuplicate).map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name}を更新
+                        {productDisplayName(p.name)}を更新
                       </option>
                     ))}
                   </select>
@@ -422,7 +433,9 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                       names.add(name);
                       const existing =
                         s.products.find((p) => p.id === r.matchId) ||
-                        s.products.find((p) => importIdentity(p.name) === importIdentity(r.name));
+                        matchedProduct(s.products,r.name);
+                      if (!existing && importIdentity(r.name) === importIdentity('くるみパン'))
+                        throw Error('くるみパンは1個・2個の商品を選んで登録先を指定してください');
                       if (existing && ids.has(existing.id))
                         throw Error("同じ商品を更新する行が複数あります");
                       if (existing) ids.add(existing.id);
@@ -434,7 +447,8 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                           start: "",
                           end: "",
                         }),
-                        name: r.name.trim(),
+                        name: productDisplayName(r.name),
+                        sourceName: r.name.trim(),
                         gross: r.gross,
                         faxOrder: r.faxOrder,
                         category: r.category,
@@ -523,9 +537,9 @@ export function Masters() {
           <div className="master-actions"><button type="button" className="text-action" onClick={()=>setEditor({type:'product'})}>＋ 商品を追加</button>
             <button type="button" className="text-action" onClick={()=>setImporting(true)}>Excelから取り込む ›</button></div>
           <div className="tabs category-tabs">{['パン','焼き菓子','すべて'].map(c=><Button key={c} secondary={category!==c} onClick={()=>setCategory(c)}>{c!=='すべて'&&<Cat category={c}/>} {c}</Button>)}</div>
-          {faxProducts(state.products)
+          {faxProducts(state.products.filter(p=>!p.retiredDuplicate))
             .filter(p=>query.trim()||category==='すべて'||p.category===category)
-            .filter((p) => normalize(p.name).includes(normalize(query)))
+            .filter((p) => normalize(productSearchText(p)).includes(normalize(query)))
             .map((p) => (
               <button
                 className="product-row clickable master-row"
@@ -533,7 +547,7 @@ export function Masters() {
                 onClick={() => setEditor({ type: "product", value: p })}
               >
                 <span className="grow">
-                  {p.name}
+                  {productDisplayName(p.name)}
                   <small>
                     {p.active ? p.category : "非表示"}
                     {p.cost == null ? "" : ` ／ 仕入 ${yen(p.cost)}`}
@@ -580,7 +594,7 @@ export function Masters() {
 function FixedProductPicker({products,onPick}) {
   const [query,setQuery]=useState('');
   return <div className="fixed-picker"><Field label="商品名を検索" type="search" placeholder="商品名を検索" value={query} onChange={e=>setQuery(e.target.value)}/>
-    {query.trim() && products.filter(p=>normalize(p.name).includes(normalize(query))).map(p=><button type="button" className="master-row" key={p.id} onClick={()=>{onPick(p);setQuery('');}}>{p.name} ＋</button>)}
+    {query.trim() && products.filter(p=>normalize(productSearchText(p)).includes(normalize(query))).map(p=><button type="button" className="master-row" key={p.id} onClick={()=>{onPick(p);setQuery('');}}>{productDisplayName(p.name)} ＋</button>)}
   </div>;
 }
 function BuyerEditor({ buyer, onClose }) {
@@ -623,7 +637,7 @@ function BuyerEditor({ buyer, onClose }) {
           .filter((p) => b.fixed.some((f) => f.productId === p.id))
           .map((p) => (
             <div className="product-row" key={p.id}>
-              <span className="grow">{p.name}</span>
+              <span className="grow">{productDisplayName(p.name)}</span>
               <Qty
                 label={`${p.name} 固定数量`}
                 value={b.fixed.find((f) => f.productId === p.id)?.qty || 0}
@@ -641,7 +655,7 @@ function BuyerEditor({ buyer, onClose }) {
           ))}
         {!b.fixed.length && <p className="muted">固定注文なし</p>}
         <details className="fixed-add"><summary>＋ 固定注文を追加</summary>
-          <FixedProductPicker products={state.products.filter(p=>p.active&&!b.fixed.some(f=>f.productId===p.id))}
+          <FixedProductPicker products={state.products.filter(p=>p.active&&!p.retiredDuplicate&&!b.fixed.some(f=>f.productId===p.id))}
             onPick={p=>set({...b,fixed:[...b.fixed,{productId:p.id,qty:1}]})}/>
         </details>
         <Button type="submit">購入者・固定注文を保存</Button>

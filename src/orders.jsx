@@ -10,6 +10,7 @@ import {Markets} from './markets';
 import {ExcelImport} from './masters';
 import {TaskIcon} from './task-icon';
 import {PrintPrep} from './print-prep.jsx';
+import {productDisplayName} from './product-names.js';
 import {
   newRound,
   productAvailable,
@@ -258,10 +259,6 @@ function Round({ round: r, initialTab = null, back }) {
                 quantities={draft.quantities}
                 onChange={(quantities) => setDraft({ ...draft, quantities,
                   cutQuantities: Object.fromEntries(Object.entries(draft.cutQuantities || {}).map(([id, qty]) => [id, Math.min(qty, quantities[id] || 0)])) })}
-                cutQuantities={draft.cutQuantities || {}}
-                onCutChange={cutQuantities => setDraft({...draft,cutQuantities})}
-                cutFees={cutFees}
-                onCutFeeChange={(id,value) => setCutFees({...cutFees,[id]:value})}
                 startCollapsed
                 emptyMessage="「この納品日の商品」から、販売価格が分かっている商品を追加してください。"
               />
@@ -307,7 +304,7 @@ function Round({ round: r, initialTab = null, back }) {
               </summary>
               <div className="saved-order-lines" aria-label={`${o.name}の注文内容`}>
                 {r.products.filter(p => (o.quantities[p.id] || 0) > 0).map(p =>
-                  <div className="saved-order-line" key={p.id}><span>{p.name}</span><strong>{o.quantities[p.id]}個</strong></div>)}
+                  <div className="saved-order-line" key={p.id}><span>{productDisplayName(p.name)}</span><strong>{o.quantities[p.id]}個</strong></div>)}
                 {!r.products.some(p => (o.quantities[p.id] || 0) > 0) && <small>注文商品はありません</small>}
                 <button type="button" className="text-action" onClick={() => choose(id)}>注文を編集 ›</button>
               </div>
@@ -345,7 +342,7 @@ function Round({ round: r, initialTab = null, back }) {
           <h2>発注一覧</h2>
           {deliveryTotals(state,r).map((p) => (
             <div className="delivery-total-row" key={p.id}>
-              <span className="delivery-name">{p.name}</span>
+              <span className="delivery-name">{productDisplayName(p.name)}</span>
               <span className="delivery-parts">{[["個人",p.personal],["販売",p.sales],["おやつ",p.snack]].filter(([,n])=>n>0).map(([name,n])=>`${name}${n}`).join("｜")}</span>
               <strong className="delivery-amount">{p.qty}個</strong>
               {r.status==='入力中' && <div className="fax-adjust">{adjustProduct===p.id ? <>
@@ -403,7 +400,6 @@ function Round({ round: r, initialTab = null, back }) {
       )}
       {tab === "納品・精算" && (
         <>
-          <h2>納品・精算</h2>
           <PrintPrep state={state} round={r}/>
           <Shortage round={r}/>
           {r.shortageConfirmation && <>

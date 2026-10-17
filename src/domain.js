@@ -12,7 +12,7 @@ export const monthProductsImported = (state, date) => {
       round.products?.length > 0,
   );
 };
-export const productAvailable = (p, date, roundId = "") => p.active && (permanentProduct(p.name) || p.lifecycle === "permanent" || (p.lifecycle !== "once" || (p.importMonth ? p.importMonth === monthKey(date) : roundId && p.roundId === roundId)) && (!p.start || p.start <= date) && (!p.end || date <= p.end));
+export const productAvailable = (p, date, roundId = "") => p.active && !p.retiredDuplicate && (permanentProduct(p.name) || p.lifecycle === "permanent" || (p.lifecycle !== "once" || (p.importMonth ? p.importMonth === monthKey(date) : roundId && p.roundId === roundId)) && (!p.start || p.start <= date) && (!p.end || date <= p.end));
 export const today = () =>
   new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(
     new Date(),
@@ -282,6 +282,8 @@ export function updateSaleDestination(s, saleId, entry) {
   const destinationType = entry.destinationType;
   if (!['buyer', 'external', 'unknown'].includes(destinationType))
     throw Error("販売先を確認してください");
+  if (Object.hasOwn(entry,'salePlace')) sale.salePlace=entry.salePlace;
+  if (Object.hasOwn(entry,'marketId')) sale.marketId=entry.marketId;
   if (destinationType === 'buyer') {
     const buyer = s.buyers.find((item) => item.id === entry.buyerId);
     if (!buyer) throw Error("購入者を選んでください");
@@ -425,7 +427,7 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
       (roundId ? x.chargeRoundId === roundId : from <= x.date && x.date <= to),
   )) add(sale.buyerId,s.buyers.find(b=>b.id===sale.buyerId)?.name||sale.destinationName,'onsite',sale.price*sale.qty,`${sale.date} ${sale.name} ×${sale.qty}`);
   return [...map.values()].map((r) => ({ ...r, total: r.normal + r.onsite,
-    unpriced: roundId ? unpricedOrderLines(s.rounds.find(x=>x.id===roundId),s.rounds.find(x=>x.id===roundId)?.orders[r.id] || {}) : [] }));
+    unpriced: roundId ? unpricedOrderLines(s.rounds.find(x=>x.id===roundId),s.rounds.find(x=>x.id===roundId)?.orders[r.id] || {quantities:{}}) : [] }));
 }
 // Claims are distinct obligations. Additional claims are a labelled portion of the
 // round invoice, not a second charge. Opening balances have no invented order.

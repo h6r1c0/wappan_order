@@ -42,7 +42,7 @@ test('古い注文回は完売後も帳票へ載せ、別注文回の在庫を�
 test('販売記録表だけ一時的な資料注記を除き、規格と注文スナップショットを保つ',()=>{
   const historic='くるみパン【1個・9月11日資料】';
   assert.equal(salesPrintName(historic),'くるみパン');
-  assert.equal(salesPrintName('くるみパン 2個入り'),'くるみパン 2個入り');
+  assert.equal(salesPrintName('くるみパン 2個入り'),'くるみパン 2個');
   assert.equal(historic,'くるみパン【1個・9月11日資料】');
 });
 
@@ -67,7 +67,7 @@ test('販売記録表だけ顧客向け表示へ整え、同じ表の規格違�
   });
   const before=structuredClone(state);
   assert.deepEqual(salesPrintRows(state,round).map(row=>row.name),[
-    'くるみパン 1個入り','くるみパン 2個入り','天然酵母食パン（小）','天然酵母食パン（大）'
+    'くるみパン 1個','くるみパン 2個','天然酵母食パン（小）','天然酵母食パン（大）'
   ]);
   assert.deepEqual(state,before);
 });
@@ -110,11 +110,11 @@ test('仕分けの略称は規格や識別を守り、衝突時は正式名称�
   assert.equal(sortingPrintName(products[0].name,products),'甘夏サンドクッキー');
   assert.equal(sortingPrintName(products[1].name,products),'ジンジャークッキー');
   assert.equal(sortingPrintName(products[2].name,products),'白黒うさぎチョコパン');
-  assert.equal(sortingPrintName(products[3].name,products),'くるみパン 1個入り');
-  assert.equal(sortingPrintName(products[4].name,products),'くるみパン 2個入り');
+  assert.equal(sortingPrintName(products[3].name,products),'くるみパン 1個');
+  assert.equal(sortingPrintName(products[4].name,products),'くるみパン 2個');
   assert.equal(sortingPrintName('シナモンレーズンクッキー',products),'シナモンRクッキー');
   products.push({name:'甘夏サンドクッキー'});
-  assert.equal(sortingPrintName(products[0].name,products),products[0].name);
+  assert.equal(sortingPrintName(products[0].name,products),'甘夏サンドクッキー(冷) 約70g');
 });
 
 test('16人は4×4、必要なら5段で1枚に収め、複数ページは均衡させる',()=>{

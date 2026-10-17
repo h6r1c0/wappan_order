@@ -23,7 +23,7 @@ export function PrintPrep({state,round}) {
     }finally{preparing.current=false;setBusy(false);}
   };
   return <section className="print-prep-actions" aria-label="納品前の印刷" aria-busy={busy}>
-    <h3>納品前の印刷 <small className="print-format">A4 PDF</small></h3>
+    <h3>納品前の印刷</h3>
     <div><button type="button" disabled={busy} className="text-action" onClick={()=>start('sales')}>販売記録表を印刷 ›</button>
       <button type="button" disabled={busy} className="text-action" onClick={()=>start('sorting')}>個人仕分け表を印刷 ›</button></div>
     {busy&&<small role="status">帳票を準備しています…</small>}
