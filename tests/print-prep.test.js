@@ -41,9 +41,51 @@ test('古い注文回は完売後も帳票へ載せ、別注文回の在庫を�
 
 test('販売記録表だけ一時的な資料注記を除き、規格と注文スナップショットを保つ',()=>{
   const historic='くるみパン【1個・9月11日資料】';
-  assert.equal(salesPrintName(historic),'くるみパン 1個入り');
+  assert.equal(salesPrintName(historic),'くるみパン');
   assert.equal(salesPrintName('くるみパン 2個入り'),'くるみパン 2個入り');
   assert.equal(historic,'くるみパン【1個・9月11日資料】');
+});
+
+test('販売記録表だけ顧客向け表示へ整え、同じ表の規格違いは区別する',()=>{
+  for(const [name,label] of [
+    ['塩パン　1個','塩パン'],
+    ['ライ麦くるみレーズン　1個','ライ麦くるみレーズン'],
+    ['植物素材のビスケット　約80g','植物素材ビスケット'],
+    ['Ｆ.Ｔ.鳩ココアクッキー','鳩ココアクッキー'],
+    ['シナモンレーズンクッキー','シナモンレーズンクッキー'],
+    ['白うさぎと黒うさぎのチョコパン　2種×2個','白黒うさぎチョコパン'],
+    ['天然酵母食パン（大）約620g【スライス】','天然酵母食パン大・スライス'],
+    ['抹茶シフォンケーキ(冷） 直径12㎝型','抹茶シフォンケーキ'],
+  ])assert.equal(salesPrintName(name),label);
+  const {state,round}=fixture();
+  const products=[['one','くるみパン 1個入り'],['two','くるみパン 2個入り'],
+    ['small','天然酵母食パン（小）約410g'],['large','天然酵母食パン（大）約620g']];
+  products.forEach(([id,name],i)=>{
+    state.products.push({id,name,salesLabel:id==='small'?'天然酵母食パン':'',active:true});
+    round.products.push({id,name,price:200,faxOrder:i+10});
+    state.stocks.push({id:`st-${id}`,roundId:round.id,productId:id,name,price:200,qty:1});
+  });
+  const before=structuredClone(state);
+  assert.deepEqual(salesPrintRows(state,round).map(row=>row.name),[
+    'くるみパン 1個入り','くるみパン 2個入り','天然酵母食パン（小）','天然酵母食パン（大）'
+  ]);
+  assert.deepEqual(state,before);
+});
+
+test('マスターIDの任意表示名は別注文回の同一商品にも使われ、同名なら正式規格へ戻す',()=>{
+  const {state,round}=fixture();
+  state.products.push({id:'season',name:'ハロウィンパンプキンガレット　約20g×4個',salesLabel:'ハロウィンガレット'});
+  const next=newRound(state,'2027-10-16');state.rounds.push(next);
+  for(const r of [round,next]){
+    r.products.push({id:'season',name:'ハロウィンパンプキンガレット　約20g×4個',price:300});
+    state.stocks.push({id:`st-${r.date}`,roundId:r.id,productId:'season',name:'ハロウィンパンプキンガレット　約20g×4個',qty:1,price:300});
+  }
+  assert.equal(salesPrintRows(state,round)[0].name,'ハロウィンガレット');
+  assert.equal(salesPrintRows(state,next)[0].name,'ハロウィンガレット');
+  state.products.push({id:'other',name:'別商品',salesLabel:'ハロウィンガレット'});
+  round.products.push({id:'other',name:'別商品',price:300});
+  state.stocks.push({id:'st-other',roundId:round.id,productId:'other',name:'別商品',qty:1,price:300});
+  assert.deepEqual(salesPrintRows(state,round).map(row=>row.name),['ハロウィンパンプキンガレット 約20g×4個','別商品']);
 });
 
 test('個人仕分け表は注文のある購入者だけを画面と同じ読み順・FAX順で扱う',()=>{

@@ -1,23 +1,63 @@
-import {faxProducts} from './domain.js';
+import {faxProducts,normalize} from './domain.js';
 import {deliveredQuantity,receivedQuantity} from './shortages.js';
 import {buyerCompare} from './buyer-order.js';
 
 // These projections only read the current workspace. Never copy a draft into it.
 export function salesPrintRows(state, round) {
   const order = new Map(faxProducts(round.products).map((product, index) => [product.id, index]));
-  return state.stocks.filter(stock => stock.roundId === round.id && !stock.eventId && !stock.sourceStockId)
+  const products = new Map(state.products.map(product => [product.id,product]));
+  const rows = state.stocks.filter(stock => stock.roundId === round.id && !stock.eventId && !stock.sourceStockId)
     // A sales record sheet represents the delivered sales order, even after all
     // units have been assigned. Only a confirmed shortage reduces its blanks.
     .map((stock, index) => ({stock, index, qty: receivedQuantity(stock)}))
     .filter(row => row.qty > 0)
     .sort((a,b) => (order.get(a.stock.productId) ?? Infinity) - (order.get(b.stock.productId) ?? Infinity) || a.index-b.index)
-    .map(({stock,qty}) => ({id:stock.id, name:salesPrintName(stock.name), price:stock.price, qty}));
+    .map(({stock,qty}) => ({id:stock.id,
+      sourceName:stock.name, name:products.get(stock.productId)?.salesLabel?.trim() || salesPrintName(stock.name),
+      price:stock.price, qty}));
+  for(const row of rows){
+    const source=salesSourceName(row.sourceName);
+    const pack=source.match(/^(.+?)\s+(\d+個(?:入り)?)$/u);
+    if(pack&&rows.some(other=>other!==row&&salesSourceName(other.sourceName).match(/^(.+?)\s+(\d+個(?:入り)?)$/u)?.[1]===pack[1]))
+      row.name=source;
+    const size=source.match(/^(.+?)（[大小]）(?:約\d+g)?$/u);
+    if(size&&rows.some(other=>other!==row&&salesSourceName(other.sourceName).match(/^(.+?)（[大小]）(?:約\d+g)?$/u)?.[1]===size[1]))
+      row.name=salesPrintName(source);
+  }
+  // Compare only products actually on this sheet. If a short label collides,
+  // put the original pack/size back; never use a label to identify a product.
+  const counts=new Map();
+  rows.forEach(row=>counts.set(normalize(row.name),(counts.get(normalize(row.name))||0)+1));
+  return rows.map(({sourceName,...row})=>({...row,
+    name:counts.get(normalize(row.name))>1 ? salesSourceName(sourceName) : row.name}));
 }
 
-// The stock snapshot is authoritative; remove only temporary source-note text
-// from the paper label. Keep pack sizes that distinguish products.
+function salesSourceName(name) {
+  return name.replace(/【(?:(\d+個)・)?\d+月\d+日資料】$/,(_,pack)=>pack?` ${pack}入り`:'')
+    .replace(/[（(](?:冷|涼)[）)]/gu,'').replace(/\s+/gu,' ').trim();
+}
+
+const salesAliases=new Map([
+  ['植物素材のビスケット','植物素材ビスケット'],
+  ['白うさぎと黒うさぎのチョコパン 2種×2個','白黒うさぎチョコパン'],
+  ['ちびっこモーニング 3種、14個','ちびっこモーニング14個'],
+  ['リーン天然酵母ちびハイジの白パン 6個','リーンちびハイジ白パン6個'],
+  ['贅沢プレッツェルクロワッサン 1個、約90g','プレッツェルクロワッサン'],
+  ['ハロウィンパンプキンガレット 約20g×4個','ハロウィンガレット4個'],
+  ['おから入りホットビスケット 約50g×3個','おからホットビスケット3個'],
+]);
+// Customer-facing paper only. Order/FAX names and historical stock snapshots
+// remain intact. A specification is restored above if another printed product
+// would otherwise have the same name.
 export function salesPrintName(name) {
-  return name.replace(/【(?:(\d+個)・)?\d+月\d+日資料】$/,(_,pack)=>pack?` ${pack}入り`:'');
+  const source=salesSourceName(name);
+  if(salesAliases.has(source))return salesAliases.get(source);
+  const withoutWeight=source.replace(/[、,､]?\s*約\d+(?:[.,]\d+)?\s*[gｇ](?=$|[、,､×【])/gu,'')
+    .replace(/\s*直径\d+(?:[.,]\d+)?(?:㎝|cm)型?$/u,'')
+    .replace(/（([大小])）【スライス】$/u,'$1・スライス')
+    .replace(/\s*×(\d+個)/gu,' $1');
+  const withoutSingle=withoutWeight.replace(/\s*1個(?:入り)?$/u,'');
+  return salesAliases.get(withoutSingle) || withoutSingle.replace(/^[ＦF][.．][ＴT][.．]/u,'').trim();
 }
 
 export function sortingPrintRows(state, round) {
