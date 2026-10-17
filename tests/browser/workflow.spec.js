@@ -1,3 +1,5 @@
+import {PDFDocument} from 'pdf-lib';
+import {installPreviewProbe,openPdf,pdfBytes} from './print-preview-helpers.js';
 import { test, expect } from "@playwright/test";
 import { addSale, collections, initialState, newRound, report, stockRemaining, validate } from "../../src/domain.js";
 import { setSalesOrderQuantities, upgrade } from "../../src/commerce.js";
@@ -604,48 +606,36 @@ test('納品前の販売記録表と個人仕分け表をA4で印刷し、注文
   await expect(page.getByRole('button',{name:'販売記録表を印刷'})).toBeVisible();
   await expect(page.getByRole('button',{name:'個人仕分け表を印刷'})).toBeVisible();
   await expect(page.getByRole('group',{name:'欠品確認'})).toBeVisible();
-  await page.evaluate(()=>{window.__prints=0;window.print=()=>{window.__prints++}});
+  await installPreviewProbe(page);
   for(const width of [320,375,430,1280]){
     await page.setViewportSize({width,height:812});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:`test-results/print-entry-${width}.png`});
   }
+  const salesUrl=await openPdf(page,'販売記録表を印刷');
+  const sales=await pdfBytes(page,salesUrl);
+  const salesDoc=await PDFDocument.load(sales);
+  expect(salesDoc.getPageCount()).toBe(1);
+  expect(salesDoc.getTitle()).toBe('販売記録表 2026-09-11');
+  await fs.writeFile('test-results/sales-print-a4.pdf',sales);
+  // The active preview is not revoked while the next independent one opens.
+  const repeat=await openPdf(page,'販売記録表を印刷');expect(repeat).not.toBe(salesUrl);
+  expect((await pdfBytes(page,salesUrl)).length).toBe(sales.length);
+  const sortingUrl=await openPdf(page,'個人仕分け表を印刷');
+  const sorting=await pdfBytes(page,sortingUrl);
+  const sortingDoc=await PDFDocument.load(sorting);
+  expect(sortingDoc.getPageCount()).toBe(1);
+  expect(sortingDoc.getTitle()).toBe('個人注文仕分け表 2026-09-11');
+  await fs.writeFile('test-results/sorting-print-a4.pdf',sorting);
+  expect(await page.evaluate(()=>[window.__prints,window.__dialogs])).toEqual([0,0]);
+  await page.evaluate(()=>{window.open=window.__nativeOpen;});
+  const downloads=[];context.on('page',p=>p.on('download',d=>downloads.push(d)));
+  const popupPromise=page.waitForEvent('popup');
   await page.getByRole('button',{name:'販売記録表を印刷'}).click();
-  await expect.poll(()=>page.evaluate(()=>window.__prints)).toBe(1);
-  await page.getByRole('button',{name:'販売記録表を印刷'}).click();
-  expect(await page.evaluate(()=>window.__prints)).toBe(1);
-  await page.emulateMedia({media:'print'});
-  await expect(page.locator('#wappan-print-root')).toBeVisible();
-  await expect(page.locator('.sales-print-row')).toHaveCount(2);
-  await expect(page.locator('.sales-print-blank')).toHaveCount(8);
-  await expect(page.locator('.sales-print-name').last()).toContainText('2種×2個');
-  const x=await page.locator('.sales-print-blank').evaluateAll(nodes=>nodes.map(n=>Math.round(n.getBoundingClientRect().x)));
-  expect(new Set(x)).toHaveProperty('size',4);
-  expect(x[0]).toBe(x[1]); // first column is fixed across products
-  expect(x[1]).toBe(x[5]);expect(x[2]).toBe(x[6]);expect(x[3]).toBe(x[7]);
-  const salesLayout=await page.locator('.sales-print-page').evaluate(el=>({
-    heading:el.querySelector('.print-heading').getBoundingClientRect().height,
-    underline:el.querySelector('.sales-print-blank').getBoundingClientRect().width,
-    border:getComputedStyle(el.querySelector('.sales-print-row')).borderBottomStyle,
-  }));
-  expect(salesLayout.heading).toBeLessThan(50);
-  expect(salesLayout.underline).toBeGreaterThan(70);
-  expect(salesLayout.underline).toBeLessThan(85); // 20mm at 96 CSS px/in
-  expect(salesLayout.border).toBe('none');
-  await page.pdf({path:'test-results/sales-print-a4.pdf',preferCSSPageSize:true,printBackground:true});
-  await page.emulateMedia({media:'screen'});
-  await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
-  await page.waitForTimeout(1550);
-  await page.getByRole('button',{name:'個人仕分け表を印刷'}).click();
-  await expect.poll(()=>page.evaluate(()=>window.__prints)).toBe(2);
-  await page.emulateMedia({media:'print'});
-  await expect(page.locator('.sorting-print-person')).toHaveCount(16);
-  await expect(page.locator('.sorting-print-person').first()).toHaveCSS('grid-row-end','span 4');
-  await expect(page.locator('.sorting-print-page')).toHaveCount(1);
-  await expect(page.locator('.sorting-print-line').first()).toContainText('白黒うさぎチョコパン');
-  const sortingBottom=await page.locator('.sorting-print-page').evaluate(el=>el.getBoundingClientRect().height);
-  expect(sortingBottom).toBeLessThan(960); // 247mm, leaving Safari pagination headroom
-  await page.pdf({path:'test-results/sorting-print-a4.pdf',preferCSSPageSize:true,printBackground:true});
+  const popup=await popupPromise;
+  await expect.poll(()=>popup.url().startsWith('blob:')||downloads.length>0).toBe(true);
+  await popup.close();
+  await expect(page.getByRole('group',{name:'欠品確認'})).toBeVisible();
   expect(shared.revision).toBe(0);expect(shared.state).toEqual(unchanged);
 });
 
@@ -656,13 +646,9 @@ test('仕分けが2枚必要な場合は各ページへ均等に置き、空白�
   shared.state.buyers.forEach(b=>{round.orders[b.id]={name:b.name,quantities:{milk:1}};});
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
   await page.locator('.stage-3 > .stage-trigger').click();
-  await page.evaluate(()=>{window.print=()=>{}});
-  await page.getByRole('button',{name:'個人仕分け表を印刷'}).click();
-  await page.emulateMedia({media:'print'});
-  const sheets=page.locator('.sorting-print-page');
-  await expect(sheets).toHaveCount(2);
-  await expect(sheets.nth(0).locator('.sorting-print-person')).toHaveCount(11);
-  await expect(sheets.nth(1).locator('.sorting-print-person')).toHaveCount(10);
-  await page.pdf({path:'test-results/sorting-print-two-pages-a4.pdf',preferCSSPageSize:true});
+  await installPreviewProbe(page);
+  const bytes=await pdfBytes(page,await openPdf(page,'個人仕分け表を印刷'));
+  expect((await PDFDocument.load(bytes)).getPageCount()).toBe(2);
+  await fs.writeFile('test-results/sorting-print-two-pages-a4.pdf',bytes);
   expect(shared.revision).toBe(0);
 });

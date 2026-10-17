@@ -68,7 +68,7 @@ export function sortingPrintName(name, products) {
 // Leave Safari substantial page-bottom headroom rather than filling the A4 box.
 const sortingGridHeight=235;
 export function sortingSpan(lines, rowCount=4) {
-  const units=lines.reduce((n,line)=>n+Math.max(1,Math.ceil([...(line.printName||line.name)].length/11)),0);
+  const units=lines.reduce((n,line)=>n+(line.printUnits??Math.max(1,Math.ceil([...(line.printName||line.name)].length/11))),0);
   return Math.min(4,Math.max(1,Math.ceil((16+units*5.5)/(sortingGridHeight/rowCount))));
 }
 
