@@ -283,7 +283,7 @@ export function BuyerPicker({
   const [reading, setReading] = useState('');
   const [adding, setAdding] = useState(!!suggestedName);
   const [separatePerson,setSeparatePerson] = useState(false);
-  const imeReading=useRef('');
+  const imeReading=useRef({value:'',reading:'',eligible:false});
   useEffect(() => {
     if (!suggestedName) return;
     setName(suggestedName);
@@ -304,9 +304,11 @@ export function BuyerPicker({
     : [];
   return (
     <>
-      <div className="buyer-search-add"><Field label="名前を検索" type="search" placeholder="名前を検索" value={query} onChange={e => {setQuery(e.target.value);if(!e.target.value)imeReading.current='';}}
-        onCompositionUpdate={e=>{const candidate=kana(e.data||'');if(/^[ぁ-ゖー]+$/u.test(candidate))imeReading.current=candidate;}} />
-        {allowAdd && <button type="button" className="text-action" onClick={() => {if (!adding) {const candidate=query.trim();setName(candidate || suggestedName);setReading(/^[ぁ-ゖァ-ヺー\s]+$/u.test(candidate) ? kana(candidate) : imeReading.current);setSeparatePerson(false);}setAdding(!adding);}}>＋ 追加</button>}
+      <div className="buyer-search-add"><Field label="名前を検索" type="search" placeholder="名前を検索" value={query} onChange={e => {setQuery(e.target.value);if(!e.target.value)imeReading.current={value:'',reading:'',eligible:false};}}
+        onCompositionStart={e=>{imeReading.current={value:'',reading:'',eligible:!e.currentTarget.value.trim()};}}
+        onCompositionUpdate={e=>{const candidate=kana(e.data||'');if(imeReading.current.eligible&&/^[ぁ-ゖー]+$/u.test(candidate))imeReading.current={...imeReading.current,reading:candidate};}}
+        onCompositionEnd={e=>{imeReading.current={...imeReading.current,value:imeReading.current.eligible?e.currentTarget.value:''};}} />
+        {allowAdd && <button type="button" className="text-action" onClick={() => {if (!adding) {const candidate=query.trim();setName(candidate || suggestedName);setReading(/^[ぁ-ゖァ-ヺー\s]+$/u.test(candidate) ? kana(candidate) : imeReading.current.value===candidate?imeReading.current.reading:'');setSeparatePerson(false);}setAdding(!adding);}}>＋ 追加</button>}
       </div>
       {!query && <div className="buyer-index" role="group" aria-label="購入者の五十音索引">
         {[...kanaGroups.map(([name])=>name),'その他','すべて'].map(name=><button type="button" key={name}
