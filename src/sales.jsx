@@ -608,7 +608,6 @@ export function SaleEditor({ stock, onClose }) {
       <h3>販売先</h3><div className="choice-grid">
         <Button secondary={entry.destinationType!=='buyer'} onClick={() => set({...entry,destinationType:'buyer',paymentStatus:'later'})}>個人に請求</Button>
         <Button secondary={entry.destinationType!=='external'} onClick={() => set({...entry,destinationType:'external',paymentStatus:'paid'})}>支払い済み</Button>
-        <Button secondary={entry.destinationType!=='unknown'} onClick={() => set({...entry,destinationType:'unknown',paymentStatus:'unconfirmed',buyerId:'',destinationName:''})}>未確認</Button>
       </div>
       {entry.destinationType==='buyer' && (
         <>

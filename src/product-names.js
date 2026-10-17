@@ -5,7 +5,7 @@ export function productDisplayName(name = '') {
     .replace(/[\s\u3000]+/gu, ' ').trim();
   const packed = source.replace(/(\d+)個入り/gu, '$1個');
   // Both pack sizes exist for these families, so even the single pack needs a size.
-  if (/^(?:くるみパン|(?:リーン)?(?:天然酵母)?(?:ちび)?ハイジの白パン|黒糖ブレッド) 1個$/u.test(packed)) return packed;
+  if (/^(?:くるみパン|(?:リーン)?(?:天然酵母)?(?:ちび)?ハイジの白パン) 1個$/u.test(packed)) return packed;
   return packed.replace(/ 1個(?=\s*[,、､]\s*約\d|$)/u, '')
     .replace(/\s+([,、､])/gu, '$1').trim();
 }

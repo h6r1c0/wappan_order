@@ -38,7 +38,9 @@ function BuyerCollection({round,buyer,row}) {
       {position.confirmedHistorical>0&&<small className="collection-note">過去の支払済み確認 {yen(position.confirmedHistorical)}を繰越から除外</small>}
       {position.received>0&&<small className="collection-note">この回の受取記録 {yen(position.received)}</small>}
       {row&&<div className="collection-breakdown">
-        <h3>内訳</h3><div className="collection-categories">{Object.entries(row.categories||{}).filter(([,v])=>v>0).map(([k,v])=><div key={k}><span>{k}</span><strong>{yen(v)}</strong></div>)}</div>
+        <h3>内訳</h3><div className="collection-source-totals">
+          {[['個人注文',row.normal],['販売用の追加購入',row.onsite],['おやつ',row.snack]].filter(([,v])=>v>0).map(([label,amount])=><div key={label}><span>{label}</span><strong>{yen(amount)}</strong></div>)}
+        </div><div className="collection-categories">{Object.entries(row.categories||{}).filter(([,v])=>v>0).map(([k,v])=><div key={k}><span>{k}</span><strong>{yen(v)}</strong></div>)}</div>
         <div className="collection-lines"><div className="collection-line heading"><span>商品名</span><span>数量</span><span>金額</span></div>
         {row.lines.map((line,i)=>{const m=line.description.match(/^(?:\d{4}-\d{2}-\d{2} )?(.*?) ×(\d+)(.*)$/);
           return <div className="collection-line" key={i}><span>{m?.[1]?productDisplayName(m[1]):line.description}{m?.[3]||''}</span><span>{m?.[2]||'—'}</span><span>{line.unpriced?'未確認':yen(line.amount)}</span></div>;})}</div>
