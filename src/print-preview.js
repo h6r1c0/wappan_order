@@ -19,7 +19,9 @@ function pdfResources(){
 // Called directly in the click handler, before any await: browsers can allow
 // this preview tab as a user action even when loading the PDF takes time.
 export async function openPrintPreview(model){
-  for(let i=previews.length-1;i>=0;i--)if(previews[i].window?.closed){
+  // A blocked popup has only an inline fallback link. The caller removes that
+  // link before starting another request, so its old URL can be released too.
+  for(let i=previews.length-1;i>=0;i--)if(!previews[i].window||previews[i].window.closed){
     URL.revokeObjectURL(previews[i].url);previews.splice(i,1);
   }
   let preview;
