@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useState, createContext, useContext } from "react";
 import { normalize, yen } from "./domain";
 import {kana,buyerReading,buyerCompare} from './buyer-order.js';
+import {productDisplayName,productSearchText} from './product-names.js';
 export {buyerReading,buyerCompare} from './buyer-order.js';
 
 const breadCategoryIcon = new URL(
@@ -207,12 +208,12 @@ export function ProductQuantityEditor({
   const filtered = products.filter(
     (product) =>
       (query.trim() || category === "ALL" || product.category === category) &&
-      normalize(product.name).includes(normalize(query)),
+      normalize(productSearchText(product)).includes(normalize(query)),
   );
   const row = (product) => (
     <div className="product-entry" key={product.id}><div className="product-row">
       <span className="grow">
-        {product.name.startsWith('ツイストドーナツ 2個入り') ? <><span>ツイストドーナツ</span><small className="pack-spec">2個入り</small></> : product.name}
+        {productDisplayName(product.name)}
         {priceLabel(product) && <small>{priceLabel(product)}</small>}
         {secondaryLabel?.(product) && <small className="quantity-reference">{secondaryLabel(product)}</small>}
       </span>
@@ -223,10 +224,7 @@ export function ProductQuantityEditor({
           onChange({ ...quantities, [product.id]: quantity })
         }
       />
-    </div>{onCutChange && (product.cutSupported ?? product.name.includes('食パン')) && !product.name.includes('【スライス】') && quantities[product.id] > 0 && <div className="cut-option">
-      <Check label="カット" checked={(cutQuantities?.[product.id] || 0) > 0} onChange={checked => onCutChange({...cutQuantities,[product.id]:checked ? quantities[product.id] : 0})}/>
-      {(cutQuantities?.[product.id] || 0) > 0 && cutFees[product.id] == null && <Money label="カット加算額" value={null} onChange={value => onCutFeeChange?.(product.id, value)}/>}
-    </div>}</div>
+    </div></div>
   );
   if (!products.length) return <Empty>{emptyMessage}</Empty>;
   return (
@@ -289,7 +287,7 @@ export function BuyerPicker({
     setName(suggestedName);
     setAdding(true);
   }, [suggestedName]);
-  const suggestedKey = normalize(suggestedName);
+  const suggestedKey = normalize(name);
   const similar = suggestedKey
     ? state.buyers.filter((buyer) => {
         const key = normalize(buyer.name);
@@ -304,7 +302,7 @@ export function BuyerPicker({
   return (
     <>
       <div className="buyer-search-add"><Field label="名前を検索" type="search" placeholder="名前を検索" value={query} onChange={e => setQuery(e.target.value)} />
-        {allowAdd && <button type="button" className="text-action" onClick={() => setAdding(!adding)}>＋ 追加</button>}
+        {allowAdd && <button type="button" className="text-action" onClick={() => {if (!adding) {const candidate=query.trim();setName(candidate || suggestedName);setReading(/^[ぁ-ゖァ-ヺー\s]+$/u.test(candidate) ? kana(candidate) : '');}setAdding(!adding);}}>＋ 追加</button>}
       </div>
       {!query && <div className="buyer-index" role="group" aria-label="購入者の五十音索引">
         {[...kanaGroups.map(([name])=>name),'その他','すべて'].map(name=><button type="button" key={name}

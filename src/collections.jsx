@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { collectionDueItems, collectionPosition, today, uid, yen } from './domain';
 import { useApp, Button, Field, Money } from './ui';
+import {productDisplayName} from './product-names.js';
 
 const reasons=['未払い / 未受取','商品請求漏れ','お釣り / 過不足','金額入力間違い','返金','その他'];
 function BuyerCollection({round,buyer,row}) {
@@ -27,7 +28,7 @@ function BuyerCollection({round,buyer,row}) {
     </div>
     {added.map(x=><p key={x.id} className="collection-alert">⚠ 追加請求 {yen(x.balance)}<small>{x.note}{x.notifiedAmount!=null?` ／ 当初案内済み ${yen(x.notifiedAmount)}`:''}</small></p>)}
     {prior.length>0&&<p className="collection-alert">⚠ 過去未収 {yen(prior.reduce((a,x)=>a+x.balance,0))}<small>{prior.map(x=>`${x.date.slice(5).replace('-','/')} ${x.note} ${yen(x.balance)}`).join(' ／ ')}</small></p>}
-    {unresolved.length>0&&<p className="collection-alert">⚠ 販売価格未確認：{unresolved.map(x=>`${x.name} ×${x.qty}`).join('、')}<small>確定済み金額 {yen(position.current)}。請求総額を確定する前に価格を登録してください。</small></p>}
+    {unresolved.length>0&&<p className="collection-alert">⚠ 販売価格未確認：{unresolved.map(x=>`${productDisplayName(x.name)} ×${x.qty}`).join('、')}<small>確定済み金額 {yen(position.current)}。請求総額を確定する前に価格を登録してください。</small></p>}
     {open&&<div className="collection-detail">
       <div className="collection-totals" aria-label="今回請求と前回繰越の合計">
         <div><small>今回請求</small><strong>{yen(position.current)}</strong></div><b aria-hidden="true">＋</b>
@@ -40,7 +41,7 @@ function BuyerCollection({round,buyer,row}) {
         <h3>内訳</h3><div className="collection-categories">{Object.entries(row.categories||{}).filter(([,v])=>v>0).map(([k,v])=><div key={k}><span>{k}</span><strong>{yen(v)}</strong></div>)}</div>
         <div className="collection-lines"><div className="collection-line heading"><span>商品名</span><span>数量</span><span>金額</span></div>
         {row.lines.map((line,i)=>{const m=line.description.match(/^(?:\d{4}-\d{2}-\d{2} )?(.*?) ×(\d+)(.*)$/);
-          return <div className="collection-line" key={i}><span>{m?.[1]||line.description}{m?.[3]||''}</span><span>{m?.[2]||'—'}</span><span>{line.unpriced?'未確認':yen(line.amount)}</span></div>;})}</div>
+          return <div className="collection-line" key={i}><span>{m?.[1]?productDisplayName(m[1]):line.description}{m?.[3]||''}</span><span>{m?.[2]||'—'}</span><span>{line.unpriced?'未確認':yen(line.amount)}</span></div>;})}</div>
       </div>}
       {items.length>0&&<div className="collection-items"><h3>未収・追加請求の内訳</h3>{items.map(x=><div className="collection-item" key={x.id}><span>{x.date.slice(5).replace('-','/')} {x.reason}：{x.note}</span><strong>{x.balance?yen(x.balance):'精算済み'}</strong></div>)}</div>}
       <Field label="支払い対象"><select value={target} onChange={e=>{setTarget(e.target.value);setReceived(null);}}><option value="">古い未収から順に充当</option>

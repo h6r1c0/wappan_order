@@ -1,4 +1,5 @@
 import {receivedQuantity} from './shortages';
+import {productDisplayName} from './product-names.js';
 import React, { useState } from "react";
 import {
   delivery,
@@ -121,9 +122,9 @@ function EventEditor({ event, onClose, roundId=null }) {
           lines: [],
         },
   );
-  const [choice, setChoice] = useState("walnut");
+  const [choice, setChoice] = useState(() => state.products.find(p=>p.active&&!p.retiredDuplicate&&/くるみパン\s*1個(?:入り)?$/u.test(p.name))?.id || '');
   const add = () => {
-    const p = state.products.find((p) => p.id === choice);
+    const p = state.products.find((p) => p.id === choice && !p.retiredDuplicate);
     set({
       ...e,
       lines: [
@@ -237,10 +238,10 @@ function EventEditor({ event, onClose, roundId=null }) {
               onChange={(ev) => setChoice(ev.target.value)}
             >
               {state.products
-                .filter((p) => ["walnut", "bean", "apple"].includes(p.id))
+                .filter((p) => p.active && !p.retiredDuplicate && (/くるみパン\s*1個(?:入り)?$/u.test(p.name) || /^こしあんぱん/u.test(p.name) || /^りんごデニッシュ/u.test(p.name)))
                 .map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}
+                    {productDisplayName(p.name)}
                   </option>
                 ))}
               <option value="other">その他（名前と単価を入力）</option>

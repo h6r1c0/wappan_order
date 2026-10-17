@@ -2290,3 +2290,11 @@ header small {
 .print-prep-actions .text-action { min-height: 36px; padding: 4px 0; }
 .print-format { color: #6d736e; font-weight: 400; font-size: .7rem; margin-left: 5px; }
 .print-prep-actions > small { display: block; font-size: .76rem; margin-top: 3px; }
+.workspace-header .button { min-height: 34px; padding: 4px 9px; font-size: .82rem; border-radius: 6px; }
+.shortage-check .segmented { display:inline-grid; grid-template-columns:repeat(2,minmax(66px,1fr)); border:1px solid #c9d4d1; background:#fff; border-radius:7px; overflow:hidden; gap:0; }
+.shortage-check .segmented button { min-width:66px; min-height:36px; border:0; border-radius:0; padding:5px 9px; color:#435652; background:#fff; }
+.shortage-check .segmented button + button { border-left:1px solid #dce4e1; }
+.shortage-check .segmented button.selected { color:#145d55; background:#e3f2ee; box-shadow:inset 0 -3px #197c70; font-weight:700; }
+.shortage-check .segmented button:disabled { color:#a7b2ae; background:#f7f8f7; }
+.market-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:4px 0 9px; }
+.market-actions small { color:var(--muted); font-size:.76rem; }

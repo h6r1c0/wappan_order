@@ -2,6 +2,7 @@ import React, {useState} from 'react';
 import {shortageRecipients, fairAllocation, applyShortage, shortageMessage, updateDeliveryStatus} from './shortages';
 import {deliveryTotals} from './commerce';
 import {useApp, Button, Field, Qty, copyText} from './ui';
+import {productDisplayName} from './product-names.js';
 
 export function Shortage({round:r}) {
   const {state,save,notify}=useApp();
@@ -27,7 +28,7 @@ export function Shortage({round:r}) {
     }}>欠品確認を保存</Button><button type="button" className="text-action" onClick={()=>setChoice(r.shortageConfirmation||'')}>取消</button></div>}
     {r.shortageConfirmation==='yes' && <div className="shortage-editor">
       <Field label="欠品商品"><select value={productId} onChange={e=>reset(e.target.value)}>
-        <option value="">商品を選ぶ</option>{deliveryTotals(state,r).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+        <option value="">商品を選ぶ</option>{deliveryTotals(state,r).map(p=><option key={p.id} value={p.id}>{productDisplayName(p.name)}</option>)}
       </select></Field>
       {productId && <>
         <div className="shortage-arrival"><span>注文 <strong>{ordered}個</strong></span>

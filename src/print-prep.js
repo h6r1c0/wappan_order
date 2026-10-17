@@ -1,6 +1,7 @@
 import {faxProducts,normalize} from './domain.js';
 import {deliveredQuantity,receivedQuantity} from './shortages.js';
 import {buyerCompare} from './buyer-order.js';
+import {productDisplayName} from './product-names.js';
 
 // These projections only read the current workspace. Never copy a draft into it.
 export function salesPrintRows(state, round) {
@@ -19,7 +20,7 @@ export function salesPrintRows(state, round) {
     const source=salesSourceName(row.sourceName);
     const pack=source.match(/^(.+?)\s+(\d+個(?:入り)?)$/u);
     if(pack&&rows.some(other=>other!==row&&salesSourceName(other.sourceName).match(/^(.+?)\s+(\d+個(?:入り)?)$/u)?.[1]===pack[1]))
-      row.name=source;
+      row.name=productDisplayName(source);
     const size=source.match(/^(.+?)（[大小]）(?:約\d+g)?$/u);
     if(size&&rows.some(other=>other!==row&&salesSourceName(other.sourceName).match(/^(.+?)（[大小]）(?:約\d+g)?$/u)?.[1]===size[1]))
       row.name=salesPrintName(source);
@@ -29,7 +30,7 @@ export function salesPrintRows(state, round) {
   const counts=new Map();
   rows.forEach(row=>counts.set(normalize(row.name),(counts.get(normalize(row.name))||0)+1));
   return rows.map(({sourceName,...row})=>({...row,
-    name:counts.get(normalize(row.name))>1 ? salesSourceName(sourceName) : row.name}));
+    name:counts.get(normalize(row.name))>1 ? productDisplayName(salesSourceName(sourceName)) : row.name}));
 }
 
 function salesSourceName(name) {
@@ -57,7 +58,7 @@ export function salesPrintName(name) {
     .replace(/（([大小])）【スライス】$/u,'$1・スライス')
     .replace(/\s*×(\d+個)/gu,' $1');
   const withoutSingle=withoutWeight.replace(/\s*1個(?:入り)?$/u,'');
-  return salesAliases.get(withoutSingle) || withoutSingle.replace(/^[ＦF][.．][ＴT][.．]/u,'').trim();
+  return productDisplayName(salesAliases.get(withoutSingle) || withoutSingle.replace(/^[ＦF][.．][ＴT][.．]/u,'').trim());
 }
 
 export function sortingPrintRows(state, round) {
@@ -98,10 +99,10 @@ const shortLabels = new Map([
 ]);
 export function sortingPrintName(name, products) {
   const candidate=shortLabels.get(name);
-  if (!candidate) return name;
+  if (!candidate) return productDisplayName(name);
   // When two products would read the same, retain the full name and its specification.
   return products.some(p => p.name!==name && (p.name===candidate || shortLabels.get(p.name)===candidate))
-    ? name : candidate;
+    ? productDisplayName(name) : productDisplayName(candidate);
 }
 
 // Physical height estimate: 16mm for name/padding, 5.5mm per product line.

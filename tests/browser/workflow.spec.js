@@ -266,15 +266,14 @@ test('納品後: 未確認2個を購入者と名称なし外部へ分割', async
   await setQty(page,'くるみパン 割当数量',1);
   await page.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();
   await page.getByRole('button',{name:'ホリ',exact:true}).click();
-  await page.getByRole('button',{name:/この1個を購入者として確定/}).click();
+  await page.getByRole('button',{name:/この1個を個人に請求として確定/}).click();
   await expect(page.getByLabel('くるみパンの割当状況')).toContainText('ホリ 1');
   await expect(page.getByLabel('くるみパンの割当状況')).toContainText('未割当 1');
   await setQty(page,'くるみパン 割当数量',1);
-  await page.getByRole('button',{name:'外部購入者'}).click();
-  await expect(page.getByLabel('外部販売先（任意）')).toHaveValue('');
-  await page.getByRole('button',{name:'入金済み'}).click();
-  await page.getByRole('button',{name:'この1個を外部販売として確定'}).click();
-  await expect(page.getByLabel('くるみパンの割当状況')).toContainText('外部 1');
+  await page.getByRole('button',{name:'支払い済み'}).click();
+  await expect(page.getByLabel('販売先・団体名（任意）')).toHaveValue('');
+  await page.getByRole('button',{name:'この1個を支払い済みとして確定'}).click();
+  await expect(page.getByLabel('くるみパンの割当状況')).toContainText('支払い済み 1');
   await expect(page.getByLabel('くるみパンの割当状況')).toContainText('未割当 0');
   expect(shared.state.sales.reduce((n,s)=>n+s.qty,0)).toBe(2);
   expect(collections(shared.state,'','',r.id,true).find(x=>x.id==='hori').onsite).toBe(st.price);
@@ -346,7 +345,7 @@ test('請求漏れ・過去未収を一度の内訳展開で確認し、対象�
   await expect(hori.locator('.collection-totals')).toContainText('今回請求');
   await expect(hori.locator('.collection-totals')).toContainText('＋');
   await expect(hori.locator('.collection-totals')).toContainText('＝');
-  await expect(hori.locator('.collection-line')).toContainText(['商品名数量金額','黒糖ブレッド1430円','ツイストドーナツ 2個入り2380円']);
+  await expect(hori.locator('.collection-line')).toContainText(['商品名数量金額','黒糖ブレッド1430円','ツイストドーナツ 2個2380円']);
   await expect(hori.locator('.collection-line').nth(2)).not.toContainText('2026-09-11');
   await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
   await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
@@ -413,9 +412,8 @@ test('販売先割当: 10個から外部6個、購入者から複数商品をま
   await page.getByRole('button',{name:'商品から入力'}).click();
   await page.getByRole('button',{name:/くるみパン.*未割当 10/}).click();
   await setQty(page,'くるみパン 割当数量',6);
-  await page.getByRole('button',{name:'外部購入者'}).click();
-  await page.getByRole('button',{name:'入金済み'}).click();
-  await page.getByRole('button',{name:'この6個を外部販売として確定'}).click();
+  await page.getByRole('button',{name:'支払い済み'}).click();
+  await page.getByRole('button',{name:'この6個を支払い済みとして確定'}).click();
   await expect(page.getByLabel('くるみパンの割当状況')).toContainText('未割当 4');
   await page.getByRole('button',{name:'購入者から入力'}).click();
   await page.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();
@@ -449,28 +447,24 @@ test('複数端末: 古いrevisionの保存は拒否して最新データを守�
   } finally {await aContext.close();await bContext.close();}
 });
 
-test('個人注文のカット加算と販売用の個人注文数参照', async ({page,context}) => {
+test('スライスは独立商品で選び、販売用の個人注文数を参照する', async ({page,context}) => {
   const shared={state:preparedState(),revision:0};
   await backend(context,shared); await login(page); await openRound(page);
   await page.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();
   await page.getByRole('button',{name:'ホリ',exact:true}).click();
   await page.locator('.order-editor').getByRole('button',{name:'パン',exact:true}).click();
   await page.getByRole('button',{name:'湯種食パン 数量を増やす'}).click();
-  await page.getByLabel('カット',{exact:true}).check();
-  await page.getByLabel('カット加算額').fill('15');
+  await expect(page.getByLabel('カット',{exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'保存して次の購入者へ'}).click();
-  await expect.poll(()=>shared.state.rounds[0].orders.hori.cutQuantities.bread).toBe(1);
-  expect(shared.state.products.find(p=>p.id==='bread').cutFee).toBe(15);
+  await expect.poll(()=>shared.state.rounds[0].orders.hori.quantities.bread).toBe(1);
   await page.getByRole('button',{name:'販売用',exact:true}).click();
   await page.getByLabel('個人注文数を表示').first().check();
   await expect(page.getByLabel('個人注文数を表示').last()).toBeChecked();
   await expect(page.locator('.product-row').filter({hasText:'湯種食パン'})).toContainText('個人注文 1個');
   await page.getByRole('button',{name:'湯種食パン 数量を増やす'}).click();
-  await page.getByLabel('カット',{exact:true}).check();
   await page.getByRole('button',{name:'保存',exact:true}).click();
-  await expect(page.getByRole('region',{name:'今回の販売用注文'})).toContainText('カット 1個');
-  expect(shared.state.stocks.find(stock=>stock.productId==='bread'&&stock.cut).price).toBe(
-    shared.state.rounds[0].products.find(product=>product.id==='bread').price+15);
+  await expect(page.getByRole('region',{name:'今回の販売用注文'})).not.toContainText('カット');
+  expect(shared.state.stocks.find(stock=>stock.productId==='bread'&&stock.cut)).toBeUndefined();
 });
 
 test('集計と商品管理: 年度利益はテストを除外、検索はカテゴリ横断', async ({page,context}) => {
@@ -509,6 +503,19 @@ test('購入者の読みは表示名を変えず五十音索引と検索に使�
   await page.getByPlaceholder('購入者名を検索').fill('やまざき');
   await expect(page.locator('.master-row').filter({hasText:'山﨑'})).toBeVisible();
   expect(shared.state.buyers.find(x=>x.id==='special').name).toBe('山﨑');
+});
+
+test('購入者検索からの追加は氏名を引き継ぎ、読みを修正して注文へ進める',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  await backend(context,shared);await login(page);await openRound(page);
+  await page.getByPlaceholder('名前を検索').fill('満保');
+  await page.getByRole('button',{name:'＋ 追加'}).click();
+  await expect(page.getByLabel('新しい購入者名')).toHaveValue('満保');
+  await page.getByLabel('よみがな').fill('まんぼ');
+  await page.getByRole('button',{name:'追加して選ぶ'}).click();
+  await expect(page.locator('.order-editor h2')).toContainText('満保');
+  expect(shared.state.buyers.find(b=>b.name==='満保')?.kana).toBe('まんぼ');
+  await mobileShots(page,'new-buyer');
 });
 
 async function mobileShots(page,prefix) {
@@ -564,7 +571,7 @@ test('場所なしセット、既知のおやつ単価・使用数、税込合�
   await page.getByRole('button',{name:'＋ セットを作る'}).click();await page.getByLabel('セット名').fill('おためしセット');await page.getByLabel('1セットの販売価格').fill('300');
   await setQty(page,'くるみパン セット必要数',1);await page.getByRole('button',{name:'セットを保存',exact:true}).click();
   expect(shared.state.markets).toHaveLength(0);expect(shared.state.bundles[0].roundId).toBe(r.id);
-  await page.getByRole('button',{name:'販売を記録',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'入金済み'}).click();await page.getByRole('button',{name:'この内容で販売を記録'}).click();
+  await page.getByRole('button',{name:'販売を記録',exact:true}).click();await page.getByRole('button',{name:'この内容で販売を記録'}).click();
   expect(shared.state.bundleSales[0].marketId).toBe(null);expect(shared.state.bundleSales[0].qty).toBe(1);
   await page.getByLabel('税込合計').fill('1000');await page.locator('.invoice-input-row').getByRole('button',{name:'保存',exact:true}).click();expect(shared.state.rounds[0].invoice).toBe(1000);
   await mobileShots(page,'delivery');

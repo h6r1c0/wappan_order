@@ -69,6 +69,20 @@ export function marketTotals(s,m){
   const expense=m.expenseMode==='apply'&&m.expense!=null?m.expense:0;
   return {revenue,cost,baseProfit:cost==null?null:revenue-cost,profit:cost==null?null:revenue-cost-expense,expenseUnknown:m.expense==null,expenseApplied:m.expenseMode==='apply'&&m.expense!=null};
 }
+export function marketUsage(s,id){
+  const stockIds=new Set(s.stocks.filter(st=>st.marketId===id).map(st=>st.id));
+  return {
+    stock:s.stocks.some(st=>st.marketId===id),
+    sales:s.sales.some(x=>x.marketId===id||stockIds.has(x.stockId)),
+    sets:s.bundles.some(x=>x.marketId===id)||s.bundleSales.some(x=>x.marketId===id),
+    expense:!!s.markets.find(m=>m.id===id)?.expense,
+  };
+}
+export function removeUnusedMarket(s,id){
+  const usage=marketUsage(s,id);
+  if(Object.values(usage).some(Boolean))throw Error('販売・セット・経費の記録があるため削除できません。候補から非表示にできます');
+  s.markets=s.markets.filter(m=>m.id!==id);
+}
 export function deliveryTotals(s,r){
   const map=new Map();
   const add=(id,name,kind,qty)=>{if(!map.has(id))map.set(id,{id,name,personal:0,sales:0,snack:0,onsite:0,event:0,external:0});map.get(id)[kind]+=qty;};
