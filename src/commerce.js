@@ -76,11 +76,12 @@ export function marketUsage(s,id){
     sales:s.sales.some(x=>x.marketId===id||stockIds.has(x.stockId)),
     sets:s.bundles.some(x=>x.marketId===id)||s.bundleSales.some(x=>x.marketId===id),
     expense:!!s.markets.find(m=>m.id===id)?.expense,
+    history:['history','adjustments','collectionEntries','receivableItems'].some(key=>(s[key]||[]).some(x=>x.marketId===id)),
   };
 }
 export function removeUnusedMarket(s,id){
   const usage=marketUsage(s,id);
-  if(Object.values(usage).some(Boolean))throw Error('販売・セット・経費の記録があるため削除できません。候補から非表示にできます');
+  if(Object.values(usage).some(Boolean))throw Error('販売・セット・経費・履歴の記録があるため削除できません。候補から非表示にできます');
   s.markets=s.markets.filter(m=>m.id!==id);
 }
 export function deliveryTotals(s,r){

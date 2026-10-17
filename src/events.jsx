@@ -122,7 +122,7 @@ function EventEditor({ event, onClose, roundId=null }) {
           lines: [],
         },
   );
-  const [choice, setChoice] = useState(() => state.products.find(p=>p.active&&!p.retiredDuplicate&&/くるみパン\s*1個(?:入り)?$/u.test(p.name))?.id || '');
+  const [choice, setChoice] = useState(() => state.products.find(p=>p.active&&!p.retiredDuplicate&&/くるみパン\s*1個(?:入り)?$/u.test(p.name))?.id || state.products.find(p=>p.id==='walnut'&&p.active&&!p.retiredDuplicate)?.id || '');
   const add = () => {
     const p = state.products.find((p) => p.id === choice && !p.retiredDuplicate);
     set({
@@ -238,7 +238,7 @@ function EventEditor({ event, onClose, roundId=null }) {
               onChange={(ev) => setChoice(ev.target.value)}
             >
               {state.products
-                .filter((p) => p.active && !p.retiredDuplicate && (/くるみパン\s*1個(?:入り)?$/u.test(p.name) || /^こしあんぱん/u.test(p.name) || /^りんごデニッシュ/u.test(p.name)))
+                .filter((p) => p.active && !p.retiredDuplicate && (/くるみパン\s*1個(?:入り)?$/u.test(p.name) || p.id==='walnut'&&!state.products.some(x=>x.active&&!x.retiredDuplicate&&/くるみパン\s*1個(?:入り)?$/u.test(x.name)) || /^こしあんぱん/u.test(p.name) || /^りんごデニッシュ/u.test(p.name)))
                 .map((p) => (
                   <option key={p.id} value={p.id}>
                     {productDisplayName(p.name)}

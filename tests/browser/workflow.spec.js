@@ -589,7 +589,7 @@ test('発注前の販売数を一覧上で調整し、工程移動で見出し�
   await page.locator('.fax-adjust').getByRole('button',{name:'保存',exact:true}).click();
   expect(shared.state.stocks.find(s=>s.productId==='walnut').qty).toBe(1);await expect(page.locator('.delivery-total-row').filter({hasText:'くるみパン'})).toContainText('3個');
   await mobileShots(page,'fax-adjust');
-  await page.locator('.stage-3 > .stage-trigger').click();await expect(page.locator('.stage-3 > .stage-content').getByRole('heading',{name:'納品・精算',exact:true})).toBeVisible();
+  await page.locator('.stage-3 > .stage-trigger').click();await expect(page.locator('.stage-3 > .stage-content').getByText('欠品確認',{exact:true})).toBeVisible();
   await expect.poll(async()=>page.locator('.stage-3 > .stage-trigger').evaluate(e=>e.getBoundingClientRect().top)).toBeLessThan(650);
   await page.locator('.stage-3 > .stage-trigger').click();await expect(page.locator('.stage-3 .stage-content')).toHaveCount(0);
 });

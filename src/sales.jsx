@@ -599,9 +599,9 @@ export function SaleEditor({ stock, onClose }) {
         value={entry.date}
         onChange={(e) => put("date", e.target.value)}
       />
-      <Field label="販売場所（任意）">
+      <details className="sale-date"><summary>販売場所を記録（任意）</summary><Field label="販売場所・催し名">
         <input list="sale-places" value={entry.salePlace || ""} placeholder="未指定でも登録できます" onChange={e=>{const m=state.markets.find(m=>m.name===e.target.value&&m.roundId===stock.roundId);set({...entry,salePlace:e.target.value,marketId:m?.id||null});}} />
-      </Field>
+      </Field></details>
       <datalist id="sale-places">
         {state.markets.filter(m=>m.roundId===stock.roundId&&m.active!==false).map(m=><option value={m.name} key={m.id}/>) }
       </datalist>

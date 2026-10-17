@@ -32,7 +32,7 @@ test('重複商品の候補だけを隠し、過去の注文スナップショ�
 test('販売場所の削除は参照と経費を確認し、未使用だけ削除する',()=>{
   const state=initialState();const m={id:'place',roundId:'r',name:'催し',date:'2026-10-16',expense:0,expenseMode:'reference'};
   state.markets.push(m);
-  assert.deepEqual(marketUsage(state,m.id),{stock:false,sales:false,sets:false,expense:false});
+  assert.deepEqual(marketUsage(state,m.id),{stock:false,sales:false,sets:false,expense:false,history:false});
   state.bundles.push({id:'set',marketId:m.id});
   assert.throws(()=>removeUnusedMarket(state,m.id),/削除できません/);
   assert.equal(state.markets.length,1);
