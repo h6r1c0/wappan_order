@@ -120,6 +120,17 @@ test("Postgres: migration/RLS/許可された係だけ保存/競合拒否/振替
   await db.query("select public.wappan_save(6,$1,'external sale pending payment')",[state]);
   state.collectionEntries[0].received = 1.5;
   await assert.rejects(() => db.query("select public.wappan_save(7,$1,'invalid collection')",[state]),/Invalid collection entry amount/);
+  state.collectionEntries[0].received=530;
+  state.otherSales.push({id:'lemon',name:'レモン',date:pendingRound.date,qty:5,unitPrice:100,unitCost:0,paymentStatus:'paid',test:false,void:false,history:[]});
+  e.billing={label:'行事',fiscal:[],groups:[{id:'common',label:'家庭用',lineIds:['line'],unitPrice:140}],
+    household:[{buyerId:'hori',groupId:'common',lineId:null,qty:18,unitPrice:140}]};
+  await db.query("select public.wappan_save(7,$1,'group and lemon')",[state]);
+  e.billing.household[0].qty=17;
+  await assert.rejects(()=>db.query("select public.wappan_save(8,$1,'mismatched group')",[state]),/Snack group allocation mismatch/);
+  e.billing.household[0].qty=18;
+  state.otherSales[0].unitCost=-1;
+  await assert.rejects(()=>db.query("select public.wappan_save(8,$1,'negative cost')",[state]),/Invalid other sale/);
+  state.otherSales[0].unitCost=0;
   await db.exec(`reset role; update wappan_private.wappan_staff set role='admin' where user_id='${id}'; set role authenticated`);
   assert.equal((await db.query('select public.wappan_admin_is_admin() is_admin')).rows[0].is_admin,true);
   assert.equal((await db.query('select public.wappan_admin_list() members')).rows[0].members.length,1);

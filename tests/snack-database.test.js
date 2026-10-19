@@ -25,5 +25,17 @@ test('DB は旧注文を保ち、おやつ請求の二重割当・振替後数�
   e.billing.household[0].buyerId='hori';
   transfer(s,e,e.lines[0],4,160,r.date);
   await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Snack billing exceeds/);
+  // Group validation shares the same boundary as persistent saves.
+  s.stocks=[];e.lines.forEach(l=>{l.used=2;l.usedConfirmed=true;});
+  e.billing={label:'グループ',fiscal:[],groups:e.lines.map((l,i)=>({id:`g${i}`,label:l.name,lineIds:[l.id],unitPrice:150})),
+    household:e.lines.map((l,i)=>({buyerId:'hori',groupId:`g${i}`,lineId:null,qty:2,unitPrice:150}))};
+  await db.query('select public.wappan_validate($1)',[s]);
+  e.billing.household[0].unitPrice=160;
+  await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Invalid snack group assignment/);
+  e.billing.household[0].unitPrice=150;
+  s.otherSales=[{id:'lemon',name:'レモン',date:r.date,qty:1,unitPrice:100,unitCost:0,paymentStatus:'paid',test:false,void:false,history:[]}];
+  await db.query('select public.wappan_validate($1)',[s]);
+  delete s.otherSales[0].paymentStatus;
+  await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Invalid other sale/);
   await db.close();
 });

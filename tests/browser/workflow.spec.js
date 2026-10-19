@@ -394,6 +394,7 @@ test('10月初回のExcel準備と同月再利用、LINE候補、固定注文追
   await page.getByLabel('商品名を検索').fill('黒糖');
   await page.getByRole('dialog').getByRole('button',{name:/黒糖ブレッド/}).click();
   await expect(page.getByRole('dialog').locator('.product-row')).toHaveCount(3);
+  await closeToast(page);
   await page.getByRole('button',{name:'購入者・固定注文を保存'}).click();
   expect(shared.state.buyers.find(b=>b.id==='hori').fixed).toHaveLength(3);
 });
@@ -563,6 +564,47 @@ test('おやつの職員分と共通単価の家庭請求を確認後に保存�
   await expect(entry.locator('.collection-source-totals')).toContainText('おやつ');
   await expect(entry.locator('.collection-source-totals')).toContainText('300円');
   await mobileShots(page,'snack-collection');
+});
+
+test('共通単価グループを複数家庭へ一括割当し、その他の販売を通常商品と分ける',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  shared.state.buyers.push(...['佐藤','鈴木'].map((name,i)=>({id:`family${i}`,name,kana:'さとう',active:true,fixed:[]})));
+  const r=newRound(shared.state,'2026-10-16',true);r.status='注文確定';shared.state.rounds.push(r);
+  const e={id:'group-event',roundId:r.id,date:r.date,name:'運動会リハ',test:true,entryMode:'round',lines:[
+    {id:'bean-g',productId:'bean',name:'こしあんぱん',qty:5,used:3,usedConfirmed:true,cost:130},
+    {id:'apple-g',productId:'apple',name:'りんごデニッシュ',qty:5,used:3,usedConfirmed:true,cost:151},
+  ]};shared.state.events.push(e);r.eventIds.push(e.id);
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
+  await openAfter(page,'おやつ使用・財政請求');
+  await page.locator('.snack-billing > summary').click();
+  await page.getByLabel('行事・おやつ名').fill('運動会リハ');
+  await setQty(page,'こしあんぱん 財政請求数',2);
+  await setQty(page,'りんごデニッシュ 財政請求数',2);
+  await page.getByRole('button',{name:'＋ グループ'}).click();
+  const group=page.locator('.snack-group');
+  await group.getByLabel(/こしあんぱん 3個/).check();
+  await group.getByLabel(/りんごデニッシュ 3個/).check();
+  await expect(group.getByLabel('共通請求単価')).toHaveValue('150');
+  await group.locator('summary').click();
+  await group.locator('.snack-group-buyers label').filter({hasText:'佐藤'}).locator('input[type=checkbox]').check();
+  await group.locator('.snack-group-buyers label').filter({hasText:'鈴木'}).locator('input[type=checkbox]').check();
+  await expect(group).toContainText('対象 2個 ／ 割当 2個 ／ 未割当 0個');
+  await mobileShots(page,'group-snack');
+  expect(shared.state.events[0].billing).toBeUndefined();
+  await page.getByRole('button',{name:'確認した請求を保存'}).click();
+  expect(shared.state.events[0].billing.groups[0].lineIds).toEqual(['bean-g','apple-g']);
+  expect(collections(shared.state,'','',r.id,true).find(x=>x.id==='family0').snack).toBe(150);
+  await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'販売先を割り当てる'})}).locator('summary').first().click();
+  await page.locator('.other-sales > summary').click();
+  await page.getByRole('button',{name:'＋ 販売を記録'}).click();
+  await page.getByLabel('商品名・内容').fill('花房さん提供のレモン');
+  await page.getByLabel('販売単価').fill('100');
+  await page.getByLabel('現金の受取状況').selectOption('paid');
+  await page.locator('.other-sales-form').getByRole('button',{name:'保存',exact:true}).click();
+  expect(shared.state.otherSales[0].unitCost).toBe(0);
+  expect(shared.state.stocks).toHaveLength(0);
+  await page.locator('.other-sales').scrollIntoViewIfNeeded();
+  await mobileShots(page,'other-sales');
 });
 
 async function mobileShots(page,prefix) {

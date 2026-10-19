@@ -73,7 +73,7 @@ export function initialState() {
   }));
   return {
     schema: 1,
-    markets: [], bundles: [], bundleSales: [], externalDestinations: [], aliases: {products:{},buyers:{}}, productImports: [],
+    markets: [], bundles: [], bundleSales: [], otherSales: [], externalDestinations: [], aliases: {products:{},buyers:{}}, productImports: [],
     products,
     buyers: [
       {
@@ -432,8 +432,9 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
     (roundId?e.roundId===roundId:from<=e.date&&e.date<=to)))
     for(const item of event.billing.household||[]){
       const buyer=s.buyers.find(b=>b.id===item.buyerId),line=event.lines.find(l=>l.id===item.lineId);
+      const group=(event.billing.groups||[]).find(g=>g.id===item.groupId);
       add(item.buyerId,buyer?.name||'', 'snack',item.qty*item.unitPrice,
-        `${event.date} ${event.billing.label}・${line?.name||'共通単価'} ×${item.qty}`,'おやつ');
+        `${event.date} ${event.billing.label}・${line?.name||group?.label||'共通単価'} ${item.unitPrice}円 ×${item.qty}`,'おやつ');
     }
   return [...map.values()].map((r) => ({ ...r, total: r.normal + r.onsite + r.snack,
     unpriced: roundId ? unpricedOrderLines(s.rounds.find(x=>x.id===roundId),s.rounds.find(x=>x.id===roundId)?.orders[r.id] || {quantities:{}}) : [] }));
@@ -546,6 +547,11 @@ export function report(s, from, to, year) {
     const billing=snackBillingPreview(s,event);
     if(billing.household)rows.push({id:`snack:${event.id}`,date:event.date,type:'おやつ家庭請求',name:event.billing.label,
       revenue:billing.household,cost:billing.cost,profit:billing.profit,provisional:!billing.complete});
+  }
+  for(const item of (s.otherSales||[]).filter(x=>!x.void&&!x.test&&inRange(x.date))){
+    const revenue=item.qty*item.unitPrice,cost=item.qty*item.unitCost;
+    rows.push({id:item.id,date:item.date,type:'その他の販売',name:item.name,revenue,cost,profit:revenue-cost,
+      paymentStatus:item.paymentStatus,provisional:item.paymentStatus==='unpaid'});
   }
   for (const h of s.history.filter((h) => !h.test && inRange(h.date)))
     rows.push({
@@ -729,7 +735,18 @@ export function validate(s) {
       if (l.used + transferredQty(s, l.id) > receivedQuantity(l))
         throw Error("行事使用数と振替数が注文数を超えています");
     }
-    if(e.billing)snackBillingPreview(s,e);
+    if(e.billing){
+      const preview=snackBillingPreview(s,e);
+      if(e.billing.groups?.length&&!preview.complete)throw Error('共通単価の対象数と家庭への割当数を揃えてください。使用数を訂正する場合は請求の取消・再登録が必要です');
+    }
+  }
+  if(new Set((s.otherSales||[]).map(x=>x.id)).size!==(s.otherSales||[]).length)throw Error('その他の販売記録が重複しています');
+  for(const item of s.otherSales||[]){
+    if(!String(item.id||'').trim()||typeof item.void!=='boolean')throw Error('その他の販売記録を確認してください');
+    date(item.date);if(!String(item.name||'').trim())throw Error('その他の販売の商品名を入力してください');
+    integer(item.qty,'その他の販売数量');integer(item.unitPrice,'その他の販売単価');integer(item.unitCost,'その他の販売原価');
+    if(item.qty<1||!['paid','unpaid'].includes(item.paymentStatus)||typeof item.test!=='boolean')throw Error('その他の販売数量・受取状況を確認してください');
+    if(!Array.isArray(item.history))throw Error('その他の販売の変更履歴を確認してください');
   }
   for (const st of s.stocks) {
     if (!st.name.trim()) throw Error("園内販売の商品名を入力してください");

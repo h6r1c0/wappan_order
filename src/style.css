@@ -2314,3 +2314,21 @@ header small {
 .shortage-check .segmented button:disabled { color:#a7b2ae; background:#f7f8f7; }
 .market-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:4px 0 9px; }
 .market-actions small { color:var(--muted); font-size:.76rem; }
+.snack-group { border:1px solid var(--line); padding:10px; display:grid; gap:8px; min-width:0; }
+.snack-group .section-head { align-items:end; }
+.snack-group .section-head .field { flex:1; min-width:0; }
+.snack-group-products { display:flex; flex-wrap:wrap; gap:4px 12px; }
+.snack-group-products label { display:flex; align-items:center; gap:5px; min-height:34px; font-size:.86rem; }
+.snack-group-summary { display:flex; flex-wrap:wrap; align-items:center; gap:5px 12px; }
+.snack-group-summary small { color:var(--muted); }
+.snack-group-buyers { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); max-height:260px; overflow:auto; gap:2px; }
+.snack-group-buyer { min-width:0; display:flex; flex-wrap:wrap; align-items:center; }
+.snack-group-buyers label { display:flex; align-items:center; flex-wrap:wrap; gap:5px; min-height:36px; border-bottom:1px solid var(--line); }
+.snack-group-buyers .qty { margin-left:auto; }
+.other-sales { margin:9px 0; border-top:1px solid var(--line); padding:7px 0; }
+.other-sales > summary { cursor:pointer; font-weight:600; font-size:.86rem; }
+.other-sales-form { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:8px; padding:8px 0; }
+.other-sales-form .actions,.other-sales-form p { grid-column:1/-1; margin:0; }
+.other-sale-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--line); font-size:.84rem; }
+.other-sale-row > span { flex:1; min-width:0; }
+.other-sale-row small { display:block; color:var(--muted); }

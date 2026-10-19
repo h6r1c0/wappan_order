@@ -90,3 +90,57 @@ test('受取後の請求訂正は旧金額を二重加算せず、差額を未�
   const next=newRound(s,'2026-11-13');s.rounds.push(next);
   assert.equal(collectionPosition(s,next.id,'sato').carry,20);
 });
+
+test('選んだ2商品だけを共通150円で22個まとめ、職員4+4と家庭10+12を分ける',()=>{
+  const {s,r,e}=setup();
+  e.lines[0].qty=14;e.lines[0].used=14;e.lines[0].usedConfirmed=true;
+  e.lines[1].qty=16;e.lines[1].used=16;e.lines[1].usedConfirmed=true;
+  const group={id:'adult',label:'大人用おやつ',lineIds:['beanline','appleline'],unitPrice:suggestedSnackPrice([130,151])};
+  assert.equal(group.unitPrice,150);
+  const household=Array.from({length:22},(_,i)=>{
+    const id=`buyer${i}`;s.buyers.push({id,name:`家庭${i}`,active:true,fixed:[]});
+    return {buyerId:id,groupId:'adult',lineId:null,qty:1,unitPrice:150};
+  });
+  const billing={label:'運動会リハ',fiscal:[{lineId:'beanline',qty:4},{lineId:'appleline',qty:4}],groups:[group],household};
+  const preview=snackBillingPreview(s,e,billing);
+  assert.deepEqual([preview.fiscal,preview.household,preview.cost,preview.profit,preview.complete],[1124,3300,3112,188,true]);
+  assert.deepEqual([preview.groups[0].target,preview.groups[0].assigned,preview.groups[0].difference],[22,22,0]);
+  replaceSnackBilling(s,e.id,billing);
+  assert.equal(eventClaim(e),1124);
+  assert.equal(collectionPosition(s,r.id,'buyer0').current,150);
+  assert.match(collections(s,'','',r.id).find(x=>x.id==='buyer0').lines[0].description,/大人用おやつ 150円 ×1/);
+  assert.equal(report(s,r.date,r.date,2026).rows.find(x=>x.type==='おやつ家庭請求').profit,188);
+  assert.throws(()=>replaceSnackBilling(s,e.id,{...billing,household:household.slice(1)},'不足'),/割当数/);
+  assert.throws(()=>replaceSnackBilling(s,e.id,{...billing,household:[...household,{buyerId:'sato',groupId:'adult',qty:1,unitPrice:150}]},'超過'),/超え|割当数/);
+  replaceSnackBilling(s,e.id,{...billing,household:household.slice(1).map((x,i)=>i===0?{...x,qty:2}:x)},'家庭変更');
+  assert.equal(e.billingHistory.length,1);
+  assert.equal(collectionPosition(s,r.id,'buyer0').current,0);
+  replaceSnackBilling(s,e.id,null,'取消');assert.equal(collectionPosition(s,r.id,'buyer1').current,0);
+});
+
+test('共通単価は対象商品のみで平均し、無関係な子ども用商品は含めない',()=>{
+  const {s,e}=setup();e.lines.push({id:'child',name:'ハイジの白パン',qty:1,used:1,usedConfirmed:true,cost:220});
+  e.lines[0].used=1;e.lines[0].usedConfirmed=true;e.lines[1].used=1;e.lines[1].usedConfirmed=true;
+  assert.equal(suggestedSnackPrice(e.lines.filter(x=>['beanline','appleline'].includes(x.id)).map(x=>x.cost)),150);
+  assert.equal(suggestedSnackPrice([220]),220);
+  const billing={label:'行事',fiscal:[],groups:[{id:'adults',label:'大人',lineIds:['beanline','appleline'],unitPrice:150}],household:[
+    {buyerId:'sato',groupId:'adults',lineId:null,qty:2,unitPrice:150},
+    {buyerId:'sato',lineId:'child',qty:1,unitPrice:220},
+  ]};
+  replaceSnackBilling(s,e.id,billing);
+  assert.equal(snackBillingPreview(s,e).profit,19);
+  assert.equal(snackBillingPreview(s,e,{...billing,groups:[{...billing.groups[0],lineIds:['beanline','appleline','child']}]}).groups[0].target,2);
+});
+
+
+test('同じ家庭を異なる共通単価グループへ割当でき、単価不一致と商品別使用超過は確定しない',()=>{
+  const {s,e}=setup();e.lines.forEach(l=>{l.used=2;l.usedConfirmed=true;});
+  const billing={label:'行事',fiscal:[],groups:e.lines.map((l,i)=>({id:`g${i}`,label:l.name,lineIds:[l.id],unitPrice:150})),
+    household:e.lines.map((l,i)=>({buyerId:'sato',groupId:`g${i}`,lineId:null,qty:2,unitPrice:150}))};
+  replaceSnackBilling(s,e.id,billing);assert.equal(snackBillingPreview(s,e).household,600);
+  const bad=structuredClone(billing);bad.household[0].unitPrice=160;
+  assert.throws(()=>replaceSnackBilling(s,e.id,bad,'単価ずれ'),/単価/);
+  const negative=structuredClone(billing);negative.groups=[{...billing.groups[0],lineIds:e.lines.map(l=>l.id)}];
+  negative.fiscal=[{lineId:'beanline',qty:3}];negative.household=[{...billing.household[0],qty:1}];
+  assert.throws(()=>replaceSnackBilling(s,e.id,negative,'実使用数超過'),/割当数/);
+});

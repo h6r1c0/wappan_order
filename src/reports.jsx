@@ -36,6 +36,7 @@ export function Reports() {
       ...state.rounds.map((r) => fiscalYear(r.date)),
       ...state.history.map((h) => fiscalYear(h.date)),
       ...state.sales.map((s) => fiscalYear(s.date)),
+      ...(state.otherSales||[]).map((s) => fiscalYear(s.date)),
       ...state.adjustments.map((a) => a.year),
     ]),
   ].sort((a, b) => b - a);
@@ -130,6 +131,8 @@ export function Reports() {
           />
           <details className="report-more"><summary>利益の計算内訳</summary>
             <p>販売利益＋過去の利益 {yen(data.salesProfit)}</p>
+            <p>うちその他の販売：売上 {yen(data.rows.filter(x=>x.type==='その他の販売').reduce((n,x)=>n+x.revenue,0))} ／ 原価 {yen(data.rows.filter(x=>x.type==='その他の販売').reduce((n,x)=>n+x.cost,0))} ／ 利益 {yen(data.rows.filter(x=>x.type==='その他の販売').reduce((n,x)=>n+x.profit,0))}</p>
+            {data.rows.some(x=>x.type==='その他の販売'&&x.paymentStatus==='unpaid')&&<p className="notice">その他の販売の未受取があります。個人請求には含めていません。売上実績と受取状況を分けて確認してください。</p>}
             <p>利益調整 {yen(data.adjustment)}</p>
             <p>出店経費（利益反映分） {yen(data.expenses||0)}</p>
           </details>
@@ -145,7 +148,7 @@ export function Reports() {
             </p>
           )}
           {data.provisional && (
-            <p className="notice">精算前の注文、または場所代不明の外部販売を含むため、利益は暫定です。</p>
+            <p className="notice">精算前の注文、場所代不明の外部販売、または未受取のその他の販売があるため、利益は暫定です。</p>
           )}
           {data.undated > 0 && (
             <p className="notice">

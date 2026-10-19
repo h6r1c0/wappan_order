@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { SalesWorkspace } from "./sales-workspace";
+import { OtherSales } from "./other-sales.jsx";
 import { TaskIcon } from "./task-icon";
 import {productDisplayName} from './product-names.js';
 import {
@@ -156,6 +157,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
       })}
       {!stocks.length && <Empty>販売用として注文すると商品が表示されます。</Empty>}
     </section>}
+    {phase !== 'order' && <OtherSales round={round}/>}
     {batchSelling && <BatchSaleEditor stocks={remainingStocks} roundId={roundId} onClose={() => setBatchSelling(false)}/>}
     {unconfirmedOpen && <UnconfirmedSalesEditor stocks={stocks} roundId={roundId} onClose={() => setUnconfirmedOpen(false)}/>}
     {edit && <StockEditor roundId={roundId} marketId={marketId} stock={edit.id ? edit : null}
