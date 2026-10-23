@@ -24,6 +24,8 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
   const price=line?.unitPrice??unitPrice;
   const missingCandidates=lines.filter(l=>l.qty>0&&(l.unitPrice==null||audit?.knownBag!=null&&l.amount===position.current-audit.knownBag));
   const delta=received==null?null:received-position.balance;
+  const knownDestination=knownClaim?.notifiedAmount===received?due.items.filter(x=>x.kind==='round'&&x.roundId===round.id&&x.balance===received):[];
+  const receiptTarget=target||((knownDestination.length===1&&knownClaim?.amount===position.current-received)?knownDestination[0].id:'');
   const missingPast=reason===collectionReasons[0]&&delta>0?delta:reason===collectionReasons[1]&&delta<0?-delta:0;
   const quick=position.balance>0&&position.received===0&&!position.unallocated&&!pending&&!audit?.issues.length&&!(audit?.knownBag!=null&&audit.knownBag!==audit.expected)&&!(state.collectionEntries||[]).some(x=>x.roundId===round.id&&x.buyerId===buyer.id);
   const act=async(fn,description)=>{if(busy)return false;setBusy(true);try{return await save(fn,description);}finally{setBusy(false);}};
@@ -58,13 +60,13 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
       {knownClaim?.notifiedAmount!=null&&!position.received&&received==null&&<button type="button" className="text-action" onClick={()=>setReceived(knownClaim.notifiedAmount)}>案内した {yen(knownClaim.notifiedAmount)} を受取額に入力 ›</button>}
       <Money label="実際受取額" value={received} onChange={v=>{setReceived(v);setTarget('');}}/>
       {delta!=null&&<p className="receipt-difference" role="status">{delta===0?'請求残高と一致':`請求残高との差 ${delta>0?'＋':'−'}${yen(Math.abs(delta))}`}{position.received?` ／ 記録済み受取 ${yen(position.received)}`:''}</p>}
-      {received>0&&due.items.length>1&&received<position.balance&&<Field label="どの請求分を受け取りましたか"><select value={target} onChange={e=>setTarget(e.target.value)}><option value="">充当先を確認して選ぶ</option>{due.items.filter(x=>x.balance>=received).map(x=><option key={x.id} value={x.id}>{x.date} {x.note}（未収 {yen(x.balance)}）</option>)}</select></Field>}
-      {received>0&&due.items.length>1&&received<position.balance&&!target&&<small>複数の請求をまとめた受取や充当先が不明な場合は、下の履歴から調べて「要確認」で保留できます。</small>}
+      {received>0&&due.items.length>1&&received<position.balance&&<Field label="どの請求分を受け取りましたか"><select value={receiptTarget} onChange={e=>setTarget(e.target.value)}><option value="">充当先を確認して選ぶ</option>{due.items.filter(x=>x.balance>=received).map(x=><option key={x.id} value={x.id}>{x.date} {x.note}（未収 {yen(x.balance)}）</option>)}</select></Field>}
+      {received>0&&due.items.length>1&&received<position.balance&&!receiptTarget&&<small>複数の請求をまとめた受取や充当先が不明な場合は、下の履歴から調べて「要確認」で保留できます。</small>}
       {received!=null&&(delta!==0||received<0)&&<Field label="金額が違う理由"><select value={reason} onChange={e=>{setReason(e.target.value);if([collectionReasons[2],collectionReasons[6]].includes(e.target.value))setInvestigate(true);}}><option value="">理由を選んでください</option>{collectionReasons.map(x=><option key={x}>{x}</option>)}</select></Field>}
       {reason==='返金がある'&&<Money label="返金額" value={refund??Math.max(0,-position.balance)} onChange={setRefund}/>}
       {!!missingPast&&<div className="fact-confirmation"><p>{reason===collectionReasons[0]?'未登録の前回不足':'未登録の前回預かり'}候補：{yen(missingPast)}</p><Field label="前回分の対象日" type="date" value={pastDate} max={round.date} onChange={e=>setPastDate(e.target.value)}/><small>確認して受取を保存すると、前回分も一緒に記録します。登録済みの分は残高へ反映済みです。</small></div>}
-      <div className="actions"><Button disabled={busy||received==null||(reason==='返金がある'?(refund??Math.max(0,-position.balance))<=0:received<=0)||delta!==0&&!reason||reason===collectionReasons[6]||received>0&&due.items.length>1&&received<position.balance&&!target||audit?.lines.some(l=>l.qty>0&&(l.unitPrice==null||l.missingProduct))}
-        onClick={async()=>{if(await act(s=>receiveCollection(s,{roundId:round.id,buyerId:buyer.id,received:reason==='返金がある'?-(refund??Math.max(0,-position.balance)):received,reason,pastAmount:missingPast,pastDate,requestId:request.current,caseId:pending?.id,itemId:target}),'実際の受取と差額理由を保存'))afterSave();}}>{reason==='返金がある'?'返金を保存':'受取額を保存'}</Button>
+      <div className="actions"><Button disabled={busy||received==null||(reason==='返金がある'?(refund??Math.max(0,-position.balance))<=0:received<=0)||delta!==0&&!reason||reason===collectionReasons[6]||received>0&&due.items.length>1&&received<position.balance&&!receiptTarget||audit?.lines.some(l=>l.qty>0&&(l.unitPrice==null||l.missingProduct))}
+        onClick={async()=>{if(await act(s=>receiveCollection(s,{roundId:round.id,buyerId:buyer.id,received:reason==='返金がある'?-(refund??Math.max(0,-position.balance)):received,reason,pastAmount:missingPast,pastDate,requestId:request.current,caseId:pending?.id,itemId:receiptTarget}),'実際の受取と差額理由を保存'))afterSave();}}>{reason==='返金がある'?'返金を保存':'受取額を保存'}</Button>
         <button type="button" className="text-action" onClick={()=>setInvestigate(!investigate)} aria-expanded={investigate}>請求・過去の履歴を調べる ›</button></div>
       {(investigate||reason===collectionReasons[6])&&<div className="collection-investigation" aria-label="差額の調査">
         <h3>注文・納品・請求を照合</h3>
