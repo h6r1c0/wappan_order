@@ -1,3 +1,4 @@
+import {billingAudit} from './collection-workflow.js';
 import {Shortage} from './shortage-ui';
 import {receivedQuantity, updateDeliveryStatus} from './shortages';
 import React, { useEffect, useState } from "react";
@@ -324,6 +325,7 @@ function Round({ round: r, initialTab = null, back }) {
           <button type="button" className="text-action"
             onClick={async () => {
               try {
+                if(billingAudit(state,r.id).issues.length){notify('請求の未確定・案内額との差があります。集金前の確認から該当商品を確認してください。');document.querySelector('.billing-audit')?.scrollIntoView({block:'start'});return;}
                 await copyText(
                   (r.reconciliationPending || rows.some(x=>x.unpriced.length) ? "照合用・未確定（未確認価格・販売用商品の個人割当を含まない）\n" : "") + rows.map((x) => `${x.name}　${x.unpriced.length?'請求総額 未確定':yen(x.total)}`).join("\n"),
                 );

@@ -2332,3 +2332,45 @@ header small {
 .other-sale-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--line); font-size:.84rem; }
 .other-sale-row > span { flex:1; min-width:0; }
 .other-sale-row small { display:block; color:var(--muted); }
+/* Facts first: billing and cash are separate operations. */
+.billing-audit { border:1px solid #dac7b6; padding:12px; background:#fffaf5; }
+.audit-issue { display:block; width:100%; text-align:left; background:white; color:#873f1b; padding:10px; margin:6px 0; border:1px solid #e0cabb; border-radius:6px; line-height:1.6; }
+.charge-line { display:grid; grid-template-columns:minmax(0,1fr) 44px 82px; gap:8px; align-items:start; padding:8px 0; border-bottom:1px solid var(--line); font-size:.86rem; }
+.charge-line>span:first-child { min-width:0; overflow-wrap:anywhere; }
+.charge-line>span:nth-child(2) { text-align:center; white-space:nowrap; }
+.charge-line>strong,.charge-line>span:last-child { text-align:right; white-space:nowrap; }
+.charge-line small { display:block; color:var(--muted); font-size:.75rem; }
+.charge-line.heading { color:var(--muted); font-size:.75rem; }
+.collection-investigation { border-top:1px solid var(--line); padding-top:10px; }
+.collection-investigation h3 { font-size:.95rem; margin:16px 0 7px; }
+.fact-confirmation { background:#fff8ec; padding:10px; margin:9px 0; }
+.receipt-difference { font-weight:600; color:#87421c; }
+.collection-history { padding:8px 0; border-bottom:1px solid var(--line); }
+.collection-history p { margin:0 0 4px; }
+.collection-history small { display:block; color:var(--muted); }
+.collection-entry { scroll-margin-top:20px; }
+.collection-categories { display:flex; flex-wrap:wrap; gap:6px 14px; }
+.collection-right { flex-wrap:wrap; gap:5px 12px; }
+.collection-detail .money-input input { font-size:1.1rem; }
+.billing-audit small { display:block; color:var(--muted); }
+@media(max-width:350px){.charge-line{grid-template-columns:minmax(0,1fr) 36px 70px;gap:5px;}}
+.sales-step-body [hidden] { display:none!important; }
+.stock-summary { padding:10px 0; border-bottom:1px solid var(--line); }
+.stock-summary-head { display:flex; align-items:start; justify-content:space-between; gap:12px; }
+.stock-summary-head strong { flex:1; min-width:0; overflow-wrap:anywhere; font-size:.9rem; }
+.stock-summary-head>span { white-space:nowrap; color:#87421c; font-size:.8rem; }
+.stock-summary>small { display:block; color:var(--muted); line-height:1.6; margin:4px 0; }
+.stock-facts { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:.73rem; color:var(--muted); }
+.stock-summary .actions { margin-top:5px; gap:10px; }
+.assignment-product-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); }
+.assignment-product-row>span,.assignment-product-row>strong { flex:1; min-width:0; overflow-wrap:anywhere; font-size:.88rem; }
+.assignment-product-row small { display:block; color:var(--muted); font-size:.74rem; }
+.assignment-product-row .qty { flex-shrink:0; }
+.assignment-destination { padding:10px 0; border-bottom:1px solid var(--line); margin-bottom:8px; }
+.assignment-destination h3 { font-size:.9rem; margin:0 0 7px; }
+.completed-stocks { margin-top:12px; }
+.sales-confirm { flex-wrap:wrap; gap:9px; padding:12px 0; }
+
+.shortage-check .segmented button.selected { box-shadow:inset 0 -2px #ac5e2d; border-color:#c59066; }
+.toast { pointer-events:none; }
+.toast button { pointer-events:auto; }

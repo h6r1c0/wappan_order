@@ -136,7 +136,7 @@ async function setQty(page, name, value) {
 }
 async function openAfter(page, name) {
   await page.locator('.stage-3 > .stage-trigger').click();
-  await page.getByRole('button',{name:'なし',exact:true}).click();
+  await page.getByRole('button',{name:/欠品なし/}).click();
   await page.getByRole('button',{name:'欠品確認を保存'}).click();
   await page.locator('.after-work').filter({has:page.locator('summary', {hasText:name})}).locator('summary').first().click();
 }
@@ -260,21 +260,20 @@ test('納品後: 未確認2個を購入者と名称なし外部へ分割', async
   await backend(context,shared); await login(page);
   await page.locator('.round-list-item').click();
   await openAfter(page,'販売先を割り当てる');
-  await page.getByRole('button',{name:/売れた商品の販売先を割り当てる/}).click();
-  await page.getByRole('button',{name:'商品から入力'}).click();
-  await page.getByRole('button',{name:/くるみパン.*未割当 2/}).click();
-  await setQty(page,'くるみパン 割当数量',1);
-  await page.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();
-  await page.getByRole('button',{name:'ホリ',exact:true}).click();
-  await page.getByRole('button',{name:/この1個を個人に請求として確定/}).click();
-  await expect(page.getByLabel('くるみパンの割当状況')).toContainText('ホリ 1');
-  await expect(page.getByLabel('くるみパンの割当状況')).toContainText('未割当 1');
-  await setQty(page,'くるみパン 割当数量',1);
-  await page.getByRole('button',{name:'支払い済み'}).click();
-  await expect(page.getByLabel('販売先・団体名（任意）')).toHaveValue('');
-  await page.getByRole('button',{name:'この1個を支払い済みとして確定'}).click();
-  await expect(page.getByLabel('くるみパンの割当状況')).toContainText('支払い済み 1');
-  await expect(page.getByLabel('くるみパンの割当状況')).toContainText('未割当 0');
+  const work=page.locator('.sales-workspace:visible');
+  await work.getByLabel('くるみパンの割当状況').getByRole('button',{name:'この商品を割り当てる ›'}).click();
+  await setQty(work,'くるみパン 割当数量',1);
+  await work.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();
+  await work.getByRole('button',{name:'ホリ',exact:true}).click();
+  await work.getByRole('button',{name:'この1個の割当を保存'}).click();
+  await expect(work.getByLabel('くるみパンの割当状況')).toContainText('未割当 1個');
+  await work.getByLabel('くるみパンの割当状況').getByRole('button',{name:'この商品を割り当てる ›'}).click();
+  await work.getByRole('button',{name:'支払い済み',exact:true}).click();
+  await expect(work.getByLabel('販売先・団体名（任意）')).toHaveValue('');
+  await work.getByRole('button',{name:'この1個の割当を保存'}).click();
+  await work.locator('.completed-stocks summary').click();
+  await expect(work.getByLabel('くるみパンの割当状況')).toContainText('ホリ 1個');
+  await expect(work.getByLabel('くるみパンの割当状況')).toContainText('割当済み');
   expect(shared.state.sales.reduce((n,s)=>n+s.qty,0)).toBe(2);
   expect(collections(shared.state,'','',r.id,true).find(x=>x.id==='hori').onsite).toBe(st.price);
   for(const width of [320,375,430]) {
@@ -291,7 +290,7 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
   await backend(context,shared); await login(page); await page.locator('.round-list-item').click();
   await page.locator('.stage-3 > .stage-trigger').click();
   await expect(page.getByRole('group',{name:'欠品確認'})).toBeVisible();
-  await page.getByRole('button',{name:'あり',exact:true}).click();
+  await page.getByRole('button',{name:/欠品あり/}).click();
   expect(shared.state.rounds[0].shortageConfirmation).toBeFalsy();
   await page.getByRole('button',{name:'欠品確認を保存'}).click();
   await page.getByLabel('欠品商品').selectOption('galette');
@@ -313,12 +312,18 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:`test-results/collection-${width}.png`});
   }
-  await page.getByRole('button',{name:'全額受取'}).click();
-  await expect(page.locator('.collection-state')).toHaveText('受取済');
-  await page.getByRole('button',{name:/編集・内訳/}).click();
-  await page.getByLabel('実際受取額（返金はマイナス）').fill('-10');
-  await page.getByLabel('理由・メモ').fill('返金');
-  await page.getByRole('button',{name:'受取額を保存'}).click();
+  const person=page.locator('.collection-entry');
+  await person.getByRole('button',{name:'受取・請求確認 ›'}).click();
+  const due=collections(shared.state,'','',r.id,true)[0].total;
+  await person.getByLabel('実際受取額',{exact:true}).fill(String(due+10));
+  await person.getByLabel('金額が違う理由').selectOption('多く受け取ったので次回へ預かる');
+  await person.getByRole('button',{name:'受取額を保存'}).click();
+  await expect(person.locator('.collection-state')).toHaveText('預かり 10円');
+  await person.getByRole('button',{name:'受取・請求確認 ›'}).click();
+  await person.getByLabel('実際受取額',{exact:true}).fill('10');
+  await person.getByLabel('金額が違う理由').selectOption('返金がある');
+  await person.getByLabel('返金額',{exact:true}).fill('10');
+  await person.getByRole('button',{name:'返金を保存'}).click();
   expect(shared.state.collectionEntries).toHaveLength(2);
   expect(shared.state.collectionEntries[1].received).toBe(-10);
   expect(shared.state.rounds[0].invoice).toBe(100);
@@ -341,12 +346,12 @@ test('請求漏れ・過去未収を一度の内訳展開で確認し、対象�
   await page.locator('.stage-4 > .stage-trigger').click();
   const hori=page.locator('.collection-entry').filter({hasText:'ホリ'});
   await expect(hori).toContainText('追加請求 380円');
-  await hori.getByRole('button',{name:/編集・内訳/}).click();
+  await hori.getByRole('button',{name:'受取・請求確認 ›'}).click();
   await expect(hori.locator('.collection-totals')).toContainText('今回請求');
-  await expect(hori.locator('.collection-totals')).toContainText('＋');
-  await expect(hori.locator('.collection-totals')).toContainText('＝');
-  await expect(hori.locator('.collection-line')).toContainText(['商品名数量金額','黒糖ブレッド1430円','ツイストドーナツ 2個2380円']);
-  await expect(hori.locator('.collection-line').nth(2)).not.toContainText('2026-09-11');
+  await hori.locator('.collection-breakdown summary').click();
+  await expect(hori.locator('.charge-line').nth(1)).toContainText('黒糖ブレッド');
+  await expect(hori.locator('.charge-line').nth(2)).toContainText('380円');
+  await expect(hori.locator('.charge-line').nth(2)).not.toContainText('2026-09-11');
   await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
   await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
   await page.locator('.stage-4 > .stage-trigger').click();
@@ -356,12 +361,10 @@ test('請求漏れ・過去未収を一度の内訳展開で確認し、対象�
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }
   const yogo=page.locator('.collection-entry').filter({hasText:'余語'});
-  await yogo.getByRole('button',{name:/編集・内訳/}).click();
-  await yogo.getByLabel('支払い対象').selectOption('old');
-  await yogo.getByLabel('実際受取額（返金はマイナス）').fill('1670');
-  await yogo.getByLabel('理由・メモ').fill('7/24分を受取');
+  await yogo.getByRole('button',{name:'受取・請求確認 ›'}).click();
+  await yogo.getByLabel('実際受取額',{exact:true}).fill('1670');
   await yogo.getByRole('button',{name:'受取額を保存'}).click();
-  expect(shared.state.collectionEntries.at(-1).itemId).toBe('old');
+  expect(collections(shared.state,'','',oct.id).length).toBe(0);
   expect(shared.state.collectionEntries.at(-1).received).toBe(1670);
 });
 
@@ -409,20 +412,18 @@ test('販売先割当: 10個から外部6個、購入者から複数商品をま
   addSale(shared.state,brown,{date:r.date,qty:2,price:brown.price,destinationType:'unknown',paymentStatus:'unconfirmed'});
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
   await openAfter(page,'販売先を割り当てる');
-  await page.getByRole('button',{name:/売れた商品の販売先を割り当てる/}).click();
-  await page.getByRole('button',{name:'商品から入力'}).click();
-  await page.getByRole('button',{name:/くるみパン.*未割当 10/}).click();
-  await setQty(page,'くるみパン 割当数量',6);
-  await page.getByRole('button',{name:'支払い済み'}).click();
-  await page.getByRole('button',{name:'この6個を支払い済みとして確定'}).click();
-  await expect(page.getByLabel('くるみパンの割当状況')).toContainText('未割当 4');
-  await page.getByRole('button',{name:'購入者から入力'}).click();
-  await page.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();
-  await page.getByRole('button',{name:'ホリ',exact:true}).click();
-  await page.getByRole('button',{name:'商品を選ぶ'}).click();
-  await setQty(page,'くるみパン 割当数量',4);
-  await setQty(page,'黒糖ブレッド 割当数量',2);
-  await page.getByRole('button',{name:'この2商品の割当を確定'}).click();
+  let work=page.locator('.sales-workspace:visible');
+  await work.getByLabel('くるみパンの割当状況').getByRole('button',{name:'この商品を割り当てる ›'}).click();
+  await setQty(work,'くるみパン 割当数量',6);
+  await work.getByRole('button',{name:'支払い済み',exact:true}).click();
+  await work.getByRole('button',{name:'この6個の割当を保存'}).click();
+  await expect(work.getByLabel('くるみパンの割当状況')).toContainText('未割当 4個');
+  await page.getByRole('button',{name:'購入者から入力',exact:true}).click();
+  work=page.locator('.sales-workspace:visible');
+  await work.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();
+  await work.getByRole('button',{name:'ホリ',exact:true}).click();
+  await setQty(work,'くるみパン 割当数量',4);await setQty(work,'黒糖ブレッド 割当数量',2);
+  await work.getByRole('button',{name:'この2商品の割当を保存'}).click();
   expect(shared.state.sales.filter(x=>x.stockId===walnut.id&&x.destinationType==='unknown')).toHaveLength(0);
   expect(shared.state.sales.filter(x=>x.destinationType==='buyer').reduce((n,s)=>n+s.qty,0)).toBe(6);
 });
@@ -560,7 +561,8 @@ test('おやつの職員分と共通単価の家庭請求を確認後に保存�
   await page.locator('.stage-4 > .stage-trigger').click();
   const entry=page.locator('.collection-entry').filter({hasText:'佐藤'});
   await expect(entry).toContainText('300円');
-  await entry.getByRole('button',{name:'編集・内訳'}).click();
+  await entry.getByRole('button',{name:'受取・請求確認 ›'}).click();
+  await entry.locator('.collection-breakdown summary').click();
   await expect(entry.locator('.collection-source-totals')).toContainText('おやつ');
   await expect(entry.locator('.collection-source-totals')).toContainText('300円');
   await mobileShots(page,'snack-collection');
@@ -624,8 +626,8 @@ test('欠品抽選: 未選択ゲート、1人1個を優先、確認後に集金�
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
   await page.locator('.stage-3 > .stage-trigger').click();
   await expect(page.getByLabel('税込合計')).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'なし',exact:true})).toHaveAttribute('aria-pressed','false');
-  await page.getByRole('button',{name:'あり',exact:true}).click();
+  await expect(page.getByRole('button',{name:/欠品なし/})).toHaveAttribute('aria-pressed','false');
+  await page.getByRole('button',{name:/欠品あり/}).click();
   await page.getByRole('button',{name:'欠品確認を保存'}).click();
   await page.getByLabel('欠品商品').selectOption('walnut');await page.getByLabel('実入荷数').fill('5');
   await page.getByRole('button',{name:'公平抽選',exact:true}).click();
@@ -653,7 +655,7 @@ test('場所なしセット、既知のおやつ単価・使用数、税込合�
   setSalesOrderQuantities(shared.state,r.id,{walnut:3});
   const {setSnackOrderQuantities}=await import('../../src/commerce.js');setSnackOrderQuantities(shared.state,r.id,{walnut:3});r.status='注文確定';
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await page.locator('.stage-3 > .stage-trigger').click();
-  await page.getByRole('button',{name:'なし',exact:true}).click();
+  await page.getByRole('button',{name:/欠品なし/}).click();
   expect(shared.state.rounds[0].shortageConfirmation).toBeFalsy();
   await page.getByRole('button',{name:'欠品確認を保存'}).click();
   await page.locator('.set-preparation > summary').click();

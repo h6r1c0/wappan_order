@@ -13,7 +13,7 @@ export async function createPrintPdf(model,fontBytes) {
   const doc=await PDFDocument.create();
   doc.registerFontkit(fontkit);
   const font=await doc.embedFont(fontBytes,{subset:false});
-  const title=model.kind==='sales'?'販売記録表':'個人注文仕分け表';
+  const title=model.kind==='collections'?(model.pending?'集金袋用請求表（未確定）':'集金袋用請求表'):model.kind==='sales'?'販売記録表':'個人注文仕分け表';
   doc.setTitle(`${title} ${model.date}`);doc.setCreator('わっぱん');
   const text=(page,value,x,baseline,size=10,{right=false,bold=false}={})=>{
     const label=String(value);
@@ -49,7 +49,18 @@ export async function createPrintPdf(model,fontBytes) {
     text(page,'購入者名（1個につき1名）',83,25.6,8.5);
     line(page,12,28,199,28,{gray:.65,width:.2});return page;
   };
-  if(model.kind==='sales'){
+  if(model.kind==='collections'){
+    let page=newPage(),y=30;
+    for(const bill of model.bills||[]){
+      const labels=(bill.lines||[]).flatMap(l=>wrap(`${l.name}　${l.qty}個　${l.amount==null?'単価未確定':l.amount+'円'}`,9,172));
+      const notes=(bill.issues||[]).flatMap(x=>wrap(x.message,8,172));
+      const parts=[...labels,...notes,...(model.pending?[`未確定：${bill.reason||'照合待ち'}`]:[])];
+      if(y+25+Math.min(parts.length,10)*5>285){page=newPage();y=30;}
+      text(page,bill.name||'',14,y,12,{bold:true});text(page,`${bill.total.toLocaleString()}円${bill.issues?.length?'（要確認）':''}`,194,y,12,{right:true,bold:true});y+=8;
+      for(const part of parts){if(y>280){page=newPage();y=30;}text(page,part,14,y,9);y+=5;}
+      line(page,12,y+3,197,y+3,{gray:.6});y+=14;
+    }
+  }else if(model.kind==='sales'){
     let page=salesPage(),top=28;
     if(!model.sales.length)text(page,'販売用の商品はありません',12,39,11);
     for(const row of model.sales){

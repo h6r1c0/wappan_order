@@ -17,10 +17,10 @@ export function Shortage({round:r}) {
   return <section className="shortage-check">
     <h3>欠品確認</h3>
     <div className="segmented" role="group" aria-label="欠品確認">
-      {[['none','なし'],['yes','あり']].map(([value,label])=><button type="button" key={value}
+      {[['none','欠品なし'],['yes','欠品あり']].map(([value,label])=><button type="button" key={value}
         aria-pressed={choice===value} className={choice===value?'selected':''}
         disabled={value==='none' && latest.length>0}
-        onClick={()=>setChoice(value)}>{label}</button>)}
+        onClick={()=>setChoice(value)}>{choice===value?'✓ ':''}{label}</button>)}
     </div>
     {choice!==r.shortageConfirmation && <div className="shortage-save"><Button onClick={async()=>{
       if(await save(s=>{const round=s.rounds.find(x=>x.id===r.id);round.shortageConfirmation=choice;
