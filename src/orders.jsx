@@ -24,6 +24,7 @@ import {
   roundCost,
   productTotals,
   collections,
+  collectionPosition,
   yen,
   today,
   invoiceDeductions,
@@ -75,6 +76,7 @@ export function Orders() {
               <Tag>{r.status}</Tag>
             </div>
             {r.test && <Tag>テスト・年度集計対象外</Tag>}
+            <small className="round-next-step">{r.status==='入力中'?'注文を入力':!r.shortageConfirmation?'次は欠品・納品確認':r.status==='納品済み'?'精算と集金を確認':state.buyers.filter(b=>collectionPosition(state,r.id,b.id).balance>0).length?`集金が残っています：${state.buyers.filter(b=>collectionPosition(state,r.id,b.id).balance>0).length}人`:'集金状況を確認'}</small>
             <span className="round-open" aria-hidden="true">›</span>
           </button>
         ))}
@@ -430,7 +432,8 @@ function Round({ round: r, initialTab = null, back }) {
           </details>
           {r.planned && r.products.some((p) => (productTotals(r, r.planned).find((x) => x.id === p.id)?.qty||0)!==(productTotals(r).find((x) => x.id === p.id)?.qty||0)) && (
             <details>
-              <summary>注文確定時と現在の差を確認</summary>
+              <summary>注文確定後に数量が変わった商品を確認</summary>
+              <small>数量変更の内容です。欠品による実渡し数は「欠品確認」で確認してください。</small>
               {r.products.map((p) => {
                 const before =
                     productTotals(r, r.planned).find((x) => x.id === p.id)
