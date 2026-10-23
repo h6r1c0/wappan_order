@@ -480,6 +480,14 @@ export function collectionDueItems(s, roundId, buyerId) {
       if(refund)items.push({id:`refund:${entry.id}`,kind:'refund',roundId:entry.roundId,date:entry.date,amount:refund,balance:refund,reason:'返金',note:'受取訂正後に確認が必要な返金分'});
       continue;
     }
+    const application=(s.collectionAllocations||[]).find(x=>x.entryId===entry.id);
+    if(application){
+      for(const part of application.parts){
+        const chosen=items.find(x=>x.id===part.itemId);
+        if(chosen) chosen.balance-=Math.min(part.amount,chosen.balance);
+      }
+      continue;
+    }
     if(entry.itemId){
       const chosen=items.find(x=>x.id===entry.itemId);
       if(chosen){const used=Math.min(amount,chosen.balance);chosen.balance-=used;amount-=used;}

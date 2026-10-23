@@ -26,14 +26,14 @@ export function registerAccountingTests(browserName){
   await sasaki.getByRole('button',{name:'全額受取'}).click();expect(shared.state.collectionEntries.at(-1).received).toBe(1070);expect(collectionPosition(shared.state,r.id,'sasaki').balance).toBe(0);
   await expect(sasaki.getByRole('button',{name:'全額受取'})).toHaveCount(0);
   const nishio=page.locator('[data-buyer="nishio"]');await expect(nishio.locator('.collection-amount')).toHaveText('590円');await nishio.getByRole('button',{name:'全額受取'}).click();expect(shared.state.collectionEntries.at(-1).received).toBe(590);expect(collectionPosition(shared.state,r.id,'nishio').balance).toBe(0);
-  const hori=page.locator('[data-buyer="hori"]');await expect(hori.getByRole('button',{name:'全額受取'})).toHaveCount(0);await expect(hori.locator('.collection-overview')).toContainText('2,510円');await expect(hori).toContainText('請求を確認');
+  const hori=page.locator('[data-buyer="hori"]');await expect(hori.getByRole('button',{name:'全額受取'})).toHaveCount(0);await expect(hori.locator('.collection-overview')).toContainText('2,510円');await expect(hori).toContainText('案内済み 2,130円');
   await expect(hori.locator('.collection-overview')).not.toContainText('現金は未受取');
   await person(page,'hori');await expect(hori).toContainText('現金は未受取');await hori.getByRole('button',{name:'案内した 2,130円 を受取額に入力 ›'}).click();await expect(hori.getByLabel('金額が違う理由')).toHaveValue('一部しか受け取っていない');await hori.getByRole('button',{name:'受取額を保存'}).click();
   expect(shared.state.receivableItems.filter(x=>x.kind==='additional')).toHaveLength(1);expect(collectionPosition(shared.state,r.id,'hori').balance).toBe(380);expect(collectionPosition(shared.state,r.id,'hori').received).toBe(2130);
   await widths(page,`quick-${browserName}`);
  });
  test('集金前の警告・商品選択・受取2130円と未収380円・確認だけでは受取を作らない',async({page,context})=>{
-  const shared=fixture();await openCollections(page,context,shared);await expect(page.locator('.billing-audit')).toContainText('2,130円');
+  const shared=fixture();await openCollections(page,context,shared);await expect(page.locator('.billing-audit-done')).toBeVisible();await expect(page.locator('[data-buyer="hori"]')).toContainText('案内済み 2,130円');
   const p=await person(page,'hori');await p.getByRole('button',{name:'請求・過去の履歴を調べる ›'}).click();
   await p.getByLabel('請求を確認する商品').selectOption('order:donut');await setQty(p,'請求漏れ数量',2);await expect(p.locator('.missing-charge-editor')).toContainText('380円');
   await p.getByRole('button',{name:'この商品・数量を請求へ反映'}).click();expect(shared.state.receivableItems.filter(x=>x.kind==='additional')).toHaveLength(1);

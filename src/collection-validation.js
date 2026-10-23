@@ -19,4 +19,10 @@ export function validateCollectionWorkflow(s){
   }
   const requests=(s.collectionEntries||[]).map(x=>x.requestId).filter(Boolean);
   if(new Set(requests).size!==requests.length)throw Error('受取の二重登録です');
+  const allocations=s.collectionAllocations||[];
+  if(!Array.isArray(allocations)||new Set(allocations.map(x=>x.id)).size!==allocations.length||new Set(allocations.map(x=>x.entryId)).size!==allocations.length)throw Error('受取の充当履歴が不正です');
+  for(const x of allocations){
+    const entry=(s.collectionEntries||[]).find(e=>e.id===x.entryId&&e.roundId===x.roundId&&e.buyerId===x.buyerId&&e.received>0);
+    if(!x.id||!entry||!Array.isArray(x.parts)||!x.parts.length||new Set(x.parts.map(p=>p.itemId)).size!==x.parts.length||x.parts.reduce((n,p)=>n+p.amount,0)!==entry.received||x.parts.some(p=>!amount(p.amount)||!p.amount))throw Error('受取の充当先と金額が一致しません');
+  }
 }

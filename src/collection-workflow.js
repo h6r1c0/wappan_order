@@ -36,9 +36,10 @@ export function billingAudit(state,roundId){
       else if(line.qty>0&&line.unitPrice==null)issues.push({type:'price',key:line.key,productId:line.productId,qty:line.qty,message:`${line.name} ${line.qty}個の請求単価が未確定です`});
       if(line.qty>line.ordered||line.qty<0)issues.push({type:'quantity',key:line.key,message:`${line.name}の注文数と受取確定数を確認してください`});
     }
-    if(knownBag!=null&&knownBag!==expected)issues.push({type:'bag',message:`案内済み ${knownBag.toLocaleString()}円と現在の請求 ${expected.toLocaleString()}円に差があります`,difference:expected-knownBag});
+    const explained=additions.filter(x=>x.reason==='商品請求漏れ'&&x.notifiedAmount===knownBag).reduce((n,x)=>n+x.amount,0);
+    if(knownBag!=null&&knownBag!==expected&&expected-knownBag!==explained)issues.push({type:'bag',message:`案内済み ${knownBag.toLocaleString()}円と現在の請求 ${expected.toLocaleString()}円に未確認の差があります`,difference:expected-knownBag});
     if(review)for(const l of lines){const prior=review.lines.find(x=>x.key===l.key);if(prior&&prior.qty!==l.qty)issues.push({type:'review-quantity',key:l.key,productId:l.productId,qty:l.qty,message:`${l.name}：受取確定 ${l.qty}個に対し、確認した請求対象 ${prior.qty}個です`});}
-    if(review?.status==='pending')issues.push({type:'pending',message:`請求は未確定です：${review.exceptionReason}`});
+    if(review?.status==='pending'&&!(explained>0&&expected-knownBag===explained&&review.exceptionReason==='請求内容を照合中'&&!lines.some(l=>l.qty>0&&(l.unitPrice==null||l.missingProduct))))issues.push({type:'pending',message:`請求は未確定です：${review.exceptionReason}`});
     if(review&&JSON.stringify(review.lines)!==JSON.stringify(lines.map(({key,qty,unitPrice,amount})=>({key,qty,unitPrice,amount}))))issues.push({type:'changed',message:'請求確認後に商品・数量・単価が変わっています'});
     return {buyerId,current,name:state.buyers.find(x=>x.id===buyerId)?.name||r.orders[buyerId]?.name,lines,expected,knownBag,review,issues,complete:!issues.length};
   });
@@ -96,6 +97,17 @@ export function correctCollectionRecord(state,kind,id,reason){
   state.collectionCorrections??=[];
   if(state.collectionCorrections.some(x=>x.kind===kind&&x.targetId===id))throw Error('この記録は訂正済みです');
   state.collectionCorrections.push({id:uid(),kind,targetId:id,roundId:item.roundId,buyerId:item.buyerId,reason,at:new Date().toISOString()});
+}
+// A receipt is an immutable fact. Record a later decision about its destination separately.
+export function recordCollectionAllocation(state,entryId,parts){
+  const entry=(state.collectionEntries||[]).find(x=>x.id===entryId);
+  if(!entry||entry.received<=0||(state.collectionCorrections||[]).some(x=>x.kind==='collectionEntries'&&x.targetId===entryId))throw Error('有効な現金受取記録を選んでください');
+  if((state.collectionAllocations||[]).some(x=>x.entryId===entryId))throw Error('この受取の充当先は確認済みです');
+  const available=collectionDueItems({...state,collectionEntries:(state.collectionEntries||[]).filter(x=>x.id!==entryId)},entry.roundId,entry.buyerId).items;
+  if(!Array.isArray(parts)||!parts.length||new Set(parts.map(x=>x.itemId)).size!==parts.length||parts.reduce((n,x)=>n+x.amount,0)!==entry.received)throw Error('受取額と充当額を一致させてください');
+  for(const part of parts){integer(part.amount,'充当額');if(!part.amount||!available.some(x=>x.id===part.itemId&&x.balance>=part.amount))throw Error('対象の未収と充当額を確認してください');}
+  state.collectionAllocations??=[];
+  state.collectionAllocations.push({id:uid(),entryId,roundId:entry.roundId,buyerId:entry.buyerId,parts:parts.map(x=>({itemId:x.itemId,amount:x.amount})),at:new Date().toISOString()});
 }
 export function receiveCollection(state,{roundId,buyerId,received,reason='',pastAmount=0,pastDate,requestId,caseId,itemId}){
   integer(received,'実際受取額',true);if(!received)throw Error('受取額を入力してください');
