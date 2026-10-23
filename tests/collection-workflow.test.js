@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {initialState,newRound,report,collections,collectionPosition,collectionDueItems,validate} from '../src/domain.js';
-import {billingAudit,chargeLines,confirmBilling,confirmLinePrice,flagMissingCharge,receiveCollection,receiveFullCollection,saveCollectionCase,correctCollectionRecord} from '../src/collection-workflow.js';
+import {billingAudit,chargeLines,confirmBilling,confirmLinePrice,flagMissingCharge,receiveCollection,receiveFullCollection,saveCollectionCase,correctCollectionRecord,recordCollectionAllocation} from '../src/collection-workflow.js';
 import {reassignSale} from '../src/sale-reassignment.js';
 import {setSalesOrderQuantities,upgrade} from '../src/commerce.js';
 import {addSale} from '../src/domain.js';
@@ -11,12 +11,33 @@ test('堀：請求前に注文・数量・単価と袋額を照合し、2個×19
  assert.equal(a.lines.find(l=>l.productId==='donut').qty,2);
  const before=report(s,r.date,r.date,2026);
  const claim=flagMissingCharge(s,r.id,'hori','order:donut',2);assert.equal(claim.amount,380);
+ assert.equal(billingAudit(s,r.id).issues.length,0,'保存済みの380円で説明できる袋額差は再警告しない');
  assert.equal(flagMissingCharge(s,r.id,'hori','order:donut',2).id,claim.id);assert.equal(s.receivableItems.length,1);
  assert.equal(report(s,r.date,r.date,2026).revenue,before.revenue);
  receiveCollection(s,{roundId:r.id,buyerId:'hori',received:2130,reason:'一部しか受け取っていない',requestId:'one'});
  assert.equal(collectionPosition(s,r.id,'hori').balance,380);assert.equal(collectionPosition(s,r.id,'hori').received,2130);
  assert.throws(()=>receiveCollection(s,{roundId:r.id,buyerId:'hori',received:2130,reason:'多く受け取ったので次回へ預かる',requestId:'one'}),/保存済み/);
  confirmBilling(s,r.id,'hori',2510);assert.equal(billingAudit(s,r.id).issues.length,0);validate(s);
+});
+test('余語：既存の現金受取1650円を9月分に指定しても受取原本を変えず7月1670円だけ残す',()=>{
+ const {s,r}=setup();r.products[0].price=1650;r.orders.hori.quantities={base:1};
+ s.receivableItems.push({id:'july',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:1670,reason:'未受取',note:'7月分'});
+ const receipt=receiveCollection(s,{roundId:r.id,buyerId:'hori',received:1650,reason:'一部しか受け取っていない'});
+ const original=structuredClone(receipt),revenue=report(s,r.date,r.date,2026);
+ assert.deepEqual(collectionDueItems(s,r.id,'hori').items.map(x=>x.balance),[1670,1650],'旧形式は充当先を断定できない');
+ assert.equal(collectionPosition(s,r.id,'hori').unallocated,1650);
+ recordCollectionAllocation(s,receipt.id,[{itemId:`round:${r.id}:hori`,amount:1650}]);
+ assert.deepEqual(s.collectionEntries[0],original);assert.deepEqual(collectionDueItems(s,r.id,'hori').items.map(x=>x.balance),[1670,0]);
+ assert.equal(collectionPosition(s,r.id,'hori').balance,1670);assert.equal(collectionPosition(s,r.id,'hori').unallocated,0);assert.deepEqual(report(s,r.date,r.date,2026),revenue);
+ assert.throws(()=>recordCollectionAllocation(s,receipt.id,[{itemId:'july',amount:1650}]),/確認済み/);validate(s);
+});
+test('充当先は混合受取の金額を分けて保存し、未収超過・金額不足を拒否する',()=>{
+ const {s,r}=setup();r.products[0].price=1650;r.orders.hori.quantities={base:1};s.receivableItems.push({id:'july',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:1670,reason:'未受取',note:'7月分'});
+ const e=receiveCollection(s,{roundId:r.id,buyerId:'hori',received:1800,reason:'一部しか受け取っていない'});
+ assert.throws(()=>recordCollectionAllocation(s,e.id,[{itemId:'july',amount:1670}]),/一致/);
+ assert.throws(()=>recordCollectionAllocation(s,e.id,[{itemId:'july',amount:1800}]),/未収/);
+ recordCollectionAllocation(s,e.id,[{itemId:'july',amount:150},{itemId:`round:${r.id}:hori`,amount:1650}]);
+ assert.deepEqual(collectionDueItems(s,r.id,'hori').items.map(x=>x.balance),[1520,0]);validate(s);
 });
 test('未確定単価は0円で完了せず候補確認後に一度だけ計上、欠品・正当な変更は漏れ扱いにしない',()=>{
  const {s,r}=setup();r.products[1].price=null;
@@ -77,7 +98,7 @@ test('2個を1個ずつ割り当て直し、修正済みレコードと売上・
  assert.equal(s.sales.find(x=>x.id===id).qty,1);assert.equal(s.sales.length,2);assert.equal(report(s,r.date,r.date,2026).revenue,total);validate(s);
 });
 test('本番バックアップは読み込み・表示で既存ID・内容・修正履歴を変えない',{skip:!process.env.WAPPAN_BASELINE},()=>{
- const original=JSON.parse(fs.readFileSync(process.env.WAPPAN_BASELINE)).workspace.data,s=structuredClone(original);upgrade(s);const before=structuredClone(s);
+ const backup=JSON.parse(fs.readFileSync(process.env.WAPPAN_BASELINE));const original=backup.workspace?.data||backup.data,s=structuredClone(original);upgrade(s);const before=structuredClone(s);
  for(const r of s.rounds){billingAudit(s,r.id);for(const b of s.buyers){collectionPosition(s,r.id,b.id);collectionDueItems(s,r.id,b.id);}}
  validate(s);assert.deepEqual(s,before);for(const key of ['rounds','sales','collectionEntries','receivableItems','collectionReconciliations','buyers'])assert.deepEqual(s[key],original[key]);
 });

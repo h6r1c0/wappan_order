@@ -11,6 +11,7 @@ test('集金一覧は通常の12人を少ないスクロールで探せ、受取
  for(const b of s.buyers)r.orders[b.id]={name:b.name,quantities:{bread:1}};
  const shared={state:s,revision:0};await backend(context,shared);await login(page);
  await page.locator('.round-list-item').click();await page.locator('.stage-4 > .stage-trigger').click();
+ expect(await page.locator('.stage-2').evaluate(x=>getComputedStyle(x).getPropertyValue('--work-accent').trim())).toBe('#327052');
  const rows=page.locator('.collection-list > .collection-entry');await expect(rows).toHaveCount(12);
  const output=[];
  for(const width of [320,375,430,1280]){
@@ -56,4 +57,28 @@ test('未確定・保留・一部受取・0円・高額と長い名前を誤っ�
  await page.locator('[data-buyer="b3"] .collection-open').click();await expect(page.locator('[data-buyer="b3"]')).toContainText('請求単価が未確定');
  await page.locator('.collection-completed summary').click();await expect(page.locator('.collection-completed [data-buyer="b5"]')).toContainText('集金不要0円');
  expect(shared.revision).toBe(0);
+});
+
+test('集金は工程色と行密度を保ち、既存受取の充当先を分けて確認できる',async({page,context})=>{
+ const s=initialState(),r=newRound(s,'2026-09-11',true);s.rounds.push(r);r.status='納品済み';r.collectionLive=true;
+ r.products=[{id:'p',name:'パン',price:1650,cost:1200}];r.orders.hori={name:'堀',quantities:{p:1}};
+ s.receivableItems=[{id:'july',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:1670,reason:'未受取',note:'7月24日分'}];
+ s.collectionEntries=[{id:'cash',roundId:r.id,buyerId:'hori',date:r.date,received:1650,adjustment:0,note:'現金受取',requestId:'cash'}];
+ const shared={state:s,revision:0};await backend(context,shared);await login(page);
+ await page.locator('.round-list-item').click();await page.locator('.stage-4 > .stage-trigger').click();
+ for(const width of [320,375,430]){
+  await page.setViewportSize({width,height:812});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  expect(await page.locator('[data-buyer="hori"] .collection-overview').evaluate(x=>x.getBoundingClientRect().height)).toBeLessThanOrEqual(50);
+  expect(await page.locator('.collection-pay').count()).toBe(0);
+ }
+ await page.locator('[data-buyer="hori"] .collection-open').click();
+ await page.getByRole('button',{name:/請求・過去の履歴を調べる/}).click();
+ await page.getByRole('button',{name:/受け取った請求分を指定/}).click();
+ await page.getByRole('spinbutton',{name:/2026-09-11.*未収/}).fill('1650');
+ await page.getByRole('button',{name:'充当先を保存'}).click();
+ expect(shared.state.collectionEntries).toEqual(s.collectionEntries);
+ expect(shared.state.collectionAllocations).toHaveLength(1);
+ expect(collectionPosition(shared.state,r.id,'hori').due.map(x=>x.balance)).toEqual([1670]);
+ await expect(page.locator('[data-buyer="hori"]')).toContainText('2026-09-11 1,650円');
 });
