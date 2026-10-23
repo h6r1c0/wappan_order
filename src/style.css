@@ -2422,6 +2422,9 @@ header small {
   .stage-content .text-action { color:var(--work-accent); }
   .stage-content .purpose.selected { background:var(--work-tint); color:var(--work-accent); border-color:var(--work-accent); box-shadow:inset 0 -2px var(--work-accent); }
   .stage-content .purpose-next .selected { color:var(--work-accent); border-color:var(--work-accent); }
+  .stage-content .category-tabs .button:not(.secondary),
+  .stage-content .sales-mode-grid .button:not(.secondary),
+  .stage-content .choice-grid .button:not(.secondary) { background:var(--work-tint); color:var(--work-accent); border-color:var(--work-accent); }
   .stage-content .tabs.work-tabs .button:not(.secondary) { background:var(--work-tint); color:var(--work-accent); border-color:var(--work-accent); box-shadow:none; }
   .stage-content .after-work { margin:4px 0 0; border-bottom:1px solid var(--line); }
   .stage-content .after-work > summary { min-height:43px; padding:7px 4px 7px 11px; border-left:2px solid var(--stage-color); color:#414b44; font-size:.88rem; font-weight:650; }
