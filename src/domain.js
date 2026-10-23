@@ -1,3 +1,4 @@
+import {validateCollectionWorkflow} from './collection-validation.js';
 import { deliveredQuantity, receivedQuantity, validateFulfillment } from './shortages.js';
 import { permanentProduct } from "./excel.js";
 import { bundleUsed, movedOut, bundleCost, validateCommerce } from "./commerce.js";
@@ -441,7 +442,12 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
 }
 // Claims are distinct obligations. Additional claims are a labelled portion of the
 // round invoice, not a second charge. Opening balances have no invented order.
+export function effectiveCollectionState(s){
+  const corrected=(key)=>(s[key]||[]).filter(x=>!(s.collectionCorrections||[]).some(c=>c.kind===key&&c.targetId===x.id));
+  return {...s,collectionEntries:corrected('collectionEntries'),collectionReconciliations:corrected('collectionReconciliations')};
+}
 export function collectionDueItems(s, roundId, buyerId) {
+  s=effectiveCollectionState(s);
   const target=s.rounds.find(r=>r.id===roundId);
   if(!target) throw Error('注文回が見つかりません');
   const eligible=s.rounds.filter(r=>(r.test===target.test || r.collectionLive) && (r.date<target.date || r.date===target.date&&r.id<=target.id))
@@ -464,11 +470,16 @@ export function collectionDueItems(s, roundId, buyerId) {
     const item=items.find(i=>i.id===`round:${x.roundId}:${buyerId}`);
     if(item) item.balance=Math.max(0,item.balance-x.amount);
   }
-  let credit=0;
+  let credit=sum((s.collectionCredits||[]).filter(x=>x.buyerId===buyerId&&eligible.some(r=>r.id===x.roundId)&&x.date<=target.date).map(x=>x.amount));
   const entries=(s.collectionEntries||[]).filter(e=>e.buyerId===buyerId&&eligible.some(r=>r.id===e.roundId));
   for(const entry of entries){
     let amount=entry.received+entry.adjustment;
-    if(amount<0){credit+=-amount;continue;}
+    if(amount<0){
+      let refund=-amount;const fromCredit=Math.min(credit,refund);credit-=fromCredit;refund-=fromCredit;
+      for(const item of [...items].reverse()){const reopen=Math.min(refund,item.amount-item.balance);item.balance+=reopen;refund-=reopen;if(!refund)break;}
+      if(refund)items.push({id:`refund:${entry.id}`,kind:'refund',roundId:entry.roundId,date:entry.date,amount:refund,balance:refund,reason:'返金',note:'受取訂正後に確認が必要な返金分'});
+      continue;
+    }
     if(entry.itemId){
       const chosen=items.find(x=>x.id===entry.itemId);
       if(chosen){const used=Math.min(amount,chosen.balance);chosen.balance-=used;amount-=used;}
@@ -483,6 +494,7 @@ export function collectionDueItems(s, roundId, buyerId) {
   return {items,credit};
 }
 export function collectionPosition(s, roundId, buyerId) {
+  s=effectiveCollectionState(s);
   const round = s.rounds.find((r) => r.id === roundId);
   if (!round) throw Error('注文回が見つかりません');
   const earlier = s.rounds.filter((r) => (r.test === round.test || r.collectionLive) &&
@@ -500,10 +512,11 @@ export function collectionPosition(s, roundId, buyerId) {
   const adjusted = sum(entries.map((entry) => entry.adjustment));
   const opening=sum((s.receivableItems||[]).filter(x=>x.kind==='opening'&&x.buyerId===buyerId&&(!round.test||round.collectionLive)&&x.date<=round.date).map(x=>x.amount));
   const reconciled=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&earlier.some(r=>r.id===x.roundId)).map(x=>x.amount));
-  const carry = billedBefore + opening - receivedBefore - reconciled;
+  const credits=sum((s.collectionCredits||[]).filter(x=>x.buyerId===buyerId&&(x.roundId===roundId||earlier.some(r=>r.id===x.roundId))&&x.date<=round.date).map(x=>x.amount));
+  const carry = billedBefore + opening - receivedBefore - reconciled - credits;
   const confirmedHistorical=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&x.roundId===roundId).map(x=>x.amount));
   return { carry, current, received, adjusted, confirmedHistorical, balance: carry + current - received - adjusted - confirmedHistorical,
-    entries, due:collectionDueItems(s,roundId,buyerId).items.filter(x=>x.balance>0) };
+    credits, entries, due:collectionDueItems(s,roundId,buyerId).items.filter(x=>x.balance>0) };
 }
 export function report(s, from, to, year) {
   const inRange = (d) => from <= d && d <= to;
@@ -830,6 +843,7 @@ export function validate(s) {
     integer(x.amount,'過去の受取確認額');
     if(!x.amount||!s.buyers.some(b=>b.id===x.buyerId)||!s.rounds.some(r=>r.id===x.roundId)||!String(x.note||'').trim())throw Error('過去の受取確認を確認してください');
   }
+  validateCollectionWorkflow(s);
   validateFulfillment(s);
   validateCommerce(s);
   if (s.schema===2 && (!Array.isArray(s.externalDestinations) || new Set(s.externalDestinations).size !== s.externalDestinations.length || s.externalDestinations.some(x=>!String(x).trim()))) throw Error("外部販売先候補を確認してください");

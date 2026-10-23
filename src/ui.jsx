@@ -52,7 +52,7 @@ export function Money({
     <Field label={label}>
       <span className="money-input"><input
         aria-label={label}
-        inputMode={signed ? "text" : "numeric"}
+        inputMode="numeric"
         type="number"
         min={signed ? undefined : 0}
         step="1"
