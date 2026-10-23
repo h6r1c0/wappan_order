@@ -117,6 +117,7 @@ export function Orders() {
 }
 function Round({ round: r, initialTab = null, back }) {
   const { state, save, notify } = useApp();
+  const [collectionSessions,setCollectionSessions]=useState({}),[collectionReturn,setCollectionReturn]=useState('');
   const [tab, setTab] = useState(initialTab),
     [returnStage, setReturnStage] = useState(null),
     [adjustProduct, setAdjustProduct] = useState(null),
@@ -181,6 +182,7 @@ function Round({ round: r, initialTab = null, back }) {
       >
         ‹ 注文一覧へ
       </button>
+      {collectionReturn&&tab!=='集金'&&<button type="button" className="text-action return-context" onClick={()=>moveTo('集金')}>元の集金へ戻る（受取額を保持）</button>}
       <div className="delivery-heading">
         <div><span className="eyebrow">納品予定日</span><h1>{r.date.replaceAll("-", "/")} 着</h1></div>
         <Button secondary onClick={() => setSettings(true)}>
@@ -321,7 +323,13 @@ function Round({ round: r, initialTab = null, back }) {
         <>
           <div className="collection-total"><span>{rows.some(x=>x.unpriced.length)?'確定済み金額（価格未確認あり）':'今回の請求合計'}</span>
             <strong>{yen(rows.reduce((a, b) => a + b.total, 0))}</strong></div>
-          <RoundCollections round={r} rows={rows} />
+          <RoundCollections round={r} rows={rows} sessions={collectionSessions} initialFocus={collectionReturn}
+            onDraft={(id,draft)=>setCollectionSessions(s=>({...s,[id]:draft}))}
+            onSource={(kind,id)=>{
+              setCollectionReturn(id);
+              if(kind==='order'){setTab('個人注文');setPersonalClosed(false);choose(id);}
+              else{setTab('納品・精算');requestAnimationFrame(()=>{for(const d of document.querySelectorAll('.after-work'))if(d.querySelector('summary')?.textContent==='販売先を割り当てる')d.open=true;});}
+            }}/>
           <button type="button" className="text-action"
             onClick={async () => {
               try {

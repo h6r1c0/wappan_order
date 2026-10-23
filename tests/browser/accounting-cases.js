@@ -40,6 +40,11 @@ export function registerAccountingTests(browserName){
   const shared=fixture();await openCollections(page,context,shared);let p=await person(page,'hori');await p.getByLabel('実際受取額',{exact:true}).fill('2130');await p.getByLabel('金額が違う理由').selectOption('原因が分からないので調べたい');await p.getByLabel('調査メモ（任意）').fill('商品の数量を確認');await p.getByRole('button',{name:'要確認として保存'}).click();expect(shared.state.collectionEntries).toHaveLength(0);
   await page.reload();await page.locator('.round-list-item').click();await page.locator('.stage-4 > .stage-trigger').click();p=await person(page,'hori');await expect(p.getByLabel('実際受取額',{exact:true})).toHaveValue('2130');await p.getByRole('button',{name:'請求・過去の履歴を調べる ›'}).click();await expect(p.locator('.collection-investigation .charge-line').filter({hasText:'ツイストドーナツ'})).toContainText('2個');expect(shared.state.collectionEntries).toHaveLength(0);
  });
+ test('元の注文へ移動して戻っても受取額と調査理由を失わない',async({page,context})=>{
+  const shared=fixture();await openCollections(page,context,shared);let p=await person(page,'hori');await p.getByLabel('実際受取額',{exact:true}).fill('2130');await p.getByLabel('金額が違う理由').selectOption('原因が分からないので調べたい');
+  await p.getByRole('button',{name:'元の個人注文を確認・修正 ›'}).click();await expect(page.locator('.order-editor')).toBeVisible();
+  await page.getByRole('button',{name:'元の集金へ戻る（受取額を保持）'}).click();p=page.locator('[data-buyer="hori"]');await expect(p.getByLabel('実際受取額',{exact:true})).toHaveValue('2130');await expect(p.getByLabel('金額が違う理由')).toHaveValue('原因が分からないので調べたい');expect(shared.state.collectionEntries).toHaveLength(0);
+ });
  test('2個を1個ずつ割当して一覧に戻り、完了後も履歴を保持、購入者入力は即一覧',async({page,context})=>{
   const shared=fixture();setSalesOrderQuantities(shared.state,shared.round.id,{rye:2,donut:2});const st=shared.state.stocks.find(x=>x.productId==='rye');addSale(shared.state,st,{date:shared.round.date,qty:2,destinationType:'unknown',paymentStatus:'unconfirmed'});
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売先を割り当てる');
