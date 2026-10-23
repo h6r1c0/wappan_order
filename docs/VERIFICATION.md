@@ -1,5 +1,7 @@
 # 検証結果と残る接続確認
 
+> **履歴資料（2026年9月）**：以下のテスト件数、revision、Auth・接続状態、未確認事項は当時の記録です。現在の状態ではありません。現行の検証手順は [DEVELOPMENT_CHECKS.md](DEVELOPMENT_CHECKS.md)、業務仕様は [BUSINESS_RULES.md](BUSINESS_RULES.md) を参照し、最新のCIとDBを読み取りで確認してください。
+
 2026年9月15日、main `d62e87b3aba927a38348e7fc9f5190f27e7d0248` のREADME・画像2点を基に実装。
 
 ## 自動検証

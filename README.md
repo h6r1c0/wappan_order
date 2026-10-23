@@ -16,6 +16,8 @@
 
 ## 開発
 
+開発担当は最初に [AGENTS.md](AGENTS.md) を読み、[現行業務仕様](docs/BUSINESS_RULES.md)、[UX基準](docs/ux-finish-checklist.md#今後の変更に適用するux基準)、[開発・検証手順](docs/DEVELOPMENT_CHECKS.md) へ進んでください。自動読込に依存せず、新しい作業セッションでもこの順で確認します。[初期検証記録](docs/VERIFICATION.md) の件数やDB状態は現在のものではありません。
+
 Node.js 22.12以降（CIは24）。
 
 ```sh
@@ -23,6 +25,7 @@ npm ci
 cp .env.example .env
 npm run dev -- --host 127.0.0.1
 npm test
+npm run check:docs
 npx playwright install chromium
 npx playwright test
 npm run build
@@ -32,10 +35,12 @@ npm run build
 
 - React + Vite、SheetJS CE 0.20.3（Excel取込時だけ読み込み）
 - SupabaseのDB migration: `supabase/migrations/` を番号順に適用
-- GitHub Actions: 計算・DB・ブラウザーのテスト後にビルド。Pagesへの公開は手動ワークフローまたは設定済みの場合に実行。
+- GitHub Actions: 文書リンク・計算・DB・ブラウザーのテスト後にビルド。mainへのpushはPagesへ公開。PRは検証のみ。
 - ユーザーの注文データはリポジトリへ保存しません。画像2点は既存素材をそのまま使用します。
 - ブラウザーテストは検証用のAuth/APIで業務フロー・複数端末・競合を確認。DBテストはPGliteのPostgresでRLS・RPCを実行します。実際のSupabaseプロジェクト接続後の端末間確認は別途必要です。
 
 ## 第一版の対象外
+
+以下は第一版当時の範囲の記録です。現在の搭載機能の一覧として扱わず、最新のコード・[業務仕様](docs/BUSINESS_RULES.md)・テストを確認してください。
 
 購入者向け公開フォーム、LINE API連携、納品書OCR、手書き写真OCR、通知、商品ごとの画像管理、マーケティング、複雑な在庫・行事管理は含みません。手書き販売記録はスマートフォンのタップ入力で登録できます。
