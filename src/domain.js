@@ -472,6 +472,7 @@ export function collectionDueItems(s, roundId, buyerId) {
   }
   let credit=sum((s.collectionCredits||[]).filter(x=>x.buyerId===buyerId&&eligible.some(r=>r.id===x.roundId)&&x.date<=target.date).map(x=>x.amount));
   const entries=(s.collectionEntries||[]).filter(e=>e.buyerId===buyerId&&eligible.some(r=>r.id===e.roundId));
+  let unallocated=0;
   for(const entry of entries){
     let amount=entry.received+entry.adjustment;
     if(amount<0){
@@ -488,6 +489,11 @@ export function collectionDueItems(s, roundId, buyerId) {
       }
       continue;
     }
+    const open=items.filter(x=>x.balance>0),outstanding=sum(open.map(x=>x.balance));
+    if(!entry.itemId&&entry.received>0&&open.length>1&&amount<outstanding){
+      unallocated+=amount;
+      continue;
+    }
     if(entry.itemId){
       const chosen=items.find(x=>x.id===entry.itemId);
       if(chosen){const used=Math.min(amount,chosen.balance);chosen.balance-=used;amount-=used;}
@@ -499,7 +505,7 @@ export function collectionDueItems(s, roundId, buyerId) {
     credit+=amount;
   }
   if(credit) for(const item of items){const used=Math.min(credit,item.balance);item.balance-=used;credit-=used;if(!credit)break;}
-  return {items,credit};
+  return {items,credit,unallocated};
 }
 export function collectionPosition(s, roundId, buyerId) {
   s=effectiveCollectionState(s);
@@ -523,8 +529,9 @@ export function collectionPosition(s, roundId, buyerId) {
   const credits=sum((s.collectionCredits||[]).filter(x=>x.buyerId===buyerId&&(x.roundId===roundId||earlier.some(r=>r.id===x.roundId))&&x.date<=round.date).map(x=>x.amount));
   const carry = billedBefore + opening - receivedBefore - reconciled - credits;
   const confirmedHistorical=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&x.roundId===roundId).map(x=>x.amount));
+  const dueState=collectionDueItems(s,roundId,buyerId);
   return { carry, current, received, adjusted, confirmedHistorical, balance: carry + current - received - adjusted - confirmedHistorical,
-    credits, entries, due:collectionDueItems(s,roundId,buyerId).items.filter(x=>x.balance>0) };
+    credits, entries, unallocated:dueState.unallocated, due:dueState.items.filter(x=>x.balance>0) };
 }
 export function report(s, from, to, year) {
   const inRange = (d) => from <= d && d <= to;

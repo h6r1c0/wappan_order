@@ -16,7 +16,8 @@ begin
   amount:=0;
   for p in select value from jsonb_array_elements(a->'parts') loop
    if jsonb_typeof(p->'amount') is distinct from 'number' or (p->>'amount')::numeric<=0 or (p->>'amount')::numeric>100000000 or trunc((p->>'amount')::numeric)<>(p->>'amount')::numeric
-     or not (p->>'itemId' like 'round:%' or exists(select 1 from jsonb_array_elements(coalesce(d->'receivableItems','[]'::jsonb)) x where x->>'id'=p->>'itemId' and x->>'buyerId'=a->>'buyerId')) then raise exception 'Invalid allocation part'; end if;
+     or not (exists(select 1 from jsonb_array_elements(d->'rounds') r where p->>'itemId'='round:'||(r->>'id')||':'||(a->>'buyerId') and exists(select 1 from jsonb_array_elements(d->'rounds') current_round where current_round->>'id'=a->>'roundId' and r->>'date'<=current_round->>'date'))
+       or exists(select 1 from jsonb_array_elements(coalesce(d->'receivableItems','[]'::jsonb)) x where x->>'id'=p->>'itemId' and x->>'buyerId'=a->>'buyerId')) then raise exception 'Invalid allocation part'; end if;
    amount:=amount+(p->>'amount')::numeric;
   end loop;
   if amount<>(receipt->>'received')::numeric or exists(select 1 from jsonb_array_elements(a->'parts') x group by x->>'itemId' having count(*)>1) then raise exception 'Allocation does not match receipt'; end if;

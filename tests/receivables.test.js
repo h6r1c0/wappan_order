@@ -61,10 +61,10 @@ test('堀さんの既知6商品2,130円と追加2点380円を分け、受取0/2,
   assert.equal(orderAmount(r,r.orders.hori),2510);
   assert.equal(collectionPosition(s,r.id,'hori').balance,2510);
   assert.deepEqual(collectionDueItems(s,r.id,'hori').items.map(x=>x.balance),[2130,380]);
-  s.collectionEntries.push({id:'bag',roundId:r.id,buyerId:'hori',date:r.date,received:2130,adjustment:0,note:'当初の袋'});
+  s.collectionEntries.push({id:'bag',roundId:r.id,buyerId:'hori',date:r.date,received:2130,adjustment:0,note:'当初の袋',itemId:`round:${r.id}:hori`});
   assert.equal(collectionPosition(s,r.id,'hori').balance,380);
   assert.deepEqual(collectionDueItems(s,r.id,'hori').items.map(x=>x.balance),[0,380]);
-  s.collectionEntries.push({id:'late',roundId:r.id,buyerId:'hori',date:r.date,received:380,adjustment:0,note:'追加分'});
+  s.collectionEntries.push({id:'late',roundId:r.id,buyerId:'hori',date:r.date,received:380,adjustment:0,note:'追加分',itemId:'late-donut'});
   assert.equal(collectionPosition(s,r.id,'hori').balance,0);
   assert.equal(validate(s),s);
 });

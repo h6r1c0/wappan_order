@@ -24,10 +24,11 @@ test('余語：既存の現金受取1650円を9月分に指定しても受取原
  s.receivableItems.push({id:'july',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:1670,reason:'未受取',note:'7月分'});
  const receipt=receiveCollection(s,{roundId:r.id,buyerId:'hori',received:1650,reason:'一部しか受け取っていない'});
  const original=structuredClone(receipt),revenue=report(s,r.date,r.date,2026);
- assert.deepEqual(collectionDueItems(s,r.id,'hori').items.map(x=>x.balance),[20,1650],'旧形式は充当先を断定できない');
+ assert.deepEqual(collectionDueItems(s,r.id,'hori').items.map(x=>x.balance),[1670,1650],'旧形式は充当先を断定できない');
+ assert.equal(collectionPosition(s,r.id,'hori').unallocated,1650);
  recordCollectionAllocation(s,receipt.id,[{itemId:`round:${r.id}:hori`,amount:1650}]);
  assert.deepEqual(s.collectionEntries[0],original);assert.deepEqual(collectionDueItems(s,r.id,'hori').items.map(x=>x.balance),[1670,0]);
- assert.equal(collectionPosition(s,r.id,'hori').balance,1670);assert.deepEqual(report(s,r.date,r.date,2026),revenue);
+ assert.equal(collectionPosition(s,r.id,'hori').balance,1670);assert.equal(collectionPosition(s,r.id,'hori').unallocated,0);assert.deepEqual(report(s,r.date,r.date,2026),revenue);
  assert.throws(()=>recordCollectionAllocation(s,receipt.id,[{itemId:'july',amount:1650}]),/確認済み/);validate(s);
 });
 test('充当先は混合受取の金額を分けて保存し、未収超過・金額不足を拒否する',()=>{
