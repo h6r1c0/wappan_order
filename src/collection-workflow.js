@@ -26,7 +26,7 @@ export function billingAudit(state,roundId){
   const r=state.rounds.find(x=>x.id===roundId),rows=collections(state,'','',roundId,r.test);
   const ids=new Set([...Object.keys(r.orders),...rows.map(x=>x.id)]);
   const buyers=[...ids].map(buyerId=>{
-    const lines=chargeLines(state,roundId,buyerId),row=rows.find(x=>x.id===buyerId),expected=row?.total||0;
+    const lines=chargeLines(state,roundId,buyerId),row=rows.find(x=>x.id===buyerId),position=collectionPosition(state,roundId,buyerId),current=row?.total||0,expected=Math.max(0,current+position.carry-position.confirmedHistorical);
     const review=(state.billingReviews||[]).find(x=>x.roundId===roundId&&x.buyerId===buyerId);
     const additions=(state.receivableItems||[]).filter(x=>x.kind==='additional'&&x.roundId===roundId&&x.buyerId===buyerId);
     const knownBag=review?.bagAmount??additions.find(x=>x.notifiedAmount!=null)?.notifiedAmount??null;
@@ -40,7 +40,7 @@ export function billingAudit(state,roundId){
     if(review)for(const l of lines){const prior=review.lines.find(x=>x.key===l.key);if(prior&&prior.qty!==l.qty)issues.push({type:'review-quantity',key:l.key,productId:l.productId,qty:l.qty,message:`${l.name}：受取確定 ${l.qty}個に対し、確認した請求対象 ${prior.qty}個です`});}
     if(review?.status==='pending')issues.push({type:'pending',message:`請求は未確定です：${review.exceptionReason}`});
     if(review&&JSON.stringify(review.lines)!==JSON.stringify(lines.map(({key,qty,unitPrice,amount})=>({key,qty,unitPrice,amount}))))issues.push({type:'changed',message:'請求確認後に商品・数量・単価が変わっています'});
-    return {buyerId,name:state.buyers.find(x=>x.id===buyerId)?.name||r.orders[buyerId]?.name,lines,expected,knownBag,review,issues,complete:!issues.length};
+    return {buyerId,current,name:state.buyers.find(x=>x.id===buyerId)?.name||r.orders[buyerId]?.name,lines,expected,knownBag,review,issues,complete:!issues.length};
   });
   const stocks=state.stocks.filter(x=>x.roundId===roundId).map(stock=>({stock,...stockAllocation(state,stock)}));
   return {buyers,issues:buyers.flatMap(b=>b.issues.map(x=>({...x,buyerId:b.buyerId,name:b.name}))),stocks};
@@ -80,7 +80,7 @@ export function flagMissingCharge(state,roundId,buyerId,key,qty,unitPrice){
   const total=collections(state,'','',roundId,r.test).find(x=>x.id===buyerId)?.total||0;
   const prior=state.receivableItems.filter(x=>x.kind==='additional'&&x.roundId===roundId&&x.buyerId===buyerId).reduce((n,x)=>n+x.amount,0);
   if(prior+amount>total)throw Error('同じ請求を重複登録できません');
-  const item={id:uid(),kind:'additional',roundId,buyerId,date:r.date,amount,reason:'商品請求漏れ',note:`${line.name} ×${qty} 請求漏れ`,sourceKey:key,qty,unitPrice:line.unitPrice,notifiedAmount:audit.knownBag??total-amount};
+  const item={id:uid(),kind:'additional',roundId,buyerId,date:r.date,amount,reason:'商品請求漏れ',note:`${line.name} ×${qty} 請求漏れ`,sourceKey:key,qty,unitPrice:line.unitPrice,notifiedAmount:audit.knownBag??audit.expected-amount};
   state.receivableItems.push(item);return item;
 }
 export function saveCollectionCase(state,entry){

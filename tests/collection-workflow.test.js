@@ -81,3 +81,13 @@ test('本番バックアップは読み込み・表示で既存ID・内容・修
  for(const r of s.rounds){billingAudit(s,r.id);for(const b of s.buyers){collectionPosition(s,r.id,b.id);collectionDueItems(s,r.id,b.id);}}
  validate(s);assert.deepEqual(s,before);for(const key of ['rounds','sales','collectionEntries','receivableItems','collectionReconciliations','buyers'])assert.deepEqual(s[key],original[key]);
 });
+
+
+test('集金袋額は今回請求だけでなく過去不足・預かりを含めて照合する',()=>{
+ const {s,r}=setup();r.products[0].price=1020;r.orders.hori.quantities={base:1};
+ s.receivableItems.push({id:'old50',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:50,reason:'不足',note:'前回分'});
+ confirmBilling(s,r.id,'hori',1070);assert.equal(billingAudit(s,r.id).issues.length,0);assert.equal(billingAudit(s,r.id).buyers[0].current,1020);
+ const {s:s2,r:r2}=setup();r2.products[0].price=690;r2.orders.hori.quantities={base:1};
+ s2.collectionCredits=[{id:'credit100',roundId:r2.id,buyerId:'hori',date:'2026-07-24',amount:100,reason:'前回預かり'}];
+ confirmBilling(s2,r2.id,'hori',590);assert.equal(billingAudit(s2,r2.id).issues.length,0);
+});

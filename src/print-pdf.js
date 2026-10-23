@@ -53,6 +53,9 @@ export async function createPrintPdf(model,fontBytes) {
     let page=newPage(),y=30;
     for(const bill of model.bills||[]){
       const labels=(bill.lines||[]).flatMap(l=>wrap(`${l.name}　${l.qty}個　${l.amount==null?'単価未確定':l.amount+'円'}`,9,172));
+      if(bill.carry)labels.push(bill.carry>0?`過去未収 ${bill.carry.toLocaleString()}円`:`前回の預かり ${(-bill.carry).toLocaleString()}円を充当`);
+      if(bill.confirmed)labels.push(`過去の支払済み確認 ${bill.confirmed.toLocaleString()}円を除外`);
+      if(bill.received)labels.push(`この回の受取記録 ${bill.received.toLocaleString()}円 ／ 残る未収 ${Math.max(0,bill.balance).toLocaleString()}円`);
       const notes=(bill.issues||[]).flatMap(x=>wrap(x.message,8,172));
       const parts=[...labels,...notes,...(model.pending?[`未確定：${bill.reason||'照合待ち'}`]:[])];
       if(y+25+Math.min(parts.length,10)*5>285){page=newPage();y=30;}

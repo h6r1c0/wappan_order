@@ -93,9 +93,9 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
         {row?.snack>0&&<p>おやつ {yen(row.snack)}</p>}
       </details>
       <details className="billing-confirm"><summary>集金袋の金額を確認（現金受取前）</summary>
-        <Money label="集金袋へ記載する金額" value={bag??audit?.knownBag??position.current} onChange={setBag}/>
+        <Money label="集金袋へ記載する金額" value={bag??audit?.knownBag??audit?.expected??position.current} onChange={setBag}/>
         <Field label="未確定で進める理由（必要な場合）"><select value={exception} onChange={e=>setException(e.target.value)}><option value="">確定した請求として確認</option><option>単価を確認中</option><option>請求内容を照合中</option></select></Field>
-        <Button disabled={busy} onClick={()=>act(s=>confirmBilling(s,round.id,buyer.id,bag??audit?.knownBag??position.current,{exceptionReason:exception}),'請求内容のみ確認・現金受取なし')}>請求内容だけ確認</Button>
+        <Button disabled={busy} onClick={()=>act(s=>confirmBilling(s,round.id,buyer.id,bag??audit?.knownBag??audit?.expected??position.current,{exceptionReason:exception}),'請求内容のみ確認・現金受取なし')}>請求内容だけ確認</Button>
         {audit?.review&&<small>{audit.review.status==='confirmed'?'請求内容確認済み':'請求は未確定'} ／ この操作で受取記録は作成しません。</small>}
       </details>
     </div>}
@@ -112,7 +112,7 @@ export function RoundCollections({round,rows,sessions={},onDraft,onSource,initia
   const unresolved=audit.issues.length>0;
   const exportBills=async()=>{
     if(exporting)return;if(unresolved&&!exception){notify('未確定の請求があります。下の警告から確認してください。');return;}
-    setExporting(true);try{await openPrintPreview({kind:'collections',date:round.date,pending:unresolved,bills:sorted.map(id=>{const p=collectionPosition(state,round.id,id),a=audit.buyers.find(x=>x.buyerId===id);return {name:state.buyers.find(x=>x.id===id)?.name,total:p.current+p.carry-p.confirmedHistorical,lines:a?.lines||[],issues:a?.issues||[],reason:exception};})});}catch(e){notify(e.message);}finally{setExporting(false);}
+    setExporting(true);try{await openPrintPreview({kind:'collections',date:round.date,pending:unresolved,bills:sorted.map(id=>{const p=collectionPosition(state,round.id,id),a=audit.buyers.find(x=>x.buyerId===id);return {name:state.buyers.find(x=>x.id===id)?.name,total:Math.max(0,p.current+p.carry-p.confirmedHistorical),lines:a?.lines||[],carry:p.carry,confirmed:p.confirmedHistorical,received:p.received,balance:p.balance,issues:a?.issues||[],reason:exception};})});}catch(e){notify(e.message);}finally{setExporting(false);}
   };
   return <div className="stack collection-list">
     <section className="billing-audit" aria-label="集金前の自動照合"><h3>集金前の確認</h3>

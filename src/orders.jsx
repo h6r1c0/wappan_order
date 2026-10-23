@@ -159,6 +159,7 @@ function Round({ round: r, initialTab = null, back }) {
   const monthLabel = `${Number(r.date.slice(5, 7))}月`;
   const activeStage = PURPOSES.includes(tab) ? "注文" : tab;
   const moveTo = (next) => {
+    if(next!==tab&&document.querySelector('.sales-workspace[data-unsaved="true"]')&&!confirm('未保存の販売先・数量があります。入力を閉じて別の工程へ移動しますか？'))return;
     if (draft && JSON.stringify(draft) !== JSON.stringify(orderDraft(state, r, currentBuyer)) &&
       !confirm("未保存の個人注文を閉じますか？")) return;
     if (draft && next !== '個人注文') { setDraft(null); setBuyerId(null); }
