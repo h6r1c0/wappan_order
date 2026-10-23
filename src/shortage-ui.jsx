@@ -16,16 +16,15 @@ export function Shortage({round:r}) {
   const latest=[...new Map((r.shortages||[]).map(x=>[x.productId,x])).values()];
   return <section className="shortage-check">
     <h3>欠品確認</h3>
-    <div className="segmented" role="group" aria-label="欠品確認">
-      {[['none','欠品なし'],['yes','欠品あり']].map(([value,label])=><button type="button" key={value}
-        aria-pressed={choice===value} className={choice===value?'selected':''}
-        disabled={value==='none' && latest.length>0}
-        onClick={()=>setChoice(value)}>{choice===value?'✓ ':''}{label}</button>)}
+    <div className="shortage-choice">
+      {r.shortageConfirmation==='none'?<strong role="status">✓ 欠品なし確認済み</strong>:<Button secondary disabled={latest.length>0} onClick={async()=>{
+        if(await save(s=>{const round=s.rounds.find(x=>x.id===r.id);round.shortageConfirmation='none';round.shortageReviewComplete=true;updateDeliveryStatus(round);},'欠品なしを確認'))setChoice('none');
+      }}>欠品なしを確認</Button>}
+      {r.shortageConfirmation!=='yes'&&<button type="button" className="text-action" aria-expanded={choice==='yes'} onClick={()=>setChoice(choice==='yes'?r.shortageConfirmation||'':'yes')}>欠品がある場合 ›</button>}
     </div>
-    {choice!==r.shortageConfirmation && <div className="shortage-save"><Button onClick={async()=>{
-      if(await save(s=>{const round=s.rounds.find(x=>x.id===r.id);round.shortageConfirmation=choice;
-        round.shortageReviewComplete=choice==='none';updateDeliveryStatus(round);},'欠品確認')) setChoice(choice);
-    }}>欠品確認を保存</Button><button type="button" className="text-action" onClick={()=>setChoice(r.shortageConfirmation||'')}>取消</button></div>}
+    {choice==='yes'&&r.shortageConfirmation!=='yes'&&<div className="shortage-save"><Button onClick={async()=>{
+      if(await save(s=>{const round=s.rounds.find(x=>x.id===r.id);round.shortageConfirmation='yes';round.shortageReviewComplete=false;updateDeliveryStatus(round);},'欠品ありを確認'))setChoice('yes');
+    }}>欠品ありとして明細へ進む</Button><button type="button" className="text-action" onClick={()=>setChoice(r.shortageConfirmation||'')}>戻る</button></div>}
     {r.shortageConfirmation==='yes' && <div className="shortage-editor">
       <Field label="欠品商品"><select value={productId} onChange={e=>reset(e.target.value)}>
         <option value="">商品を選ぶ</option>{deliveryTotals(state,r).map(p=><option key={p.id} value={p.id}>{productDisplayName(p.name)}</option>)}

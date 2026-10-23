@@ -13,9 +13,9 @@ function StockSummary({stock,onHistory,onSelect}){
   }
   return <div className="stock-summary" aria-label={`${stock.name}の割当状況`}><div className="stock-summary-head"><strong>{productDisplayName(stock.name)}</strong><span>{available(state,stock)>0?`未割当 ${available(state,stock)}個`:'割当済み'}</span></div>
     <small>{[...names].map(([name,q])=>`${name} ${q}個`).join(' ／ ')||'販売先の割当なし'}</small>
-    <div className="stock-facts"><span>販売待ち・在庫 {a.remaining}個</span><span>販売済み・購入者未確認 {a.unconfirmed}個</span></div>
-    <div className="actions">{available(state,stock)>0&&<button type="button" className="text-action" onClick={onSelect}>この商品を割り当てる ›</button>}
-      <button type="button" className="text-action" onClick={()=>onHistory(stock)}>履歴を確認・修正 ›</button></div>
+    {(a.unconfirmed>0||a.remaining>0&&available(state,stock)===0)&&<small className="stock-facts">{a.unconfirmed>0&&`購入者未確認 ${a.unconfirmed}個`}{a.remaining>0&&available(state,stock)===0&&` ／ 販売待ち ${a.remaining}個`}</small>}
+    <div className="actions">{available(state,stock)>0?<button type="button" className="text-action" onClick={onSelect}>この商品を割り当てる ›</button>:<button type="button" className="text-action" onClick={()=>onHistory(stock)}>割当先・履歴を確認 ›</button>}
+      {available(state,stock)>0&&names.size>0&&<button type="button" className="text-action" onClick={()=>onHistory(stock)}>割当済みを修正 ›</button>}</div>
   </div>;
 }
 export function SalesWorkspace({stocks,roundId,mode,onHistory}){
@@ -48,13 +48,13 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
     {destinationType==='buyer'?<BuyerPicker value={buyerId} onChange={chooseBuyer} includeTest={stocks.some(s=>s.test)}/>:<Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field>}</div>;
   const filters=<><div className="tabs category-tabs" aria-label="販売商品を絞り込む">{[['ALL','すべて'],['パン','パン'],['焼き菓子','焼き菓子']].map(([v,label])=><Button key={v} secondary={category!==v} onClick={()=>setCategory(v)}>{label}</Button>)}</div><Field label="商品名を検索" type="search" value={query} onChange={e=>setQuery(e.target.value)}/></>;
   return <section className="sales-workspace" ref={top} data-unsaved={picked.length>0}>
-    <h2>{mode==='buyer'?'購入者から入力':'商品別の割当・販売履歴'}</h2>
+    <h2>{mode==='buyer'?'購入者からまとめて入力':'商品別一覧'}</h2>
     {lastSaved&&<p role="status" className="sale-saved">{lastSaved}</p>}
     {mode==='buyer'&&destinationFields}
     {(mode==='product'||buyerId||destinationType==='external')&&<>
       {filters}
       {mode==='product'&&!selected&&<div className="sales-product-list">{shown.map(stock=><StockSummary key={stock.id} stock={stock} onSelect={()=>select(stock)} onHistory={onHistory}/>)}
-        {!!complete.length&&<details className="completed-stocks"><summary>割当済みの商品・販売履歴（{complete.length}件）</summary>{complete.map(stock=><StockSummary key={stock.id} stock={stock} onHistory={onHistory}/>)}</details>}
+        {!!complete.length&&<details className="completed-stocks"><summary>割当済み（{complete.length}商品）</summary>{complete.map(stock=><StockSummary key={stock.id} stock={stock} onHistory={onHistory}/>)}</details>}
         {!eligible.length&&<p>未割当の商品はありません。割当済みの商品から履歴を確認できます。</p>}</div>}
       {mode==='product'&&selected&&<><div className="assignment-product-row"><strong>{productDisplayName(selected.name)}</strong><Qty label={`${selected.name} 割当数量`} min={0} max={available(state,selected)} value={quantities[selected.id]||0} onChange={q=>setQuantities({[selected.id]:q})}/></div>
         <p>未割当 {available(state,selected)}個 ／ 1個 {yen(selected.price)}</p>{destinationFields}<button type="button" className="text-action" onClick={()=>{setStockId('');setQuantities({});}}>割当せず一覧へ戻る</button></>}

@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {initialState,newRound,report,collections,collectionPosition,collectionDueItems,validate} from '../src/domain.js';
-import {billingAudit,chargeLines,confirmBilling,confirmLinePrice,flagMissingCharge,receiveCollection,saveCollectionCase,correctCollectionRecord} from '../src/collection-workflow.js';
+import {billingAudit,chargeLines,confirmBilling,confirmLinePrice,flagMissingCharge,receiveCollection,receiveFullCollection,saveCollectionCase,correctCollectionRecord} from '../src/collection-workflow.js';
 import {reassignSale} from '../src/sale-reassignment.js';
 import {setSalesOrderQuantities,upgrade} from '../src/commerce.js';
 import {addSale} from '../src/domain.js';
@@ -90,4 +90,21 @@ test('集金袋額は今回請求だけでなく過去不足・預かりを含�
  const {s:s2,r:r2}=setup();r2.products[0].price=690;r2.orders.hori.quantities={base:1};
  s2.collectionCredits=[{id:'credit100',roundId:r2.id,buyerId:'hori',date:'2026-07-24',amount:100,reason:'前回預かり'}];
  confirmBilling(s2,r2.id,'hori',590);assert.equal(billingAudit(s2,r2.id).issues.length,0);
+});
+test('通常の全額受取は過去不足・預かりを含む集金予定額を一度だけ記録する',()=>{
+ const {s,r}=setup();r.products[0].price=1020;r.orders.hori.quantities={base:1};
+ s.receivableItems.push({id:'old50',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:50,reason:'不足',note:'前回分'});
+ const annual=report(s,'2026-04-01','2027-03-31',2026);
+ const receipt=receiveFullCollection(s,r.id,'hori');assert.equal(receipt.received,1070);assert.equal(collectionPosition(s,r.id,'hori').balance,0);
+ assert.throws(()=>receiveFullCollection(s,r.id,'hori'),/履歴を確認/);assert.equal(s.collectionEntries.length,1);assert.deepEqual(report(s,'2026-04-01','2027-03-31',2026),annual);
+ const {s:credit,r:round}=setup();round.products[0].price=690;round.orders.hori.quantities={base:1};credit.collectionCredits=[{id:'prior100',roundId:round.id,buyerId:'hori',date:'2026-07-24',amount:100,reason:'前回預かり'}];
+ assert.equal(receiveFullCollection(credit,round.id,'hori').received,590);assert.equal(collectionPosition(credit,round.id,'hori').balance,0);
+ const {s:past,r:later}=setup();later.orders={};past.receivableItems=[{id:'opening',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:1670,reason:'未受取',note:'7月分'}];
+ assert.equal(receiveFullCollection(past,later.id,'hori').received,1670);assert.equal(collectionPosition(past,later.id,'hori').balance,0);
+});
+test('請求袋との差が既知・一部受取済み・要確認の場合は通常の全額受取にしない',()=>{
+ const {s,r}=setup();confirmBilling(s,r.id,'hori',2130,{exceptionReason:'請求内容を照合中'});
+ assert.throws(()=>receiveFullCollection(s,r.id,'hori'),/履歴を確認/);
+ flagMissingCharge(s,r.id,'hori','order:donut',2);receiveCollection(s,{roundId:r.id,buyerId:'hori',received:2130,reason:'一部しか受け取っていない'});
+ assert.throws(()=>receiveFullCollection(s,r.id,'hori'),/履歴を確認/);assert.equal(s.collectionEntries.length,1);
 });

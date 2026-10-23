@@ -29,6 +29,26 @@ test('旧注文回に仕入単価記録がない場合、現在のマスター�
  s.products.find(p=>p.id==='walnut').cost=999;
  setSalesOrderQuantities(s,r.id,{walnut:1});
  assert.equal(s.stocks.find(st=>st.productId==='walnut').cost,null);
+ setSnackOrderQuantities(s,r.id,{walnut:1});assert.equal(s.events[0].lines.find(l=>l.productId==='walnut').cost,null);
+ validate(s);
+});
+test('11月の価格改定後も10月の注文・販売用・おやつの請求と原価・年度利益を保持',()=>{
+ const s=initialState();s.products.forEach(p=>{if(p.gross==null&&p.manual==null)p.gross=394;});
+ const master=s.products.find(p=>p.id==='walnut'),old=newRound(s,'2026-10-16');s.rounds.push(old);
+ const buyer=s.buyers[0].id;old.orders[buyer]={name:s.buyers[0].name,quantities:{walnut:1}};
+ setSalesOrderQuantities(s,old.id,{walnut:1});setSnackOrderQuantities(s,old.id,{walnut:1});
+ const stock=s.stocks.find(st=>st.roundId===old.id&&st.productId==='walnut');addSale(s,stock,{date:old.date,qty:1,paid:true});
+ const oldProduct=structuredClone(old.products.find(p=>p.id==='walnut'));
+ const oldBill=collections(s,'','',old.id,false).find(x=>x.id===buyer)?.total;
+ const oldReport=report(s,'2026-04-01','2027-03-31',2026);
+ master.gross=654;master.cost=299;
+ const november=newRound(s,'2026-11-13');s.rounds.push(november);
+ assert.equal(november.products.find(p=>p.id==='walnut').price,650);assert.equal(november.products.find(p=>p.id==='walnut').cost,299);
+ assert.deepEqual(old.products.find(p=>p.id==='walnut'),oldProduct);
+ assert.equal(stock.price,oldProduct.price);assert.equal(stock.cost,oldProduct.cost);
+ assert.equal(s.events[0].lines.find(l=>l.productId==='walnut').cost,oldProduct.cost);
+ assert.equal(collections(s,'','',old.id,false).find(x=>x.id===buyer)?.total,oldBill);
+ assert.deepEqual(report(s,'2026-04-01','2027-03-31',2026),oldReport);
  validate(s);
 });
 

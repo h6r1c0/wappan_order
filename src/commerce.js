@@ -245,7 +245,7 @@ export function setSnackOrderQuantities(s, roundId, quantities) {
           productId: product.id,
           name: product.name,
           category: product.category,
-          cost: product.cost ?? (round.status === "入力中" ? s.products.find(p=>p.id===product.id)?.cost : null) ?? null,
+          cost: product.cost ?? null,
           qty: difference,
           used: 0,
         });

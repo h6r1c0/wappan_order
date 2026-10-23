@@ -133,6 +133,16 @@ export function receiveCollection(state,{roundId,buyerId,received,reason='',past
   return entry;
 }
 
+export function receiveFullCollection(state,roundId,buyerId){
+  const position=collectionPosition(state,roundId,buyerId);
+  const audit=billingAudit(state,roundId).buyers.find(x=>x.buyerId===buyerId);
+  if(!position.balance||position.balance<0||position.received!==0||(!audit&&position.current!==0)||audit?.issues.length||
+    (state.collectionEntries||[]).some(x=>x.roundId===roundId&&x.buyerId===buyerId)||
+    (state.collectionCases||[]).some(x=>x.roundId===roundId&&x.buyerId===buyerId&&x.status==='pending'))
+    throw Error('請求・受取の履歴を確認してください。金額が違う場合は詳細から記録します');
+  return receiveCollection(state,{roundId,buyerId,received:position.balance,requestId:`full:${roundId}:${buyerId}`});
+}
+
 export function adjustReceivable(state,{roundId,buyerId,amount,reason}){
  integer(amount,'債権調整額',true);
  if(!amount||!['回収しないことが確定した未収','以前の債権調整を戻す'].includes(reason))throw Error('債権調整の理由を選んでください');

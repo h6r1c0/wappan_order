@@ -71,7 +71,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
     if (document.querySelector('.sales-workspace[data-unsaved="true"], .work-section.order-editor[data-unsaved="true"]') &&
       !confirm('未保存の入力があります。画面を閉じますか？')) return;
     setMode(mode === key ? null : key);
-    setInputMode(null);
+    setInputMode('product');
   };
   const step = (key, label) => <button type="button" className={`sales-step ${mode === key ? 'selected' : ''}`}
     onClick={() => toggleStep(key)} aria-expanded={mode === key}>
@@ -122,7 +122,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
         {!reviewing && onManageProducts && <Button secondary onClick={onManageProducts}>商品を追加・変更</Button>}
       </section>}
       {phase !== 'order' && <section className="work-section sales-step-body">
-        <div className="sales-mode-grid">{[['product','商品から入力'],['buyer','購入者から入力']].map(([v,label])=><Button key={v} secondary={inputMode!==v} aria-pressed={inputMode===v} onClick={()=>setInputMode(v)}>{label}</Button>)}</div>
+        <div className="sales-mode-grid"><button type="button" className="text-action" onClick={()=>setInputMode(inputMode==='buyer'?'product':'buyer')}>{inputMode==='buyer'?'商品別一覧へ戻る ›':'購入者から複数商品をまとめて入力 ›'}</button></div>
         {['product','buyer'].map(v=><div hidden={inputMode!==v} key={v}><SalesWorkspace stocks={stocks} roundId={roundId} mode={v} onHistory={st=>setEdit(st)}/></div>)}
       </section>}
     </div>
@@ -499,7 +499,9 @@ function StockSaleHistory({ stock, sold, onResolve }) {
                   ? `外部販売・${sale.paymentStatus === "paid" ? "入金済み" : "入金未確認"}`
                   : "個人請求"}{sale.void ? " ／ 取消済み" : ""}
             </small>
-            {sale.note && <p>{sale.note}</p>}
+            {sale.note && (sale.note.startsWith('実資料の完売記録。')
+              ? <details><summary>取込時の記録</summary><p>{sale.note}</p></details>
+              : <p>{sale.note}</p>)}
             {!!sale.assignmentHistory?.length&&<details><summary>販売先・数量の訂正履歴</summary>{sale.assignmentHistory.map((x,i)=><p key={i}>{x.at.slice(0,10)} {x.previous.buyerName} {x.previous.qty}個 → 訂正</p>)}</details>}
             {!sale.void && (
               <div className="actions">

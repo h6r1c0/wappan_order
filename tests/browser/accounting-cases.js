@@ -15,9 +15,22 @@ function fixture(){
  return {state:s,revision:0,round:r};
 }
 async function openCollections(page,context,shared){await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await page.locator('.stage-4 > .stage-trigger').click();}
-async function person(page,id){const p=page.locator(`[data-buyer="${id}"]`);if(await p.getByRole('button',{name:'受取・請求確認 ›'}).count())await p.getByRole('button',{name:'受取・請求確認 ›'}).click();return p;}
+async function person(page,id){const p=page.locator(`[data-buyer="${id}"]`);if(await p.getByRole('button',{name:/内容を確認 ›/}).count())await p.getByRole('button',{name:/内容を確認 ›/}).click();return p;}
 async function widths(page,prefix){for(const width of [320,375,430,1280]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/${prefix}-${width}.png`});}}
 export function registerAccountingTests(browserName){
+ test('通常は集金予定額を1タップで受取、堀の既知請求漏れだけ例外へ進む',async({page,context})=>{
+  const shared=fixture(),r=shared.round;shared.state.receivableItems.push({id:'old50',kind:'opening',buyerId:'sasaki',date:'2026-07-24',amount:50,reason:'不足',note:'前回分'});
+  shared.state.collectionCredits=[{id:'credit100',roundId:r.id,buyerId:'nishio',date:'2026-07-24',amount:100,reason:'前回預かり'}];
+  await openCollections(page,context,shared);
+  const sasaki=page.locator('[data-buyer="sasaki"]');await expect(sasaki).toContainText('集金予定 1,070円');
+  await sasaki.getByRole('button',{name:'全額受取'}).click();expect(shared.state.collectionEntries.at(-1).received).toBe(1070);expect(collectionPosition(shared.state,r.id,'sasaki').balance).toBe(0);
+  await expect(sasaki.getByRole('button',{name:'全額受取'})).toHaveCount(0);
+  const nishio=page.locator('[data-buyer="nishio"]');await expect(nishio).toContainText('集金予定 590円');await nishio.getByRole('button',{name:'全額受取'}).click();expect(shared.state.collectionEntries.at(-1).received).toBe(590);expect(collectionPosition(shared.state,r.id,'nishio').balance).toBe(0);
+  const hori=page.locator('[data-buyer="hori"]');await expect(hori.getByRole('button',{name:'全額受取'})).toHaveCount(0);await expect(hori).toContainText('案内済み 2,130円');await expect(hori).toContainText('現金は未受取');
+  await person(page,'hori');await hori.getByRole('button',{name:'案内した 2,130円 を受取額に入力 ›'}).click();await expect(hori.getByLabel('金額が違う理由')).toHaveValue('一部しか受け取っていない');await hori.getByRole('button',{name:'受取額を保存'}).click();
+  expect(shared.state.receivableItems.filter(x=>x.kind==='additional')).toHaveLength(1);expect(collectionPosition(shared.state,r.id,'hori').balance).toBe(380);expect(collectionPosition(shared.state,r.id,'hori').received).toBe(2130);
+  await widths(page,`quick-${browserName}`);
+ });
  test('集金前の警告・商品選択・受取2130円と未収380円・確認だけでは受取を作らない',async({page,context})=>{
   const shared=fixture();await openCollections(page,context,shared);await expect(page.locator('.billing-audit')).toContainText('2,130円');
   const p=await person(page,'hori');await p.getByRole('button',{name:'請求・過去の履歴を調べる ›'}).click();
@@ -28,7 +41,7 @@ export function registerAccountingTests(browserName){
   expect(collectionPosition(shared.state,shared.round.id,'hori').balance).toBe(380);expect(shared.state.collectionEntries[0].received).toBe(2130);
   const h=await person(page,'hori');await h.locator('.billing-confirm summary').click();await h.getByLabel('集金袋へ記載する金額').fill('2510');await h.getByRole('button',{name:'請求内容だけ確認'}).click();expect(shared.state.collectionEntries).toHaveLength(1);
   await h.locator('.collection-breakdown summary').click();await widths(page,`cash-${browserName}`);
-  await installPreviewProbe(page);await page.getByRole('button',{name:'集金袋用の請求表を印刷 ›'}).click();await expect.poll(()=>page.evaluate(()=>window.__previewUrls.length)).toBe(1);const bytes=await pdfBytes(page,await page.evaluate(()=>window.__previewUrls[0]));expect((await PDFDocument.load(bytes)).getTitle()).toBe('集金袋用請求表 2026-09-11');
+  await installPreviewProbe(page);await page.locator('.collection-print summary').click();await page.getByRole('button',{name:'金額一覧のPDFを開く ›'}).click();await expect.poll(()=>page.evaluate(()=>window.__previewUrls.length)).toBe(1);const bytes=await pdfBytes(page,await page.evaluate(()=>window.__previewUrls[0]));expect((await PDFDocument.load(bytes)).getTitle()).toBe('集金袋用請求表 2026-09-11');
  });
  test('佐々木・西尾は受取額と理由で過去分を同時登録、余語は誤確認を明示して訂正',async({page,context})=>{
   const shared=fixture();await openCollections(page,context,shared);
@@ -50,6 +63,6 @@ export function registerAccountingTests(browserName){
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売先を割り当てる');
   const work=page.locator('.sales-workspace').filter({visible:true});await work.locator('.stock-summary').filter({hasText:'ライ麦くるみレーズン'}).getByRole('button',{name:'この商品を割り当てる ›'}).click();await setQty(work,'ライ麦くるみレーズン 割当数量',1);await work.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();await work.getByRole('button',{name:'佐々木',exact:true}).click();await work.getByRole('button',{name:'この1個の割当を保存'}).click();await expect(work.locator('.sales-product-list')).toBeVisible();await expect(work.getByLabel('ライ麦くるみレーズンの割当状況')).toContainText('未割当 1個');
   await work.getByLabel('ライ麦くるみレーズンの割当状況').getByRole('button',{name:'この商品を割り当てる ›'}).click();await work.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();await work.getByRole('button',{name:'西尾',exact:true}).click();await closeToast(page);await work.getByRole('button',{name:'この1個の割当を保存'}).click();await expect(work.locator('.sales-product-list > .stock-summary').filter({hasText:'ライ麦くるみレーズン'})).toHaveCount(0);await work.locator('.completed-stocks summary').click();await expect(work.getByLabel('ライ麦くるみレーズンの割当状況')).toContainText('佐々木 1個');await widths(page,`assignment-${browserName}`);
-  await page.getByRole('button',{name:'購入者から入力',exact:true}).click();const buyer=page.locator('.sales-workspace').filter({visible:true});await buyer.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();await buyer.getByRole('button',{name:'堀',exact:true}).click();await expect(buyer.locator('.assignment-product-row')).toHaveCount(1);await setQty(buyer,'ツイストドーナツ 割当数量',1);page.once('dialog',d=>d.dismiss());await page.locator('.stage-4 > .stage-trigger').click();await expect(page.locator('.stage-3 > .stage-trigger')).toHaveAttribute('aria-expanded','true');await expect(buyer.getByRole('button',{name:'ツイストドーナツ 割当数量 1、直接入力する'})).toBeVisible();await buyer.getByRole('button',{name:'この1商品の割当を保存'}).click();expect(shared.state.sales.filter(x=>x.stockId===st.id&&x.destinationType==='buyer')).toHaveLength(2);
+  await page.getByRole('button',{name:'購入者から複数商品をまとめて入力 ›',exact:true}).click();const buyer=page.locator('.sales-workspace').filter({visible:true});await buyer.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();await buyer.getByRole('button',{name:'堀',exact:true}).click();await expect(buyer.locator('.assignment-product-row')).toHaveCount(1);await setQty(buyer,'ツイストドーナツ 割当数量',1);page.once('dialog',d=>d.dismiss());await page.locator('.stage-4 > .stage-trigger').click();await expect(page.locator('.stage-3 > .stage-trigger')).toHaveAttribute('aria-expanded','true');await expect(buyer.getByRole('button',{name:'ツイストドーナツ 割当数量 1、直接入力する'})).toBeVisible();await buyer.getByRole('button',{name:'この1商品の割当を保存'}).click();expect(shared.state.sales.filter(x=>x.stockId===st.id&&x.destinationType==='buyer')).toHaveLength(2);
  });
 }

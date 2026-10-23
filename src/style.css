@@ -2374,3 +2374,30 @@ header small {
 .shortage-check .segmented button.selected { box-shadow:inset 0 -2px #ac5e2d; border-color:#c59066; }
 .toast { pointer-events:none; }
 .toast button { pointer-events:auto; }
+
+/* 集金は金額と受取を先に示し、例外の明細は開いたときだけ表示する。 */
+.collection-list-guide { margin:6px 0 4px; font-size:.81rem; color:#48594e; }
+.collection-entry, .collection-entry:nth-child(n) { display:grid; grid-template-columns:minmax(0,1fr); gap:5px; padding:11px 2px!important; }
+.collection-entry .collection-person { grid-column:1; display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:10px; }
+.collection-entry .collection-person > strong { font-size:1rem; font-weight:700; }
+.collection-entry .collection-state { font-size:.79rem; font-weight:650; padding:3px 7px; }
+.collection-entry .collection-state.is-due { color:#764418; background:#fff0d9; }
+.collection-entry .collection-state.is-paid { color:#245d3b; background:#e1f0e5; }
+.collection-entry .collection-right { grid-column:1; grid-row:auto; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:3px 10px; }
+.collection-entry .collection-right > strong { font-size:1.08rem; font-weight:700; white-space:normal; font-variant-numeric:tabular-nums; }
+.collection-entry .collection-right .collection-pay { min-height:42px; min-width:96px; font-size:.9rem; font-weight:700; padding:7px 12px; }
+.collection-entry .collection-edit { grid-column:1/-1; justify-self:start; color:#2e5a42; font-size:.83rem; min-height:35px; text-align:left; }
+.collection-entry > .collection-alert { margin:1px 0; }
+.collection-completed { margin:12px 0; border-top:1px solid var(--line); }
+.collection-completed > summary { padding:12px 2px; font-weight:650; color:#315b42; cursor:pointer; }
+.collection-print { margin-top:7px; }
+.collection-print > summary { font-size:.84rem; color:#315b42; }
+.shortage-choice { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; }
+.shortage-choice .button { min-height:40px; padding:6px 11px; }
+.shortage-choice strong { color:#754319; font-size:.9rem; }
+.stock-summary .stock-facts { color:#80511e; font-size:.8rem; }
+@media(max-width:350px){
+ .collection-entry .collection-right { grid-template-columns:minmax(0,1fr) auto; }
+ .collection-entry .collection-right > strong { font-size:.98rem; }
+ .collection-entry .collection-right .collection-pay { min-width:86px; font-size:.84rem; padding:6px 9px; }
+}
