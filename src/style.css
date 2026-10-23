@@ -2413,7 +2413,7 @@ header small {
 /* Shared work stages: one action vocabulary, with colour supplied by the stage. */
 @media screen {
   .stage { --work-accent:#286b49; --work-tint:#edf6ef; }
-  .stage-2 { --work-accent:#32698e; --work-tint:#edf4f9; }
+  .stage-2 { --stage-color:#327052; --stage-surface:#eaf4ee; --work-accent:#327052; --work-tint:#eaf4ee; }
   .stage-3 { --work-accent:#9d5120; --work-tint:#fff3e8; }
   .stage-4 { --work-accent:#9b3c57; --work-tint:#fff0f3; }
   .stage.active > .stage-trigger { background:var(--work-tint); color:var(--work-accent); border-left-color:var(--work-accent); }

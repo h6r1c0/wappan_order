@@ -11,6 +11,7 @@ test('集金一覧は通常の12人を少ないスクロールで探せ、受取
  for(const b of s.buyers)r.orders[b.id]={name:b.name,quantities:{bread:1}};
  const shared={state:s,revision:0};await backend(context,shared);await login(page);
  await page.locator('.round-list-item').click();await page.locator('.stage-4 > .stage-trigger').click();
+ expect(await page.locator('.stage-2').evaluate(x=>getComputedStyle(x).getPropertyValue('--work-accent').trim())).toBe('#327052');
  const rows=page.locator('.collection-list > .collection-entry');await expect(rows).toHaveCount(12);
  const output=[];
  for(const width of [320,375,430,1280]){
