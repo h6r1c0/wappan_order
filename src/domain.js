@@ -503,13 +503,13 @@ export function collectionPosition(s, roundId, buyerId) {
     collections(s, '', '', r.id, r.test).find((row) => row.id === buyerId)?.total || 0));
   const receivedBefore = sum((s.collectionEntries || [])
     .filter((entry) => earlier.some((r) => r.id === entry.roundId) && entry.buyerId === buyerId)
-    .map((entry) => entry.received + entry.adjustment));
+    .map((entry) => entry.received + (entry.adjustment || 0)));
   const current = collections(s, '', '', roundId, round.test)
     .find((row) => row.id === buyerId)?.total || 0;
   const entries = (s.collectionEntries || []).filter((entry) =>
     entry.roundId === roundId && entry.buyerId === buyerId);
   const received = sum(entries.map((entry) => entry.received));
-  const adjusted = sum(entries.map((entry) => entry.adjustment));
+  const adjusted = sum(entries.map((entry) => entry.adjustment || 0));
   const opening=sum((s.receivableItems||[]).filter(x=>x.kind==='opening'&&x.buyerId===buyerId&&(!round.test||round.collectionLive)&&x.date<=round.date).map(x=>x.amount));
   const reconciled=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&earlier.some(r=>r.id===x.roundId)).map(x=>x.amount));
   const credits=sum((s.collectionCredits||[]).filter(x=>x.buyerId===buyerId&&(x.roundId===roundId||earlier.some(r=>r.id===x.roundId))&&x.date<=round.date).map(x=>x.amount));

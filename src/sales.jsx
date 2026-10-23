@@ -499,9 +499,7 @@ function StockSaleHistory({ stock, sold, onResolve }) {
                   ? `外部販売・${sale.paymentStatus === "paid" ? "入金済み" : "入金未確認"}`
                   : "個人請求"}{sale.void ? " ／ 取消済み" : ""}
             </small>
-            {sale.note && (sale.note.startsWith('実資料の完売記録。')
-              ? <details><summary>取込時の記録</summary><p>{sale.note}</p></details>
-              : <p>{sale.note}</p>)}
+            {sale.note && !sale.note.startsWith('実資料の完売記録。') && <p>{sale.note}</p>}
             {!!sale.assignmentHistory?.length&&<details><summary>販売先・数量の訂正履歴</summary>{sale.assignmentHistory.map((x,i)=><p key={i}>{x.at.slice(0,10)} {x.previous.buyerName} {x.previous.qty}個 → 訂正</p>)}</details>}
             {!sale.void && (
               <div className="actions">

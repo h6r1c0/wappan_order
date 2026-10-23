@@ -102,6 +102,13 @@ test('通常の全額受取は過去不足・預かりを含む集金予定額�
  const {s:past,r:later}=setup();later.orders={};past.receivableItems=[{id:'opening',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:1670,reason:'未受取',note:'7月分'}];
  assert.equal(receiveFullCollection(past,later.id,'hori').received,1670);assert.equal(collectionPosition(past,later.id,'hori').balance,0);
 });
+test('過去形式の受取記録に調整額がなくても一部未収と次回繰越を保持する',()=>{
+ const {s,r}=setup();r.products[0].price=190;r.orders.hori.quantities={base:2};
+ s.collectionEntries=[{id:'legacy',roundId:r.id,buyerId:'hori',date:r.date,received:190}];
+ assert.equal(collectionPosition(s,r.id,'hori').balance,190);
+ const later=newRound(s,'2026-10-16',r.test);s.rounds.push(later);
+ assert.equal(collectionPosition(s,later.id,'hori').carry,190);
+});
 test('請求袋との差が既知・一部受取済み・要確認の場合は通常の全額受取にしない',()=>{
  const {s,r}=setup();confirmBilling(s,r.id,'hori',2130,{exceptionReason:'請求内容を照合中'});
  assert.throws(()=>receiveFullCollection(s,r.id,'hori'),/履歴を確認/);

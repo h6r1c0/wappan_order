@@ -312,14 +312,14 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
     await page.screenshot({path:`test-results/collection-${width}.png`});
   }
   const person=page.locator('.collection-entry');
-  await person.getByRole('button',{name:/内容を確認 ›/}).click();
+  await person.locator('.collection-open').click();
   const due=collections(shared.state,'','',r.id,true)[0].total;
   await person.getByLabel('実際受取額',{exact:true}).fill(String(due+10));
   await person.getByLabel('金額が違う理由').selectOption('多く受け取ったので次回へ預かる');
   await person.getByRole('button',{name:'受取額を保存'}).click();
-  await expect(person.locator('.collection-state')).toHaveText('預かり 10円');
+  await expect(person.locator('.collection-amount')).toHaveText('預かり10円');
   await page.locator('.collection-completed summary').click();
-  await person.getByRole('button',{name:/内容を確認 ›/}).click();
+  await person.locator('.collection-open').click();
   await person.getByLabel('実際受取額',{exact:true}).fill('10');
   await person.getByLabel('金額が違う理由').selectOption('返金がある');
   await person.getByLabel('返金額',{exact:true}).fill('10');
@@ -345,8 +345,8 @@ test('請求漏れ・過去未収を一度の内訳展開で確認し、対象�
   await page.locator('.round-list-item').filter({hasText:'2026/09/11'}).click();
   await page.locator('.stage-4 > .stage-trigger').click();
   const hori=page.locator('.collection-entry').filter({hasText:'ホリ'});
+  await hori.locator('.collection-open').click();
   await expect(hori).toContainText('380円');
-  await hori.getByRole('button',{name:/内容を確認 ›/}).click();
   await expect(hori.locator('.collection-totals')).toContainText('今回請求');
   await hori.locator('.collection-breakdown summary').click();
   await expect(hori.locator('.charge-line').nth(1)).toContainText('黒糖ブレッド');
@@ -355,7 +355,7 @@ test('請求漏れ・過去未収を一度の内訳展開で確認し、対象�
   await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
   await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
   await page.locator('.stage-4 > .stage-trigger').click();
-  await expect(page.locator('.collection-entry').filter({hasText:'余語'})).toContainText('集金予定 1,670円');
+  await expect(page.locator('.collection-entry').filter({hasText:'余語'}).locator('.collection-amount')).toHaveText('1,670円');
   for(const width of [320,375,430]){
     await page.setViewportSize({width,height:812});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -559,7 +559,7 @@ test('おやつの職員分と共通単価の家庭請求を確認後に保存�
   await page.locator('.stage-4 > .stage-trigger').click();
   const entry=page.locator('.collection-entry').filter({hasText:'佐藤'});
   await expect(entry).toContainText('300円');
-  await entry.getByRole('button',{name:/内容を確認 ›/}).click();
+  await entry.locator('.collection-open').click();
   await entry.locator('.collection-breakdown summary').click();
   await expect(entry.locator('.collection-source-totals')).toContainText('おやつ');
   await expect(entry.locator('.collection-source-totals')).toContainText('300円');
@@ -644,8 +644,8 @@ test('欠品抽選: 未選択ゲート、1人1個を優先、確認後に集金�
   expect(collections(shared.state,'','',r.id,true).reduce((n,x)=>n+x.total,0)).toBe(r.products.find(p=>p.id==='walnut').price*5);
   await mobileShots(page,'shortage-collection');
   // 金額・主操作・名前は互いに重ならない。
-  const row=page.locator('.collection-entry').first();const left=await row.locator('.collection-person').boundingBox(),right=await row.locator('.collection-right').boundingBox();
-  expect(right.y).toBeGreaterThanOrEqual(left.y+left.height-1);
+  const row=page.locator('.collection-entry').first();const name=await row.locator('.collection-buyer-name').boundingBox(),amount=await row.locator('.collection-amount').boundingBox(),pay=await row.locator('.collection-pay').boundingBox();
+  expect(name.x+name.width).toBeLessThanOrEqual(amount.x+1);expect(amount.x+amount.width).toBeLessThanOrEqual(pay.x+1);
   await page.locator('.stage-4 > .stage-trigger').click();await expect(page.locator('.stage-4 .stage-content')).toHaveCount(0);
 });
 test('場所なしセット、既知のおやつ単価・使用数、税込合計の同じ行保存',async({page,context})=>{
