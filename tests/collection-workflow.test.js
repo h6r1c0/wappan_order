@@ -30,6 +30,8 @@ test('余語：既存の現金受取1650円を9月分に指定しても受取原
  assert.deepEqual(s.collectionEntries[0],original);assert.deepEqual(collectionDueItems(s,r.id,'hori').items.map(x=>x.balance),[1670,0]);
  assert.equal(collectionPosition(s,r.id,'hori').balance,1670);assert.equal(collectionPosition(s,r.id,'hori').unallocated,0);assert.deepEqual(report(s,r.date,r.date,2026),revenue);
  assert.throws(()=>recordCollectionAllocation(s,receipt.id,[{itemId:'july',amount:1650}]),/確認済み/);validate(s);
+ correctCollectionRecord(s,'collectionEntries',receipt.id,'受取金額を間違えた');
+ assert.equal(collectionPosition(s,r.id,'hori').balance,3320);assert.equal(s.collectionAllocations.length,1,'訂正後も元の充当判断を監査履歴として保持');validate(s);
 });
 test('充当先は混合受取の金額を分けて保存し、未収超過・金額不足を拒否する',()=>{
  const {s,r}=setup();r.products[0].price=1650;r.orders.hori.quantities={base:1};s.receivableItems.push({id:'july',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:1670,reason:'未受取',note:'7月分'});

@@ -25,5 +25,7 @@ test('DB：受取原本を保持する充当記録は一件だけ、金額と参
  await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Allocation does not match receipt/);
  s.collectionAllocations[0].parts[0].amount=1650;s.collectionAllocations.push({...s.collectionAllocations[0],id:'second'});
  await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Duplicate receipt allocation/);
+ s.collectionAllocations.pop();correctCollectionRecord(s,'collectionEntries',e.id,'受取金額を間違えた');
+ await db.query('select public.wappan_validate($1)',[s]);
  assert.deepEqual(s.collectionEntries,before);await db.close();
 });
