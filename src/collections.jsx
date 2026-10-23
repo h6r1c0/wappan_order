@@ -24,7 +24,6 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
   const missingCandidates=lines.filter(l=>l.qty>0&&(l.unitPrice==null||audit?.knownBag!=null&&l.amount===position.current-audit.knownBag));
   const delta=received==null?null:received-position.balance;
   const missingPast=reason===collectionReasons[0]&&delta>0?delta:reason===collectionReasons[1]&&delta<0?-delta:0;
-  const displayBalance=position.balance===0?'精算済み':position.balance<0?`預かり ${yen(-position.balance)}`:`未収 ${yen(position.balance)}`;
   const quick=position.balance>0&&position.received===0&&!pending&&!audit?.issues.length&&!(state.collectionEntries||[]).some(x=>x.roundId===round.id&&x.buyerId===buyer.id);
   const act=async(fn,description)=>{if(busy)return false;setBusy(true);try{return await save(fn,description);}finally{setBusy(false);}};
   const afterSave=()=>{setReceived(null);setReason('');setOpen(false);setInvestigate(false);request.current=uid();onDone(buyer.id);};
@@ -33,15 +32,22 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
   const history=[...(state.collectionEntries||[]).filter(x=>historyRounds.includes(x.roundId)&&x.buyerId===buyer.id).map(x=>({...x,kind:'collectionEntries'})),
     ...(state.collectionReconciliations||[]).filter(x=>historyRounds.includes(x.roundId)&&x.buyerId===buyer.id).map(x=>({...x,kind:'collectionReconciliations'}))];
   const resolved=id=>(state.collectionCorrections||[]).some(x=>x.targetId===id);
+  const priceUnknown=audit?.issues.some(x=>x.type==='price'||x.type==='missing-product');
+  const entryAmount=priceUnknown?null:position.balance>0?position.balance:position.balance<0?-position.balance:position.received;
+  const entryStatus=priceUnknown?'請求未確定':position.balance>0?'集金予定':position.balance<0?'預かり':position.received?'受取済み':'集金不要';
+  const context=pending?'差額を確認中':audit?.issues.length?'請求を確認':position.received>0&&position.balance>0?`一部受取 ${yen(position.received)}`:knownClaim?.notifiedAmount!=null?`案内済み ${yen(knownClaim.notifiedAmount)}と請求額に差があります`:position.carry>0?`前回未収 ${yen(position.carry)}を含む`:position.carry<0?`預かり ${yen(-position.carry)}を充当`:'';
   return <section className="collection-entry" id={`collect-${buyer.id}`} data-buyer={buyer.id}>
-    <div className="collection-person"><strong>{buyer.name}</strong><span className={`collection-state ${position.balance===0?'is-paid':'is-due'}`}>{pending?'要確認':position.received>0&&position.balance>0?'一部受取・未収':displayBalance}</span></div>
-    <div className="collection-right"><strong>{position.balance>0?`集金予定 ${yen(position.balance)}`:displayBalance}</strong>
+    <div className="collection-overview">
+      <button type="button" className="collection-open" aria-expanded={isOpen} aria-label={`${buyer.name}、${entryStatus} ${priceUnknown?'':yen(entryAmount)}。請求・受取の詳細を${isOpen?'閉じる':'開く'}`} onClick={()=>{if(isOpen)onDone(buyer.id,false);else onOpen(buyer.id);}}>
+        <strong className="collection-buyer-name">{buyer.name}</strong><span className="collection-amount">{position.balance<=0&&!priceUnknown&&<small>{entryStatus}</small>}<strong>{priceUnknown?'金額未確定':yen(entryAmount)}</strong></span><span className="collection-chevron" aria-hidden="true">{isOpen?'⌄':'›'}</span>
+      </button>
       {quick&&<Button className="collection-pay" disabled={busy} onClick={async()=>{if(await act(s=>receiveFullCollection(s,round.id,buyer.id),'請求どおり全額受取'))afterSave();}}>全額受取</Button>}
-      <button type="button" className="text-action collection-edit" aria-expanded={isOpen} onClick={()=>{if(isOpen)onDone(buyer.id,false);else onOpen(buyer.id);}}> {isOpen?'閉じる':quick?'金額が違う・内容を確認 ›':'内容を確認 ›'}</button></div>
-    {knownClaim&&<p className="collection-alert">{knownClaim.note}：{yen(knownClaim.amount)}<small>今回の請求に含まれています。案内済み {yen(knownClaim.notifiedAmount)}{position.received?` ／ 実際受取 ${yen(position.received)}`:' ／ 現金は未受取'}。</small></p>}
+    </div>
+    {!isOpen&&context&&<small className={`collection-context ${pending||audit?.issues.length?'needs-check':''}`}>{context}</small>}
+    {isOpen&&knownClaim&&<p className="collection-alert">{knownClaim.note}：{yen(knownClaim.amount)}<small>今回の請求に含まれています。案内済み {yen(knownClaim.notifiedAmount)}{position.received?` ／ 実際受取 ${yen(position.received)}`:' ／ 現金は未受取'}。</small></p>}
     {isOpen&&position.carry!==0&&<p className="collection-alert">{position.carry<0?'前回までの預かり':'過去未収'} {yen(Math.abs(position.carry))}</p>}
     {isOpen&&!!position.confirmedHistorical&&<p className="collection-alert">過去の支払済み確認 {yen(position.confirmedHistorical)}<small>現金の受取記録とは別の確認です。履歴から内容を調べられます。</small></p>}
-    {audit?.issues.map((x,i)=><p className="collection-alert" key={i}>{x.message}</p>)}
+    {isOpen&&audit?.issues.map((x,i)=><p className="collection-alert" key={i}>{x.message}</p>)}
     {isOpen&&!!position.received&&<small className="collection-note">この回の受取記録 {yen(position.received)}</small>}
     {isOpen&&<div className="collection-detail">
       <div className="collection-totals"><div><small>今回請求</small><strong>{yen(position.current)}</strong></div>{position.carry!==0&&<div><small>過去未収・預かり</small><strong>{yen(position.carry)}</strong></div>}{position.received>0&&<div><small>受取済み</small><strong>{yen(position.received)}</strong></div>}</div>
@@ -108,27 +114,31 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
 export function RoundCollections({round,rows,sessions={},onDraft,onSource,initialFocus=''}){
   const {state,notify}=useApp(),[focus,setFocus]=useState(initialFocus),[exporting,setExporting]=useState(false),[exception,setException]=useState('');
   const audit=billingAudit(state,round.id);
-  const ids=new Set([...Object.keys(round.orders),...rows.map(x=>x.id),...(state.collectionEntries||[]).filter(x=>x.roundId===round.id).map(x=>x.buyerId),...(state.collectionReconciliations||[]).filter(x=>x.roundId===round.id).map(x=>x.buyerId)]);
+  const ids=new Set([...Object.keys(round.orders),...rows.map(x=>x.id),...(state.collectionEntries||[]).filter(x=>x.roundId===round.id).map(x=>x.buyerId),...(state.collectionReconciliations||[]).filter(x=>x.roundId===round.id).map(x=>x.buyerId),...(state.collectionCases||[]).filter(x=>x.roundId===round.id&&x.status==='pending').map(x=>x.buyerId)]);
   for(const buyer of state.buyers)if(collectionPosition(state,round.id,buyer.id).carry)ids.add(buyer.id);
   const sorted=[...ids].sort((a,b)=>buyerCompare(state.buyers.find(x=>x.id===a)||{name:a},state.buyers.find(x=>x.id===b)||{name:b}));
+  const needsAttention=id=>collectionPosition(state,round.id,id).balance>0||audit.buyers.some(b=>b.buyerId===id&&b.issues.length)||
+    (state.collectionCases||[]).some(c=>c.roundId===round.id&&c.buyerId===id&&c.status==='pending');
+  const activeIds=sorted.filter(needsAttention),settledIds=sorted.filter(id=>!needsAttention(id));
   const go=id=>{setFocus(id);requestAnimationFrame(()=>document.getElementById(`collect-${id}`)?.scrollIntoView({block:'start'}));};
-  const next=(id,advance=true)=>{const index=sorted.indexOf(id);setFocus('');if(advance){const next=sorted.slice(index+1).find(b=>collectionPosition(state,round.id,b).balance!==0);if(next)go(next);}};
+  const next=(id,advance=true)=>{const index=sorted.indexOf(id);setFocus('');if(advance){const following=sorted.slice(index+1).find(needsAttention);if(following)requestAnimationFrame(()=>document.getElementById(`collect-${following}`)?.scrollIntoView({block:'nearest'}));}};
   const unresolved=audit.issues.length>0;
   const exportBills=async()=>{
     if(exporting)return;if(unresolved&&!exception){notify('未確定の請求があります。下の警告から確認してください。');return;}
     setExporting(true);try{await openPrintPreview({kind:'collections',date:round.date,pending:unresolved,bills:sorted.map(id=>{const p=collectionPosition(state,round.id,id),a=audit.buyers.find(x=>x.buyerId===id);return {name:state.buyers.find(x=>x.id===id)?.name,total:Math.max(0,p.current+p.carry-p.confirmedHistorical),lines:a?.lines||[],carry:p.carry,confirmed:p.confirmedHistorical,received:p.received,balance:p.balance,issues:a?.issues||[],reason:exception};})});}catch(e){notify(e.message);}finally{setExporting(false);}
   };
+  const auditDetails=<>
+    <details><summary>販売用の入荷・割当を照合</summary>{audit.stocks.map(x=><p key={x.stock.id}>{productDisplayName(x.stock.name)}<small>注文 {x.ordered} ／ 入荷 {x.received} ／ 欠品 {x.ordered-x.received} ／ 振替 {x.moved} ／ 販売先確定 {x.assigned} ／ 販売待ち・残り在庫 {x.remaining} ／ 販売済み・購入者未確認 {x.unconfirmed}</small></p>)}</details>
+    {unresolved&&<details><summary>例外：未確定の請求表を作る</summary><Field label="未確定の請求表を作る理由"><select value={exception} onChange={e=>setException(e.target.value)}><option value="">理由を選ぶ</option><option>単価を確認中</option><option>請求内容を照合中</option></select></Field><small>「未確定」と理由を明記します。</small></details>}
+    <details className="collection-print"><summary>集金袋に記入する金額の一覧を印刷</summary><small>必要なときだけ、今回の請求と繰越を一覧にしたPDFを作ります。</small><button className="text-action" type="button" disabled={exporting} onClick={exportBills}>金額一覧のPDFを開く ›</button></details>
+  </>;
   return <div className="stack collection-list">
-    <section className="billing-audit" aria-label="集金前の自動照合"><h3>集金前の確認</h3>
-      {unresolved?<><p role="alert">要確認 {audit.issues.length}件</p>{audit.issues.map((x,i)=><button className="audit-issue" type="button" key={i} onClick={()=>go(x.buyerId)}>{x.name}：{x.message} ›</button>)}</>:<p>注文・受取確定数・単価と今回の請求を照合しました。</p>}
-      <details><summary>販売用の入荷・割当を照合</summary>{audit.stocks.map(x=><p key={x.stock.id}>{productDisplayName(x.stock.name)}<small>注文 {x.ordered} ／ 入荷 {x.received} ／ 欠品 {x.ordered-x.received} ／ 振替 {x.moved} ／ 販売先確定 {x.assigned} ／ 販売待ち・残り在庫 {x.remaining} ／ 販売済み・購入者未確認 {x.unconfirmed}</small></p>)}</details>
-      {unresolved&&<details><summary>例外：未確定の請求表を作る</summary><Field label="未確定の請求表を作る理由"><select value={exception} onChange={e=>setException(e.target.value)}><option value="">理由を選ぶ</option><option>単価を確認中</option><option>請求内容を照合中</option></select></Field><small>「未確定」と理由を明記します。</small></details>}
-      <details className="collection-print"><summary>集金袋に記入する金額の一覧を印刷</summary><small>必要なときだけ、今回の請求と繰越を一覧にしたPDFを作ります。</small><button className="text-action" type="button" disabled={exporting} onClick={exportBills}>金額一覧のPDFを開く ›</button></details>
-    </section>
-    <p className="collection-list-guide">未受取を先に表示しています。名前は読み順です。</p>
-    {sorted.filter(id=>collectionPosition(state,round.id,id).balance>0).map(id=>{const buyer=state.buyers.find(x=>x.id===id);return buyer&&<BuyerCollection key={id} round={round} buyer={buyer} row={rows.find(x=>x.id===id)} focus={focus} onDone={next} onOpen={go} session={sessions[id]} onDraft={onDraft} onSource={onSource}/>;})}
-    <details className="collection-completed"><summary>集金完了・集金不要（{sorted.filter(id=>collectionPosition(state,round.id,id).balance<=0).length}人）</summary>
-      {sorted.filter(id=>collectionPosition(state,round.id,id).balance<=0).map(id=>{const buyer=state.buyers.find(x=>x.id===id);return buyer&&<BuyerCollection key={id} round={round} buyer={buyer} row={rows.find(x=>x.id===id)} focus={focus} onDone={next} onOpen={go} session={sessions[id]} onDraft={onDraft} onSource={onSource}/>;})}</details>
+    {unresolved?<section className="billing-audit" aria-label="集金前の自動照合"><h3>集金前の確認</h3><p role="alert">要確認 {audit.issues.length}件</p>{audit.issues.map((x,i)=><button className="audit-issue" type="button" key={i} onClick={()=>go(x.buyerId)}>{x.name}：{x.message} ›</button>)}{auditDetails}</section>
+      :<details className="billing-audit billing-audit-done" aria-label="集金前の自動照合"><summary>請求照合済み <span>販売用・印刷 ›</span></summary><p>注文・受取確定数・単価を照合しました。</p>{auditDetails}</details>}
+    <div className="collection-list-heading"><strong>{activeIds.length===sorted.filter(id=>collectionPosition(state,round.id,id).balance>0).length?'未受取':'未受取・要確認'} {activeIds.length}人</strong><small>集金予定額</small></div>
+    {activeIds.map(id=>{const buyer=state.buyers.find(x=>x.id===id);return buyer&&<BuyerCollection key={id} round={round} buyer={buyer} row={rows.find(x=>x.id===id)} focus={focus} onDone={next} onOpen={go} session={sessions[id]} onDraft={onDraft} onSource={onSource}/>;})}
+    <details className="collection-completed"><summary>集金完了・集金不要（{settledIds.length}人）</summary>
+      {settledIds.map(id=>{const buyer=state.buyers.find(x=>x.id===id);return buyer&&<BuyerCollection key={id} round={round} buyer={buyer} row={rows.find(x=>x.id===id)} focus={focus} onDone={next} onOpen={go} session={sessions[id]} onDraft={onDraft} onSource={onSource}/>;})}</details>
     <OpeningFacts round={round}/>
   </div>;
 }
