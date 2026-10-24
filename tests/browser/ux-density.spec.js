@@ -111,5 +111,7 @@ test('集金は工程色と行密度を保ち、既存受取の充当先を分�
  expect(shared.state.collectionEntries).toEqual(s.collectionEntries);
  expect(shared.state.collectionAllocations).toHaveLength(1);
  expect(collectionPosition(shared.state,r.id,'hori').due.map(x=>x.balance)).toEqual([1670]);
+ await expect(page.locator('[data-buyer="hori"] .collection-amount')).toContainText('1,670円');
+ await page.getByRole('button',{name:/請求・過去の履歴を調べる/}).click();
  await expect(page.locator('[data-buyer="hori"]')).toContainText('2026-09-11 1,650円');
 });
