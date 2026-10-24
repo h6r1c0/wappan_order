@@ -157,10 +157,12 @@ function Round({ round: r, initialTab = null, back }) {
   const rows = collections(state, "", "", r.id, r.test);
   const total = roundRevenue(r),
     cost = roundCost(state, r);
+  const stockCostIssues=r.stockIds.map(id=>state.stocks.find(st=>st.id===id)).filter(st=>!st||receivedQuantity(st)>0&&st.cost==null);
+  const eventCostIssues=r.eventIds.map(id=>state.events.find(e=>e.id===id)).filter(e=>e&&e.lines.some(l=>receivedQuantity(l)>0&&l.cost==null));
   const profitIssues=[
     ...(r.invoice==null?['納品書の税込合計が未入力']:[]),
-    ...r.stockIds.map(id=>state.stocks.find(st=>st.id===id)).filter(st=>!st||receivedQuantity(st)>0&&st.cost==null).map(st=>`${st?.name||'販売用商品'}の仕入単価が未確認`),
-    ...r.eventIds.map(id=>state.events.find(e=>e.id===id)).filter(e=>e&&e.lines.some(l=>receivedQuantity(l)>0&&l.cost==null)).map(e=>`${e.name}の仕入単価が未確認`),
+    ...stockCostIssues.map(st=>`${st?.name||'販売用商品'}の仕入単価が未確認`),
+    ...eventCostIssues.map(e=>`${e.name}の仕入単価が未確認`),
   ];
   const needsMonthlyProducts = r.productImportPending && !monthProductsImported(state, r.date);
   const monthLabel = `${Number(r.date.slice(5, 7))}月`;
@@ -414,17 +416,21 @@ function Round({ round: r, initialTab = null, back }) {
           <SetPreparation roundId={r.id}/>
           <Invoice key={`${r.id}-${r.invoice}`} round={r} />
 
-          <details className="after-work"><summary>販売先を割り当てる</summary>
+          <details className="after-work" id="sales-after-work"><summary>販売先を割り当てる</summary>
             <Sales roundId={r.id} phase="after"/>
           </details>
           <details className="after-work"><summary>販売場所</summary><Markets roundId={r.id} section="places"/></details>
-          <details className="after-work"><summary>おやつ使用・財政請求</summary>
+          <details className="after-work" id="snack-after-work"><summary>おやつ使用・財政請求</summary>
             <Events roundId={r.id} phase="after"/>
           </details>
           <details className="after-work"><summary>利益 {cost==null?'未確定':yen(total-cost)}</summary>
             <div className="grid2"><Summary label="販売額" value={yen(total)} />
               <Summary label="利益" value={yen(cost == null ? null : total - cost)} /></div>
-            {profitIssues.length>0&&<div className="profit-issues"><strong>確認する項目</strong>{profitIssues.map((issue,i)=><p key={i}>{issue}</p>)}<small>現金集金と年度実績への算入は、この利益計算とは別です。</small></div>}
+            {profitIssues.length>0&&<div className="profit-issues"><strong>確認する項目</strong>{profitIssues.map((issue,i)=><p key={i}>{issue}</p>)}
+              {r.invoice==null&&<button type="button" className="text-action" onClick={()=>document.querySelector('.invoice-input-row input')?.focus()}>納品書の税込合計を入力 ›</button>}
+              {stockCostIssues.length>0&&<button type="button" className="text-action" onClick={()=>{const el=document.getElementById('sales-after-work');el.open=true;requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));}}>販売用の仕入単価を確認 ›</button>}
+              {eventCostIssues.length>0&&<button type="button" className="text-action" onClick={()=>{const el=document.getElementById('snack-after-work');el.open=true;requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));}}>おやつ用の仕入単価を確認 ›</button>}
+              <small>現金集金と年度実績への算入は、この利益計算とは別です。</small></div>}
           </details>
           {r.planned && r.products.some((p) => Object.values(r.planned).some(o=>Object.hasOwn(o.quantities||{},p.id)) && (productTotals(r, r.planned).find((x) => x.id === p.id)?.qty||0)!==(productTotals(r).find((x) => x.id === p.id)?.qty||0)) && (
             <details>

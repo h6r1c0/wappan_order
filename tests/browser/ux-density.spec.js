@@ -50,6 +50,7 @@ test('4工程の筆跡は原本PNGを使い、非選択時も工程色を維持�
    expect(style.color).not.toBe('rgb(116, 102, 95)');
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  if(width!==1280)await page.screenshot({path:`test-results/pencil-stages-${width}.png`});
  }
  expect(shared.revision).toBe(0);
 });
