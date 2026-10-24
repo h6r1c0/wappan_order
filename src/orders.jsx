@@ -22,6 +22,8 @@ import {
   unpricedOrderLines,
   roundRevenue,
   roundCost,
+  roundAccounting,
+  stockRemaining,
   productTotals,
   collections,
   collectionPosition,
@@ -155,14 +157,18 @@ function Round({ round: r, initialTab = null, back }) {
   };
   const currentBuyer = state.buyers.find((b) => b.id === buyerId);
   const rows = collections(state, "", "", r.id, r.test);
-  const total = roundRevenue(r),
-    cost = roundCost(state, r);
-  const stockCostIssues=r.stockIds.map(id=>state.stocks.find(st=>st.id===id)).filter(st=>!st||receivedQuantity(st)>0&&st.cost==null);
-  const eventCostIssues=r.eventIds.map(id=>state.events.find(e=>e.id===id)).filter(e=>e&&e.lines.some(l=>receivedQuantity(l)>0&&l.cost==null));
+  const finances = roundAccounting(state,r);
+  const sales = state.sales.filter(x=>!x.void&&r.stockIds.some(id=>id===x.stockId));
+  const buyerSales = sales.filter(x=>x.destinationType==='buyer').reduce((n,x)=>n+x.qty*x.price,0);
+  const paidSales = sales.filter(x=>x.destinationType!=='buyer'&&x.paymentStatus==='paid').reduce((n,x)=>n+x.qty*x.price,0);
+  const otherSales = finances.onsite-buyerSales-paidSales;
+  const stockCostIssues=finances.profit==null?r.stockIds.map(id=>state.stocks.find(st=>st.id===id)).filter(st=>!st||stockRemaining(state,st)>0&&st.cost==null):[];
+  const eventCostIssues=finances.profit==null?r.eventIds.map(id=>state.events.find(e=>e.id===id)).filter(e=>e&&e.lines.some(l=>receivedQuantity(l)>0&&l.cost==null)):[];
   const profitIssues=[
     ...(r.invoice==null?['納品書の税込合計が未入力']:[]),
-    ...stockCostIssues.map(st=>`${st?.name||'販売用商品'}の仕入単価が未確認`),
+    ...stockCostIssues.map(st=>`${st?.name||'販売用商品'}の未販売分の仕入単価が未確認`),
     ...eventCostIssues.map(e=>`${e.name}の仕入単価が未確認`),
+    ...(finances.profit==null&&r.invoice!=null&&!stockCostIssues.length&&!eventCostIssues.length?['販売日が異なる商品や振替の原価内訳を確認してください']:[]),
   ];
   const needsMonthlyProducts = r.productImportPending && !monthProductsImported(state, r.date);
   const monthLabel = `${Number(r.date.slice(5, 7))}月`;
@@ -423,14 +429,22 @@ function Round({ round: r, initialTab = null, back }) {
           <details className="after-work" id="snack-after-work"><summary>おやつ使用・財政請求</summary>
             <Events roundId={r.id} phase="after"/>
           </details>
-          <details className="after-work"><summary>利益 {cost==null?'未確定':yen(total-cost)}</summary>
-            <div className="grid2"><Summary label="販売額" value={yen(total)} />
-              <Summary label="利益" value={yen(cost == null ? null : total - cost)} /></div>
+          <details className="after-work round-profit"><summary>商品利益{r.status==='精算済み'?'':'（見込み）'} {yen(finances.profit)}</summary>
+            <div className="grid2"><Summary label="売上合計" value={yen(finances.revenue)} />
+              <Summary label="納品書の仕入額" value={yen(r.invoice)} /></div>
+            {finances.profit!=null&&<p className="profit-result">商品利益 {yen(finances.profit)}{finances.method==='invoice'&&<small>納品書総額から計算。商品別の原価内訳は未確定のままです。</small>}</p>}
+            <details className="profit-breakdown"><summary>売上の内訳</summary>
+              <div className="line"><span>個人注文</span><strong>{yen(finances.personal)}</strong></div>
+              <div className="line"><span>販売用を購入者へ請求</span><strong>{yen(buyerSales)}</strong></div>
+              <div className="line"><span>販売済み・支払済み（個人請求外）</span><strong>{yen(paidSales)}</strong></div>
+              {otherSales>0&&<div className="line"><span>販売先・支払未確認</span><strong>{yen(otherSales)}</strong></div>}
+              <small>請求・現金受取・年度実績は別に管理します。販売待ちの在庫は売上に含みません。</small>
+            </details>
             {profitIssues.length>0&&<div className="profit-issues"><strong>確認する項目</strong>{profitIssues.map((issue,i)=><p key={i}>{issue}</p>)}
               {r.invoice==null&&<button type="button" className="text-action" onClick={()=>document.querySelector('.invoice-input-row input')?.focus()}>納品書の税込合計を入力 ›</button>}
               {stockCostIssues.length>0&&<button type="button" className="text-action" onClick={()=>{const el=document.getElementById('sales-after-work');el.open=true;requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));}}>販売用の仕入単価を確認 ›</button>}
               {eventCostIssues.length>0&&<button type="button" className="text-action" onClick={()=>{const el=document.getElementById('snack-after-work');el.open=true;requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));}}>おやつ用の仕入単価を確認 ›</button>}
-              <small>現金集金と年度実績への算入は、この利益計算とは別です。</small></div>}
+              <small>金額がまだ分からなくても、ほかの作業は続けられます。</small></div>}
           </details>
           {r.planned && r.products.some((p) => Object.values(r.planned).some(o=>Object.hasOwn(o.quantities||{},p.id)) && (productTotals(r, r.planned).find((x) => x.id === p.id)?.qty||0)!==(productTotals(r).find((x) => x.id === p.id)?.qty||0)) && (
             <details>
@@ -479,6 +493,7 @@ function Invoice({ round: r }) {
     [stockIds, setStocks] = useState(r.stockIds);
   const preview = { ...r, invoice, eventIds, stockIds },
     ded = invoiceDeductions(state, preview);
+  const finances = roundAccounting(state, preview);
   const snackRows = state.events.filter(e => eventIds.includes(e.id));
   const salesRows = state.stocks.filter(st => stockIds.includes(st.id));
   const snackKnown = snackRows.every(e => e.lines.every(line => receivedQuantity(line)===0 || line.cost != null));
@@ -506,13 +521,13 @@ function Invoice({ round: r }) {
       }}
     >
       <div className="invoice-input-row"><Money label="税込合計" value={invoice} onChange={setInvoice}/><Button type="submit">保存</Button></div>
-      {r.invoice != null && <details><summary>用途別の内訳を見る</summary>
+      {r.invoice != null && <details><summary>仕入の内訳を見る</summary>
         <div className="cost-overview">個人注文 {yen(roundCost(state, preview))} ／ 販売用 {yen(salesCost)} ／ おやつ用 {yen(snackCost)}</div>
         {snackRows.map(e=><p key={e.id}>おやつ用：{e.name}</p>)}
         {salesRows.map(st=><p key={st.id}>販売用：{st.name} ×{st.qty}</p>)}
-        {ded == null && <small>用途別の仕入単価を確認すると精算を完了できます。</small>}
+        {ded == null && <small>{finances.method==='invoice'?'販売済み分を含む利益は納品書総額から計算できます。商品別原価は内訳が必要なときに確認します。':'用途別の仕入単価が必要な計算は、対象商品の原価を確認してください。'}</small>}
       </details>}
-      {r.status === '納品済み' && r.invoice != null && ded != null &&
+      {r.status === '納品済み' && r.invoice != null && (ded != null || finances.method==='invoice') &&
         <Button secondary onClick={() => save(s => { s.rounds.find(x => x.id === r.id).status = '精算済み'; }, '精算完了')}>精算完了を確認</Button>}
     </form>
   );

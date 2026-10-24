@@ -37,17 +37,20 @@ test('集金一覧は通常の12人を少ないスクロールで探せ、受取
  await expect(page.locator('[data-buyer="buyer-0"] button:has-text("全額受取")')).toHaveCount(0);
 });
 
-test('4工程の筆跡は原本PNGを使い、非選択時も工程色を維持する',async({page,context})=>{
+test('4工程は閉じたとき落ち着いた灰色、開いた工程だけ原本PNGの筆跡で点灯する',async({page,context})=>{
  const s=initialState(),r=newRound(s,'2026-10-16',true);s.rounds.push(r);
  const shared={state:s,revision:0};await backend(context,shared);await login(page);
  await page.locator('.round-list-item').click();
  for(const width of [320,375,430,1280]){
   await page.setViewportSize({width,height:812});
+   const closed=await page.locator('.stage-1 > .stage-trigger').evaluate(el=>({image:getComputedStyle(el).backgroundImage,color:getComputedStyle(el).color}));
+   expect(closed.color).toBe('rgb(96, 107, 102)');expect(closed.image).toBe('none');
   for(let n=1;n<=4;n++){
    await page.locator(`.stage-${n} > .stage-trigger`).click();
    const style=await page.locator(`.stage-${n} > .stage-trigger`).evaluate(el=>({image:getComputedStyle(el).backgroundImage,color:getComputedStyle(el).color}));
    expect(style.image).toContain(`${['green','blue','orange','red'][n-1]}-light`);
-   expect(style.color).not.toBe('rgb(116, 102, 95)');
+    expect(style.color).not.toBe(closed.color);
+    await page.locator(`.stage-${n} > .stage-trigger`).click();
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   if(width!==1280)await page.screenshot({path:`test-results/pencil-stages-${width}.png`});
@@ -104,10 +107,7 @@ test('集金は工程色と行密度を保ち、既存受取の充当先を分�
   expect(await page.locator('.collection-pay').count()).toBe(0);
  }
  await page.locator('[data-buyer="hori"] .collection-open').click();
- await page.getByRole('button',{name:/請求・過去の履歴を調べる/}).click();
- await page.getByRole('button',{name:/受け取った請求分を指定/}).click();
- await page.getByRole('spinbutton',{name:/2026-09-11.*未収/}).fill('1650');
- await page.getByRole('button',{name:'充当先を保存'}).click();
+ await page.getByRole('button',{name:/2026-09-11分への充当を確認/}).click();
  expect(shared.state.collectionEntries).toEqual(s.collectionEntries);
  expect(shared.state.collectionAllocations).toHaveLength(1);
  expect(collectionPosition(shared.state,r.id,'hori').due.map(x=>x.balance)).toEqual([1670]);

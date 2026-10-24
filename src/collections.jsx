@@ -42,8 +42,9 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
     ...(state.collectionReconciliations||[]).filter(x=>historyRounds.includes(x.roundId)&&x.buyerId===buyer.id).map(x=>({...x,kind:'collectionReconciliations'}))];
   const resolved=id=>(state.collectionCorrections||[]).some(x=>x.targetId===id);
   const unallocatedEntries=history.filter(x=>x.kind==='collectionEntries'&&x.received>0&&!x.itemId&&!resolved(x.id)&&!(state.collectionAllocations||[]).some(a=>a.entryId===x.id));
+  const allocationMatch=x=>collectionDueItems({...state,collectionEntries:(state.collectionEntries||[]).filter(e=>e.id!==x.id)},x.roundId,buyer.id).items.filter(i=>i.balance>=x.received&&i.amount===x.received);
   const beginAllocation=x=>{
-    const options=collectionDueItems({...state,collectionEntries:(state.collectionEntries||[]).filter(e=>e.id!==x.id)},x.roundId,buyer.id).items.filter(i=>i.balance>=x.received&&i.amount===x.received);
+    const options=allocationMatch(x);
     setAllocationEntry(x);setAllocationAmounts(options.length===1?{[options[0].id]:x.received}:{});
   };
   const priceUnknown=audit?.issues.some(x=>x.type==='price'||x.type==='missing-product');
@@ -64,7 +65,9 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
     {isOpen&&knownClaim&&<p className="collection-alert">請求漏れ：{productDisplayName(knownClaim.note?.replace(/\s*×.*$/u,'')||'商品')} {knownClaim.qty||''}点 ／ {yen(knownClaim.amount)}{!position.received&&<small>案内済み {yen(knownClaim.notifiedAmount)} ／ 現金は未受取</small>}</p>}
     {isOpen&&!!position.confirmedHistorical&&<p className="collection-alert">過去の支払済み確認 {yen(position.confirmedHistorical)}<small>現金の受取記録とは別の確認です。履歴から内容を調べられます。</small></p>}
     {isOpen&&audit?.issues.map((x,i)=><p className="collection-alert" key={i}>{x.message}</p>)}
-    {isOpen&&position.unallocated>0&&<p className="collection-alert">充当先未確認：受取済み {yen(position.unallocated)}{unallocatedEntries.length===1&&<button type="button" className="text-action" onClick={()=>{setInvestigate(true);beginAllocation(unallocatedEntries[0]);}}>この受取の充当先を指定 ›</button>}</p>}
+    {isOpen&&position.unallocated>0&&<p className="collection-alert">充当先未確認：受取済み {yen(position.unallocated)}{unallocatedEntries.length===1&&allocationMatch(unallocatedEntries[0]).length===1
+      ?<button type="button" className="text-action" disabled={busy} onClick={()=>act(s=>recordCollectionAllocation(s,unallocatedEntries[0].id,[{itemId:allocationMatch(unallocatedEntries[0])[0].id,amount:unallocatedEntries[0].received}]),'保存済み受取の充当先を確認')}>{allocationMatch(unallocatedEntries[0])[0].date}分への充当を確認（現金は追加しません）</button>
+      :unallocatedEntries.length===1&&<button type="button" className="text-action" onClick={()=>{setInvestigate(true);beginAllocation(unallocatedEntries[0]);}}>受け取った請求分を指定 ›</button>}</p>}
     {isOpen&&<div className="collection-detail">
       <div className="collection-totals"><div><small>今回請求</small><strong>{yen(position.current)}</strong></div>{position.carry!==0&&<div><small>過去未収・預かり</small><strong>{yen(position.carry)}</strong></div>}{position.received>0&&<div><small>受取済み</small><strong>{yen(position.received)}</strong></div>}</div>
       {knownClaim?.notifiedAmount!=null&&!position.received&&received==null&&<button type="button" className="text-action" onClick={()=>setReceived(knownClaim.notifiedAmount)}>案内した {yen(knownClaim.notifiedAmount)} を受取額に入力 ›</button>}

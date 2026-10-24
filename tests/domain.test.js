@@ -12,6 +12,28 @@ function setup() {
   s.rounds.push(r);
   return { s, r };
 }
+test('納品書総額を販売済みの原価プールに使い、個人請求・園内現金と売上を重複させない',()=>{
+  const {s,r}=setup();r.invoice=22971;r.status='納品済み';r.test=true;
+  r.products=[{id:'bread',name:'注文商品',price:22490,cost:null}];
+  r.orders.hori={name:'堀',quantities:{bread:1}};
+  const stock={id:'stock',roundId:r.id,name:'販売用',productId:'bread',qty:2,price:0,cost:null,date:r.date,test:true};
+  s.stocks.push(stock);r.stockIds.push(stock.id);
+  s.sales.push({id:'buyer-sale',stockId:stock.id,date:r.date,qty:1,price:3250,cost:null,buyerId:'hori',destinationType:'buyer',paymentStatus:'later'},
+    {id:'onsite-sale',stockId:stock.id,date:r.date,qty:1,price:2560,cost:null,destinationType:'external',destinationName:'園内販売',paymentStatus:'paid'});
+  assert.equal(d.roundCost(s,r),null);
+  const {personal,onsite,revenue,cost,profit,method}=d.roundAccounting(s,r);
+  assert.deepEqual({personal,onsite,revenue,cost,profit,method},{personal:22490,onsite:5810,revenue:28300,cost:22971,profit:5329,method:'invoice'});
+  assert.equal(d.report(s,r.date,r.date,2026).revenue,0); // 試験回は年度集計外
+  r.status='精算済み';assert.equal(d.validate(s),s);
+  r.test=false;stock.test=false;
+  const annual=d.report(s,r.date,r.date,2026);
+  assert.equal(annual.revenue,28300);assert.equal(annual.cost,22971);assert.equal(annual.profit,5329);
+  assert.equal(annual.rows.filter(x=>x.id==='onsite-sale').length,0);
+  stock.qty=3; // 未販売の1個は原価不明。全体利益は確定しない。
+  assert.equal(d.roundAccounting(s,r).profit,null);
+  stock.cost=200;
+  assert.equal(d.roundAccounting(s,r).profit,5529); // 納品書には未販売分も含む
+});
 test('納品書総額を用途別原価より先に保存し、精算完了は原価確定後だけ許す', () => {
   const { s, r } = setup();
   const stock = { id: d.uid(), roundId: r.id, productId: 'milk', name: 'ミルクスティックパン',
