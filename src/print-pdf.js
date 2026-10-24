@@ -104,8 +104,9 @@ export async function createPrintPdf(model,fontBytes) {
         const x=12+(row.col-1)*46.25,y=22+(row.top-1)*cellHeight,h=row.span*cellHeight;
         line(page,x,y,x+46.25,y,{dashed:true,gray:.47});line(page,x,y+h,x+46.25,y+h,{dashed:true,gray:.47});
         line(page,x,y,x,y+h,{dashed:true,gray:.47});line(page,x+46.25,y,x+46.25,y+h,{dashed:true,gray:.47});
-        const nameSize=Math.min(15,mm(40.65)/Math.max(1,font.widthOfTextAtSize(row.name,15))*15);
-        text(page,row.name,x+2.8,y+9, nameSize,{bold:true});
+        const buyerLabel=`${row.name.replace(/様$/u,'')}様`;
+        const nameSize=Math.min(15,mm(40.65)/Math.max(1,font.widthOfTextAtSize(buyerLabel,15))*15);
+        text(page,buyerLabel,x+2.8,y+9, nameSize,{bold:true});
         let productTop=y+12.8;
         for(const product of row.lines){
           const name=product.printName||product.name;

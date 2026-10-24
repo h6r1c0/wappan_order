@@ -305,13 +305,13 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
   await expect.poll(()=>shared.state.rounds[0].invoice).toBe(100);
   await expect.poll(()=>shared.state.rounds[0].status).toBe('納品済み');
   await page.locator('.stage-4 > .stage-trigger').click();
-  await expect(page.locator('.collection-entry')).toHaveCount(1);
+  await expect(page.locator('.collection-list > .collection-entry')).toHaveCount(1);
   for(const width of [320,375,430]) {
     await page.setViewportSize({width,height:812});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:`test-results/collection-${width}.png`});
   }
-  const person=page.locator('.collection-entry');
+  const person=page.locator('.collection-entry[data-buyer="hori"]');
   await person.locator('.collection-open').click();
   const due=collections(shared.state,'','',r.id,true)[0].total;
   await person.getByLabel('実際受取額',{exact:true}).fill(String(due+10));

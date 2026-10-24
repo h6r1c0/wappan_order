@@ -47,6 +47,7 @@ export function Events({roundId=null,onManageProducts=null,phase='all'}) {
   const events = [...state.events]
     .filter((event) => !roundId || event.roundId === roundId)
     .sort((a, b) => b.date.localeCompare(a.date));
+  const usageEvents=events.filter(event=>event.billing||event.lines.some(line=>receivedQuantity(line)>0||line.used>0));
   return (
     <>
       {phase !== 'after' && <div className="section-head">
@@ -83,10 +84,10 @@ export function Events({roundId=null,onManageProducts=null,phase='all'}) {
       )}
       {phase !== 'order' && !roundId && <h2>おやつ使用・財政請求</h2>}
       {phase !== 'order' && <>
-      {events.map(e=><SnackUsage key={e.id} event={e} onTransfer={line=>setMove({event:e,line})}/>)}
-      {!events.length && (
+      {usageEvents.map(e=><SnackUsage key={e.id} event={e} onTransfer={line=>setMove({event:e,line})}/>)}
+      {!usageEvents.length && (
         <Empty>
-          上の商品一覧で注文数量を入力して保存します。
+          {phase==='after'?'おやつ用の入荷・使用はありません。':'上の商品一覧で注文数量を入力して保存します。'}
         </Empty>
       )}
       </>}
@@ -334,7 +335,7 @@ function SnackUsage({event:e,onTransfer}) {
  const {state,save}=useApp();
  const [used,setUsed]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.used])));
  const [costs,setCosts]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.cost])));
- const dirty=e.lines.some(l=>used[l.id]!==l.used||costs[l.id]!==l.cost||!l.usedConfirmed);
+ const dirty=e.lines.some(l=>used[l.id]!==l.used||costs[l.id]!==l.cost||used[l.id]>0&&!l.usedConfirmed);
  return <section className="snack-usage" data-unsaved={dirty}>
   <h3>{e.name}</h3>
   {e.lines.map(l=>{const moved=transferredQty(state,l.id),remaining=receivedQuantity(l)-(used[l.id]||0)-moved;

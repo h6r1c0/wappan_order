@@ -157,6 +157,13 @@ function Round({ round: r, initialTab = null, back }) {
   const rows = collections(state, "", "", r.id, r.test);
   const total = roundRevenue(r),
     cost = roundCost(state, r);
+  const stockCostIssues=r.stockIds.map(id=>state.stocks.find(st=>st.id===id)).filter(st=>!st||receivedQuantity(st)>0&&st.cost==null);
+  const eventCostIssues=r.eventIds.map(id=>state.events.find(e=>e.id===id)).filter(e=>e&&e.lines.some(l=>receivedQuantity(l)>0&&l.cost==null));
+  const profitIssues=[
+    ...(r.invoice==null?['納品書の税込合計が未入力']:[]),
+    ...stockCostIssues.map(st=>`${st?.name||'販売用商品'}の仕入単価が未確認`),
+    ...eventCostIssues.map(e=>`${e.name}の仕入単価が未確認`),
+  ];
   const needsMonthlyProducts = r.productImportPending && !monthProductsImported(state, r.date);
   const monthLabel = `${Number(r.date.slice(5, 7))}月`;
   const activeStage = PURPOSES.includes(tab) ? "注文" : tab;
@@ -176,7 +183,8 @@ function Round({ round: r, initialTab = null, back }) {
       <button type="button" className="text-action back-link"
         onClick={() => {
           if (
-            draft &&
+            draft && currentBuyer &&
+            JSON.stringify(draft)!==JSON.stringify(orderDraft(state,r,currentBuyer)) &&
             !confirm("個人注文を閉じますか？未保存の数量変更は失われます。")
           )
             return;
@@ -226,7 +234,6 @@ function Round({ round: r, initialTab = null, back }) {
                     className={`purpose ${tab === label ? "selected" : ""}`}
                     aria-pressed={tab === label}
                     onClick={() => moveTo(label)}>
-                    <TaskIcon type={{"個人注文":"buyer","販売用":"basket","おやつ用":"bread"}[label]}/>
                     <span>{label}</span>
                   </button>
                 ))}
@@ -249,7 +256,7 @@ function Round({ round: r, initialTab = null, back }) {
           </div>
           <BuyerPicker value={buyerId} onChange={choose} includeTest={r.test} /></section>
           {draft && (
-            <section className="card order-editor" data-unsaved="true">
+            <section className="card order-editor" data-unsaved={JSON.stringify(draft)!==JSON.stringify(orderDraft(state,r,currentBuyer))}>
               <h2>{currentBuyer?.name}さんの注文</h2>
               {currentBuyer?.fixed.some(
                 (f) => !r.products.some((p) => p.id === f.productId),
@@ -409,18 +416,23 @@ function Round({ round: r, initialTab = null, back }) {
           <SetPreparation roundId={r.id}/>
           <Invoice key={`${r.id}-${r.invoice}`} round={r} />
 
-          <details className="after-work"><summary>販売先を割り当てる</summary>
+          <details className="after-work" id="sales-after-work"><summary>販売先を割り当てる</summary>
             <Sales roundId={r.id} phase="after"/>
           </details>
           <details className="after-work"><summary>販売場所</summary><Markets roundId={r.id} section="places"/></details>
-          <details className="after-work"><summary>おやつ使用・財政請求</summary>
+          <details className="after-work" id="snack-after-work"><summary>おやつ使用・財政請求</summary>
             <Events roundId={r.id} phase="after"/>
           </details>
-          <details className="after-work"><summary>利益の確認</summary>
+          <details className="after-work"><summary>利益 {cost==null?'未確定':yen(total-cost)}</summary>
             <div className="grid2"><Summary label="販売額" value={yen(total)} />
               <Summary label="利益" value={yen(cost == null ? null : total - cost)} /></div>
+            {profitIssues.length>0&&<div className="profit-issues"><strong>確認する項目</strong>{profitIssues.map((issue,i)=><p key={i}>{issue}</p>)}
+              {r.invoice==null&&<button type="button" className="text-action" onClick={()=>document.querySelector('.invoice-input-row input')?.focus()}>納品書の税込合計を入力 ›</button>}
+              {stockCostIssues.length>0&&<button type="button" className="text-action" onClick={()=>{const el=document.getElementById('sales-after-work');el.open=true;requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));}}>販売用の仕入単価を確認 ›</button>}
+              {eventCostIssues.length>0&&<button type="button" className="text-action" onClick={()=>{const el=document.getElementById('snack-after-work');el.open=true;requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));}}>おやつ用の仕入単価を確認 ›</button>}
+              <small>現金集金と年度実績への算入は、この利益計算とは別です。</small></div>}
           </details>
-          {r.planned && r.products.some((p) => (productTotals(r, r.planned).find((x) => x.id === p.id)?.qty||0)!==(productTotals(r).find((x) => x.id === p.id)?.qty||0)) && (
+          {r.planned && r.products.some((p) => Object.values(r.planned).some(o=>Object.hasOwn(o.quantities||{},p.id)) && (productTotals(r, r.planned).find((x) => x.id === p.id)?.qty||0)!==(productTotals(r).find((x) => x.id === p.id)?.qty||0)) && (
             <details>
               <summary>発注記録と現在の数量を照合</summary>
               <small>発注時の記録に商品がない場合は、追加注文と断定できません。欠品による実渡し数は欠品確認で扱います。</small>
@@ -430,7 +442,7 @@ function Round({ round: r, initialTab = null, back }) {
                       ?.qty || 0,
                   after = productTotals(r).find((x) => x.id === p.id)?.qty || 0;
                   const recorded=Object.values(r.planned).some(o=>Object.hasOwn(o.quantities||{},p.id));
-                  return before === after ? null : (
+                  return !recorded||before === after ? null : (
                   <p key={p.id}>
                     {p.name}：{recorded?`${before}個`:'発注時の記録なし'} → 現在 {after}個
                   </p>
@@ -469,10 +481,10 @@ function Invoice({ round: r }) {
     ded = invoiceDeductions(state, preview);
   const snackRows = state.events.filter(e => eventIds.includes(e.id));
   const salesRows = state.stocks.filter(st => stockIds.includes(st.id));
-  const snackKnown = snackRows.every(e => e.lines.every(line => line.cost != null));
-  const salesKnown = salesRows.every(st => st.cost != null);
-  const snackCost = snackKnown ? snackRows.reduce((n,e) => n + e.lines.reduce((m,line) => m + receivedQuantity(line) * line.cost,0),0) : null;
-  const salesCost = salesKnown ? salesRows.reduce((n,st) => n + receivedQuantity(st) * st.cost,0) : null;
+  const snackKnown = snackRows.every(e => e.lines.every(line => receivedQuantity(line)===0 || line.cost != null));
+  const salesKnown = salesRows.every(st => receivedQuantity(st)===0 || st.cost != null);
+  const snackCost = snackKnown ? snackRows.reduce((n,e) => n + e.lines.reduce((m,line) => m + receivedQuantity(line) * (line.cost||0),0),0) : null;
+  const salesCost = salesKnown ? salesRows.reduce((n,st) => n + receivedQuantity(st) * (st.cost||0),0) : null;
   return (
     <form
       className="invoice-form"

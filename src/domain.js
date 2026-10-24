@@ -179,9 +179,9 @@ export function stockAllocation(s, stock) {
 export const transferredQty = (s, lineId) =>
   sum(s.stocks.filter((x) => x.eventLineId === lineId).map((x) => x.qty));
 export const eventCost = (e) =>
-  e.lines.some((l) => l.cost == null)
+  e.lines.some((l) => receivedQuantity(l) > 0 && l.cost == null)
     ? null
-    : sum(e.lines.map((l) => receivedQuantity(l) * l.cost));
+    : sum(e.lines.map((l) => receivedQuantity(l) * (l.cost || 0)));
 export const eventClaim = (e) => e.billing
   ? (e.billing.fiscal||[]).some(x=>x.qty>0&&e.lines.find(l=>l.id===x.lineId)?.cost==null)
     ? null : sum((e.billing.fiscal||[]).map(x=>x.qty*(e.lines.find(l=>l.id===x.lineId)?.cost||0)))
@@ -190,13 +190,13 @@ export const eventClaim = (e) => e.billing
 export function invoiceDeductions(s, r) {
   const events = r.eventIds.map((id) => s.events.find((e) => e.id === id));
   if (events.some((e) => eventCost(e) == null)) return null;
-  if (r.stockIds.some(id => s.stocks.find(st => st.id === id)?.cost == null)) return null;
+  if (r.stockIds.some(id => {const st=s.stocks.find(x=>x.id===id);return !st || receivedQuantity(st)>0 && st.cost==null;})) return null;
   return (
     sum(events.map(eventCost)) +
     sum(
       r.stockIds.map((id) => {
         const st = s.stocks.find((x) => x.id === id);
-        return receivedQuantity(st) * st.cost;
+        return receivedQuantity(st) * (st.cost || 0);
       }),
     )
   );
