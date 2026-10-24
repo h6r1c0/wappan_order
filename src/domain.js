@@ -246,6 +246,13 @@ export function roundAccounting(s, r) {
   if (cost < 0) return {personal, onsite, revenue, cost:null, profit:null, method:null};
   return {personal, onsite, revenue, cost, profit:revenue-cost, method:'invoice', unsoldCost};
 }
+export function roundSettlementStatus(s,r){
+  if(!['納品済み','精算済み'].includes(r.status))return r.status;
+  const complete=r.invoice!=null&&
+    (r.shortageConfirmation==='none'||r.shortageConfirmation==='yes'&&r.shortageReviewComplete)&&
+    roundAccounting(s,r).profit!=null;
+  return complete?'精算済み':'納品済み';
+}
 export function transfer(s, event, line, qty, sellingPrice, date) {
   integer(qty, "振替数");
   integer(sellingPrice, "販売価格");
@@ -502,7 +509,13 @@ export function collectionDueItems(s, roundId, buyerId) {
     const item=items.find(i=>i.id===`round:${x.roundId}:${buyerId}`);
     if(item) item.balance=Math.max(0,item.balance-x.amount);
   }
-  let credit=sum((s.collectionCredits||[]).filter(x=>x.buyerId===buyerId&&eligible.some(r=>r.id===x.roundId)&&x.date<=target.date).map(x=>x.amount));
+  const credits=(s.collectionCredits||[]).filter(x=>x.buyerId===buyerId&&eligible.some(r=>r.id===x.roundId)&&
+    (x.date==null ? x.roundId===target.id||eligible.some(r=>r.id===x.roundId&&r.date<=target.date) : x.date<=target.date));
+  let credit=sum(credits.filter(x=>!x.appliedTo).map(x=>x.amount));
+  for(const x of credits.filter(x=>x.appliedTo)){
+    const item=items.find(i=>i.id===x.appliedTo);
+    if(item)item.balance=Math.max(0,item.balance-x.amount);
+  }
   const entries=(s.collectionEntries||[]).filter(e=>e.buyerId===buyerId&&eligible.some(r=>r.id===e.roundId));
   let unallocated=0;
   for(const entry of entries){
@@ -558,18 +571,25 @@ export function collectionPosition(s, roundId, buyerId) {
   const adjusted = sum(entries.map((entry) => entry.adjustment || 0));
   const opening=sum((s.receivableItems||[]).filter(x=>x.kind==='opening'&&x.buyerId===buyerId&&(!round.test||round.collectionLive)&&x.date<=round.date).map(x=>x.amount));
   const reconciled=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&earlier.some(r=>r.id===x.roundId)).map(x=>x.amount));
-  const credits=sum((s.collectionCredits||[]).filter(x=>x.buyerId===buyerId&&(x.roundId===roundId||earlier.some(r=>r.id===x.roundId))&&x.date<=round.date).map(x=>x.amount));
+  const credits=sum((s.collectionCredits||[]).filter(x=>x.buyerId===buyerId&&(x.roundId===roundId||earlier.some(r=>r.id===x.roundId))&&(x.date==null||x.date<=round.date)).map(x=>x.amount));
   const carry = billedBefore + opening - receivedBefore - reconciled - credits;
   const confirmedHistorical=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&x.roundId===roundId).map(x=>x.amount));
   const dueState=collectionDueItems(s,roundId,buyerId);
+  // Older credits implicitly reduced the invoice. A refund reverses that use;
+  // a newly targeted credit is already committed and cannot be refunded too.
+  const legacyCredit=sum((s.collectionCredits||[]).filter(x=>x.buyerId===buyerId&&!x.appliedTo&&
+    (x.roundId===roundId||earlier.some(r=>r.id===x.roundId))&&x.date<=round.date).map(x=>x.amount));
+  const refunded=sum((s.collectionEntries||[]).filter(x=>x.buyerId===buyerId&&x.received<0&&
+    (x.roundId===roundId||earlier.some(r=>r.id===x.roundId))).map(x=>-x.received));
+  const refundableCredit=Math.max(dueState.credit,legacyCredit-refunded);
   return { carry, current, received, adjusted, confirmedHistorical, balance: carry + current - received - adjusted - confirmedHistorical,
-    credits, entries, unallocated:dueState.unallocated, due:dueState.items.filter(x=>x.balance>0) };
+    credits, availableCredit:refundableCredit, entries, unallocated:dueState.unallocated, due:dueState.items.filter(x=>x.balance>0) };
 }
-export function report(s, from, to, year) {
+export function report(s, from, to, year, {includeTest=false} = {}) {
   const inRange = (d) => from <= d && d <= to;
   const rows = [];
   const pooledSales = new Set();
-  for (const r of s.rounds.filter((r) => !r.test && inRange(r.date) && (Object.keys(r.orders).length || r.invoice!=null))) {
+  for (const r of s.rounds.filter((r) => (includeTest||!r.test) && inRange(r.date) && (Object.keys(r.orders).length || r.invoice!=null))) {
     const combined = roundAccounting(s,r);
     const pooled = combined.method === 'invoice';
     if (pooled) for (const x of s.sales.filter(x => !x.void && r.stockIds.includes(x.stockId))) pooledSales.add(x.id);
@@ -584,11 +604,12 @@ export function report(s, from, to, year) {
       cost,
       profit: cost == null ? null : revenue - cost,
       ...(pooled ? {personal:combined.personal,onsite:combined.onsite} : {}),
-      provisional: r.status !== "精算済み",
+      provisional: roundSettlementStatus(s,r) !== "精算済み",
+      test: !!r.test,
     });
   }
   for (const sale of s.sales.filter(
-    (x) => !x.void && !pooledSales.has(x.id) && !isSaleTest(s, x) && inRange(x.date),
+    (x) => !x.void && !pooledSales.has(x.id) && (includeTest||!isSaleTest(s, x)) && inRange(x.date),
   ))
     rows.push({
       id: sale.id,
@@ -599,26 +620,27 @@ export function report(s, from, to, year) {
       cost: sale.cost == null ? null : sale.qty * sale.cost,
       profit: sale.cost == null ? null : sale.qty * (sale.price - sale.cost),
       provisional: (()=>{const st=s.stocks.find(st=>st.id===sale.stockId),mid=sale.marketId||st?.marketId;return mid && s.markets?.find(m=>m.id===mid)?.expense==null;})(),
+      test:isSaleTest(s,sale),
     });
   for(const x of (s.bundleSales||[]).filter(x=>!x.void&&inRange(x.date))){
-    const m=s.markets.find(m=>m.id===x.marketId),r=s.rounds.find(r=>r.id===(x.roundId||m?.roundId));if(r?.test)continue;
+    const m=s.markets.find(m=>m.id===x.marketId),r=s.rounds.find(r=>r.id===(x.roundId||m?.roundId));if(r?.test&&!includeTest)continue;
     const cost=bundleCost(x),revenue=x.price*x.qty;
-    rows.push({id:x.id,date:x.date,type:'外部セット販売',name:x.name,revenue,cost,profit:cost==null?null:revenue-cost,provisional:!!m&&m.expense==null});
+    rows.push({id:x.id,date:x.date,type:'外部セット販売',name:x.name,revenue,cost,profit:cost==null?null:revenue-cost,provisional:!!m&&m.expense==null,test:!!r?.test});
   }
-  for(const m of (s.markets||[]).filter(m=>inRange(m.date)&&!s.rounds.find(r=>r.id===m.roundId)?.test)){
-    if(m.expenseMode==='apply'&&m.expense!=null)rows.push({id:m.id,date:m.date,type:'外部販売経費',name:m.name,revenue:0,cost:0,profit:-m.expense,expense:m.expense});
+  for(const m of (s.markets||[]).filter(m=>inRange(m.date)&&(includeTest||!s.rounds.find(r=>r.id===m.roundId)?.test))){
+    if(m.expenseMode==='apply'&&m.expense!=null)rows.push({id:m.id,date:m.date,type:'外部販売経費',name:m.name,revenue:0,cost:0,profit:-m.expense,expense:m.expense,test:!!s.rounds.find(r=>r.id===m.roundId)?.test});
   }
-  for(const event of s.events.filter(e=>e.billing&&!e.test&&inRange(e.date))){
+  for(const event of s.events.filter(e=>e.billing&&(includeTest||!e.test)&&inRange(e.date))){
     const billing=snackBillingPreview(s,event);
     if(billing.household)rows.push({id:`snack:${event.id}`,date:event.date,type:'おやつ家庭請求',name:event.billing.label,
-      revenue:billing.household,cost:billing.cost,profit:billing.profit,provisional:!billing.complete});
+      revenue:billing.household,cost:billing.cost,profit:billing.profit,provisional:!billing.complete,test:!!event.test});
   }
-  for(const item of (s.otherSales||[]).filter(x=>!x.void&&!x.test&&inRange(x.date))){
+  for(const item of (s.otherSales||[]).filter(x=>!x.void&&(includeTest||!x.test)&&inRange(x.date))){
     const revenue=item.qty*item.unitPrice,cost=item.qty*item.unitCost;
     rows.push({id:item.id,date:item.date,type:'その他の販売',name:item.name,revenue,cost,profit:revenue-cost,
-      paymentStatus:item.paymentStatus,provisional:item.paymentStatus==='unpaid'});
+      paymentStatus:item.paymentStatus,provisional:item.paymentStatus==='unpaid',test:!!item.test});
   }
-  for (const h of s.history.filter((h) => !h.test && inRange(h.date)))
+  for (const h of s.history.filter((h) => (includeTest||!h.test) && inRange(h.date)))
     rows.push({
       ...h,
       type: "過去実績",

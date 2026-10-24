@@ -2,7 +2,7 @@ import React,{useState,useRef,useEffect} from 'react';
 import {collectionPosition,collectionDueItems,today,uid,yen,collections} from './domain';
 import {useApp,Button,Field,Money,Qty,copyText,buyerCompare} from './ui';
 import {productDisplayName} from './product-names.js';
-import {billingAudit,chargeLines,collectionReasons,correctionReasons,confirmBilling,confirmLinePrice,flagMissingCharge,saveCollectionCase,receiveCollection,receiveDueItem,correctCollectionRecord,recordCollectionAllocation,adjustReceivable} from './collection-workflow.js';
+import {billingAudit,chargeLines,collectionReasons,correctionReasons,confirmBilling,confirmLinePrice,flagMissingCharge,saveCollectionCase,receiveCollection,receiveDueItem,correctCollectionRecord,recordCollectionAllocation,recordHistoricalCredit,adjustReceivable} from './collection-workflow.js';
 import {openPrintPreview} from './print-preview.js';
 
 function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,onSource}){
@@ -70,7 +70,7 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
       :unallocatedEntries.length===1&&<button type="button" className="text-action" onClick={()=>{setInvestigate(true);beginAllocation(unallocatedEntries[0]);}}>受け取った請求分を指定 ›</button>}</p>}
     {isOpen&&<div className="collection-detail">
       <div className="collection-totals"><div><small>今回請求</small><strong>{yen(position.current)}</strong></div>{position.carry!==0&&<div><small>過去未収・預かり</small><strong>{yen(position.carry)}</strong></div>}{position.received>0&&<div><small>受取済み</small><strong>{yen(position.received)}</strong></div>}</div>
-      {position.carry<0&&position.credits>0&&position.received===0&&<button type="button" className="text-action" onClick={()=>{setReceived(0);setReason('返金がある');setRefund(Math.min(position.credits,-position.carry));}}>預かり金を返金した場合はこちら ›</button>}
+      {position.availableCredit>0&&position.received===0&&<button type="button" className="text-action" onClick={()=>{setReceived(0);setReason('返金がある');setRefund(position.availableCredit);}}>預かり金を返金した場合はこちら ›</button>}
       {knownClaim?.notifiedAmount!=null&&!position.received&&received==null&&<button type="button" className="text-action" onClick={()=>setReceived(knownClaim.notifiedAmount)}>案内した {yen(knownClaim.notifiedAmount)} を受取額に入力 ›</button>}
       {reason!=='返金がある'&&<Money label="実際受取額" value={received} onChange={v=>{setReceived(v);setTarget('');}}/>}
       {delta!=null&&<p className="receipt-difference" role="status">{delta===0?'請求残高と一致':`請求残高との差 ${delta>0?'＋':'−'}${yen(Math.abs(delta))}`}{position.received?` ／ 記録済み受取 ${yen(position.received)}`:''}</p>}
@@ -168,11 +168,15 @@ export function RoundCollections({round,rows,sessions={},onDraft,onSource,initia
 }
 
 function OpeningFacts({round,buyer}){
- const {save}=useApp();const [kind,setKind]=useState('opening'),[date,setDate]=useState(''),[amount,setAmount]=useState(null);
+ const {save,state}=useApp();const [kind,setKind]=useState('opening'),[date,setDate]=useState(''),[amount,setAmount]=useState(null);
+ const credits=(state.collectionCredits||[]).filter(x=>x.buyerId===buyer.id&&x.roundId===round.id);
  return <details className="opening-register"><summary>過去未収・預かりを登録</summary>
+  {credits.map(x=><p key={x.id}>預かり {yen(x.amount)} ／ {x.appliedTo?'今回請求へ充当済み':'充当先を確認'}{x.date?`（${x.date}分）`:'（元の受取日不明）'}</p>)}
   <Field label="過去分の区分"><select value={kind} onChange={e=>setKind(e.target.value)}><option value="opening">過去の未収</option><option value="credit">前回の預かり</option></select></Field>
-  <Field label="過去分の対象日" type="date" value={date} max={round.date} onChange={e=>setDate(e.target.value)}/><Money label="過去分の金額" value={amount} onChange={setAmount}/>
-  <Button disabled={!date||date>=round.date||!amount} onClick={async()=>{if(await save(s=>{
+  <Field label={kind==='credit'?'元の受取日（不明なら空欄）':'過去分の対象日'} type="date" value={date} max={round.date} onChange={e=>setDate(e.target.value)}/><Money label="過去分の金額" value={amount} onChange={setAmount}/>
+  {kind==='credit'&&!date&&<small>今回請求への充当として記録します。今回の現金受取は作りません。</small>}
+  <Button disabled={(kind==='opening'&&!date)||!!date&&date>=round.date||!amount} onClick={async()=>{if(await save(s=>{
+   if(kind==='credit'&&!date){recordHistoricalCredit(s,{roundId:round.id,buyerId:buyer.id,amount,appliedTo:`round:${round.id}:${buyer.id}`});return;}
    const list=kind==='opening'?(s.receivableItems??=[]):(s.collectionCredits??=[]);
    if(list.some(x=>x.buyerId===buyer.id&&x.date===date&&x.amount===amount))throw Error('同じ過去分が登録されています。既存の履歴を確認してください');
    list.push(kind==='opening'?{id:uid(),kind:'opening',buyerId:buyer.id,date,amount,reason:'未払い / 未受取',note:`${date}分 未受取`}:{id:uid(),buyerId:buyer.id,roundId:round.id,date,amount,reason:'前回の預かり金'});

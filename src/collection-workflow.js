@@ -98,6 +98,20 @@ export function correctCollectionRecord(state,kind,id,reason){
   if(state.collectionCorrections.some(x=>x.kind===kind&&x.targetId===id))throw Error('この記録は訂正済みです');
   state.collectionCorrections.push({id:uid(),kind,targetId:id,roundId:item.roundId,buyerId:item.buyerId,reason,at:new Date().toISOString()});
 }
+// The original collection date may be unknown. Keep it unknown while recording
+// when the fact was entered and the specific invoice chosen by the operator.
+export function recordHistoricalCredit(state,{roundId,buyerId,amount,appliedTo}){
+  integer(amount,'以前からの預かり金');
+  const round=state.rounds.find(x=>x.id===roundId);
+  if(!round||!state.buyers.some(x=>x.id===buyerId)||amount<=0)throw Error('預かり金の対象を確認してください');
+  if((state.collectionCredits||[]).some(x=>x.buyerId===buyerId&&x.roundId===roundId&&x.amount===amount&&x.date==null))throw Error('同じ預かり金が記録済みです');
+  const item=collectionDueItems(state,roundId,buyerId).items.find(x=>x.id===appliedTo);
+  if(!item||item.balance<amount||item.roundId!==roundId)throw Error('預かり金を充当する今回の請求を確認してください');
+  state.collectionCredits??=[];
+  const credit={id:uid(),roundId,buyerId,date:null,recordedAt:new Date().toISOString(),amount,appliedTo,reason:'以前からの預かり金（受取日不明）'};
+  state.collectionCredits.push(credit);
+  return credit;
+}
 // A receipt is an immutable fact. Record a later decision about its destination separately.
 export function recordCollectionAllocation(state,entryId,parts){
   const entry=(state.collectionEntries||[]).find(x=>x.id===entryId);
@@ -135,7 +149,7 @@ export function receiveCollection(state,{roundId,buyerId,received,reason='',past
   if(reason==='多く受け取ったので次回へ預かる'&&received<position.balance)throw Error('受取額は残高より少ないため、未収が残ります');
   if(reason==='前回の不足分をまとめて受け取った'&&received>position.balance)throw Error('不足分を確認してください');
   if(reason==='前回の預かり金を今回使った'&&received<position.balance)throw Error('預かり金を確認してください');
-  if(received<0&&-received>Math.max(0,position.received+position.credits+Math.max(0,-position.carry)))throw Error('返金できる預かり残高を超えています');
+  if(received<0&&-received>position.availableCredit)throw Error('返金できる預かり残高を超えています');
   if(itemId){const item=collectionDueItems(state,roundId,buyerId).items.find(x=>x.id===itemId);if(!item||received<0||received>item.balance)throw Error('対象の未収と受取額を確認してください');}
   state.collectionEntries??=[];
   const entry={id:uid(),roundId,buyerId,date:today(),received,adjustment:0,note:reason||'全額受取',reason:reason||'全額受取',requestId:requestId||uid(),...(itemId?{itemId}:{})};

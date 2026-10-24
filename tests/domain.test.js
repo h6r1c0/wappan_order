@@ -12,6 +12,31 @@ function setup() {
   s.rounds.push(r);
   return { s, r };
 }
+test('検証用年度集計はテスト回を含めても正式実績・保存区分を変えず、期間と目標の計算元を揃える',()=>{
+ const {s,r}=setup();r.test=true;r.invoice=22971;r.status='納品済み';r.shortageConfirmation='none';
+ r.products=[{id:'bread',name:'注文商品',price:22490,cost:null}];r.orders.hori={name:'堀',quantities:{bread:1}};
+ const stock={id:'stock-test',roundId:r.id,name:'販売用',productId:'bread',qty:1,price:2560,cost:null,date:r.date,test:true};
+ s.stocks.push(stock);r.stockIds.push(stock.id);
+ s.sales.push({id:'sale-test',stockId:stock.id,date:r.date,qty:1,price:5810,cost:null,destinationType:'external',paymentStatus:'paid'});
+ const before=structuredClone(s),official=d.report(s,'2026-04-01','2027-03-31',2026);
+ const trial=d.report(s,'2026-04-01','2027-03-31',2026,{includeTest:true});
+ assert.equal(official.profit,0);assert.equal(trial.profit,5329);
+ assert.equal(trial.rows.filter(x=>x.id===r.id).length,1);assert.equal(trial.rows.filter(x=>x.id==='sale-test').length,0);
+ assert.equal(trial.rows.find(x=>x.id===r.id).test,true);
+ assert.equal(trial.provisional,false);assert.equal(d.roundSettlementStatus(s,r),'精算済み');
+ assert.equal(d.report(s,'2026-10-01','2026-10-31',2026,{includeTest:true}).profit,0);
+ assert.deepEqual(s,before);
+});
+test('精算の自動判定は納品・仕入・利益を要求し、現金集金と独立する',()=>{
+ const {s,r}=setup();r.status='納品済み';r.shortageConfirmation='none';r.invoice=100;
+ r.orders.hori={name:'堀',quantities:{brown:1}};
+ assert.equal(d.roundSettlementStatus(s,r),'精算済み');
+ assert.equal(s.collectionEntries.length,0);
+ r.invoice=null;assert.equal(d.roundSettlementStatus(s,r),'納品済み');
+ r.invoice=100;r.shortageConfirmation=null;assert.equal(d.roundSettlementStatus(s,r),'納品済み');
+ r.shortageConfirmation='none';r.products.find(p=>p.id==='brown').price=null;
+ assert.equal(d.roundSettlementStatus(s,r),'納品済み');
+});
 test('納品書総額を販売済みの原価プールに使い、個人請求・園内現金と売上を重複させない',()=>{
   const {s,r}=setup();r.invoice=22971;r.status='納品済み';r.test=true;
   r.products=[{id:'bread',name:'注文商品',price:22490,cost:null}];

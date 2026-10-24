@@ -72,6 +72,8 @@ async function backend(context, shared) {
         return json({ message: e.message }, 400);
       }
     }
+    if(url.pathname.includes('/rest/v1/rpc/wappan_round_activity'))
+      return json(shared.activity||[]);
     if (url.pathname.includes('/rest/v1/rpc/wappan_admin_list'))
       return shared.staff?.[0]?.role==='admin' ? json(shared.staff) : json({code:'42501',message:'FORBIDDEN'},403);
     if (url.pathname.includes('/rest/v1/rpc/wappan_admin_change')) {
@@ -479,6 +481,12 @@ test('集計と商品管理: 年度利益はテストを除外、検索はカテ
   await nav(page,'集計');
   await page.getByLabel('対象年度（4月〜翌3月）').selectOption('2026');
   await expect(page.locator('.hero>strong')).toHaveText('330円');
+  await page.getByRole('button',{name:'テストを含める'}).click();
+  await expect(page.locator('.hero>strong')).toHaveText('4,530円');
+  await expect(page.getByText('検証用の表示です。')).toBeVisible();
+  expect(testRound.test).toBe(true);
+  await page.getByRole('button',{name:'年度実績'}).click();
+  await expect(page.locator('.hero>strong')).toHaveText('330円');
   await expect(page.getByText('販売額',{exact:true})).toBeVisible();
   await expect(page.getByText('仕入額',{exact:true})).toBeVisible();
   await nav(page,'設定');
@@ -489,6 +497,25 @@ test('集計と商品管理: 年度利益はテストを除外、検索はカテ
     await page.setViewportSize({width,height:812});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }
+});
+test('精算は納品と利益から判定し、操作履歴は控えめに展開して共有する',async({page,context})=>{
+ const shared={state:preparedState(),revision:7,activity:[{revision:7,updated_at:'2026-10-24T15:10:46Z',description:'納品・仕入額を保存',actor_account:'staff@example.test'}]};
+ const r=newRound(shared.state,'2026-09-11',true);r.orders.hori={name:'ホリ',quantities:{brown:1}};
+ r.status='納品済み';r.shortageConfirmation='none';r.invoice=100;shared.state.rounds.push(r);
+ await backend(context,shared);await login(page);
+ const row=page.locator('.round-list-item').filter({hasText:'2026/09/11'});
+ await expect(row.locator('.tag-精算済み')).toHaveText('精算済み');
+ await row.click();
+ await expect(page.getByText('精算済み',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'精算完了を確認'})).toHaveCount(0);
+ await page.locator('.round-activity summary').click();
+ await expect(page.getByText('納品・仕入額を保存')).toBeVisible();
+ await expect(page.getByText(/ログイン：staff@example.test/)).toBeVisible();
+ for(const width of [320,375,430,1024]){
+   await page.setViewportSize({width,height:812});
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ }
+ expect(shared.revision).toBe(7);
 });
 
 test('購入者の読みは表示名を変えず五十音索引と検索に使う', async ({page,context}) => {

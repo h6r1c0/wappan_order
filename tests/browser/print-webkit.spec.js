@@ -25,7 +25,7 @@ async function setup(page,context){
       user:{id:'00000000-0000-0000-0000-000000000001',email:'staff@example.test',aud:'authenticated',role:'authenticated'},
     });
     if(url.pathname.includes('/rest/v1/wappan_workspace'))return json({data:state,revision:0,updated_at:new Date().toISOString()});
-    if(url.pathname.includes('/rpc/'))writes++;
+    if(url.pathname.includes('/rpc/wappan_save'))writes++;
     return json({});
   });
   await page.goto('/');

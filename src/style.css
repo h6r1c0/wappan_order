@@ -2514,4 +2514,26 @@ header small {
   .stage-content .after-work[open] > summary { background-color:var(--work-tint); background-image:var(--pencil-light); background-size:100% 100%; }
   .profit-issues { margin-top:8px; border-top:1px solid var(--line); padding-top:8px; }
   .profit-issues p { margin:3px 0; font-size:.82rem; }
+  .tag.tag-入力中, .round-list-item .tag.tag-入力中,
+  .tag.tag-注文確定, .round-list-item .tag.tag-注文確定,
+  .tag.tag-納品済み, .round-list-item .tag.tag-納品済み,
+  .tag.tag-精算済み, .round-list-item .tag.tag-精算済み,
+  .tag.tag-テスト, .round-list-item .tag.tag-テスト {
+    border:0; border-radius:0; box-shadow:none; background-size:100% 100%; background-repeat:no-repeat;
+    padding:2px 7px; min-width:0; font-weight:700; cursor:inherit;
+  }
+  .tag.tag-入力中, .round-list-item .tag.tag-入力中 { background-color:#f3f5f2; color:#3e5550; }
+  .tag.tag-注文確定, .round-list-item .tag.tag-注文確定 { background-color:#ecf3f9; background-image:url('./assets/pencil/blue-light.png'); color:#265779; }
+  .tag.tag-納品済み, .round-list-item .tag.tag-納品済み { background-color:#fff5ea; background-image:url('./assets/pencil/orange-light.png'); color:#75441a; }
+  .tag.tag-精算済み, .round-list-item .tag.tag-精算済み { background-color:#eef6ef; background-image:url('./assets/pencil/green-light.png'); color:#285b3b; }
+  .tag.tag-テスト, .round-list-item .tag.tag-テスト { background-color:#f2f5f8; background-image:url('./assets/pencil/blue-light.png'); color:#355a74; }
+  .round-activity { border-top:1px solid var(--line); margin:4px 0 8px; padding:5px 0; font-size:.83rem; }
+  .round-activity summary { cursor:pointer; color:#516356; padding:4px 2px; }
+  .round-activity-row { padding:6px 3px; border-top:1px solid #e9ede9; }
+  .round-activity-row small { display:block; color:#52615a; overflow-wrap:anywhere; }
+  .report-mode { display:flex; gap:4px; margin:8px 0; }
+  .report-mode button { min-height:42px; padding:6px 12px; background:transparent; border:0; border-bottom:2px solid transparent; color:#4c5b53; font:inherit; cursor:pointer; }
+  .report-mode button.selected { color:#246946; border-bottom-color:#246946; background:url('./assets/pencil/green-light.png') center/100% 100% no-repeat; font-weight:700; }
+  .report-test-note { color:#385774; font-size:.82rem; margin:4px 0 8px; }
+  .report-test-mark { color:#365b79; font-size:.75rem; font-weight:700; }
 }
