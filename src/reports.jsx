@@ -20,14 +20,15 @@ export function Reports() {
     [from, setFrom] = useState(`${year}-04-01`),
     [to, setTo] = useState(`${year + 1}-03-31`),
     [tab, setTab] = useState("利益"),
+    [includeTest,setIncludeTest] = useState(false),
     [editor, setEditor] = useState(null),
     [goal, setGoal] = useState(false);
   const start = custom ? from : `${year}-04-01`,
     end = custom ? to : `${year + 1}-03-31`,
-    data = report(state, start, end, year),
+    data = report(state, start, end, year, {includeTest}),
     target = state.goals[year] ?? null,
-    annual = report(state, `${year}-04-01`, `${year + 1}-03-31`, year);
-  const rows = collections(state, start, end);
+    annual = report(state, `${year}-04-01`, `${year + 1}-03-31`, year, {includeTest});
+  const rows = collections(state, start, end, null, includeTest);
   const years = [
     ...new Set([
       2025,
@@ -43,6 +44,11 @@ export function Reports() {
   return (
     <>
       <h1>今年度の実績・利益</h1>
+      <div className="report-mode" role="group" aria-label="集計の表示範囲">
+        <button type="button" className={!includeTest?'selected':''} aria-pressed={!includeTest} onClick={()=>setIncludeTest(false)}>年度実績</button>
+        <button type="button" className={includeTest?'selected':''} aria-pressed={includeTest} onClick={()=>setIncludeTest(true)}>テストを含める</button>
+      </div>
+      {includeTest&&<p className="report-test-note" role="status">検証用の表示です。テスト区分と正式な年度実績は変更されません。</p>}
       <Field label="対象年度（4月〜翌3月）">
         <select
           value={year}
@@ -161,7 +167,7 @@ export function Reports() {
             <details className="card" key={r.id}>
               <summary>
                 <span>
-                  <Tag>{r.type}</Tag> {r.name}
+                  <Tag>{r.type}</Tag> {r.name} {r.test&&<span className="report-test-mark">テスト</span>}
                   <small>{r.date}</small>
                 </span>
                 <strong>{yen(r.profit)}</strong>

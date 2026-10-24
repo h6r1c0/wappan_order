@@ -1,5 +1,15 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import {PGlite} from '@electric-sql/pglite';
-import {initialState,newRound} from '../src/domain.js';import {receiveCollection,saveCollectionCase,confirmBilling,correctCollectionRecord,recordCollectionAllocation} from '../src/collection-workflow.js';
+import {initialState,newRound} from '../src/domain.js';import {receiveCollection,saveCollectionCase,confirmBilling,correctCollectionRecord,recordCollectionAllocation,recordHistoricalCredit} from '../src/collection-workflow.js';
+test('DB：元の受取日不明の預かりは指定請求へだけ充当でき、誤った参照と二重登録を拒否',async()=>{
+ const db=new PGlite();await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key,email text unique);create function auth.uid() returns uuid language sql stable as $$select null::uuid$$;");
+ const folder=new URL('../supabase/migrations/',import.meta.url);for(const f of (await fs.readdir(folder)).filter(x=>x.endsWith('.sql')).sort())await db.exec(await fs.readFile(new URL(f,folder),'utf8'));
+ const s=initialState(),r=newRound(s,'2026-09-11');s.rounds.push(r);r.orders.hori={name:'堀',quantities:{brown:1}};r.products.find(p=>p.id==='brown').price=690;
+ const credit=recordHistoricalCredit(s,{roundId:r.id,buyerId:'hori',amount:100,appliedTo:`round:${r.id}:hori`});
+ await db.query('select public.wappan_validate($1)',[s]);
+ credit.appliedTo='round:unknown:hori';await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Invalid collection credit/);
+ credit.appliedTo=`round:${r.id}:hori`;s.collectionCredits.push({...credit,id:'duplicate'});await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Duplicate collection workflow/);
+ await db.close();
+});
 test('DB：旧データ互換・預かりと未収の分離・保留・訂正と重複拒否',async()=>{
  const db=new PGlite();await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key,email text unique);create function auth.uid() returns uuid language sql stable as $$select null::uuid$$;");
  const folder=new URL('../supabase/migrations/',import.meta.url);for(const f of (await fs.readdir(folder)).filter(x=>x.endsWith('.sql')).sort())await db.exec(await fs.readFile(new URL(f,folder),'utf8'));

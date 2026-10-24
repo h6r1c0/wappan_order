@@ -91,8 +91,8 @@ export function Cat({ category }) {
     />
   );
 }
-export function Tag({ children }) {
-  return <span className="tag">{children}</span>;
+export function Tag({ children, status = '' }) {
+  return <span className={`tag ${status ? `tag-${status}` : ''}`}>{children}</span>;
 }
 let openModalCount = 0;
 let lockedPageScroll = 0;

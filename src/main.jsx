@@ -184,7 +184,7 @@ function App() {
       ) : recovery ? (
         <PasswordReset done={() => setRecovery(false)} notify={notify} />
       ) : (
-        <AppContext.Provider value={{ state, save, notify, saving }}>
+        <AppContext.Provider value={{ state, save, notify, saving, revision }}>
           <div className={`sync ${saving || loading || newer || !state ? '' : 'sync-idle'}`}>
             <span>
               {saving

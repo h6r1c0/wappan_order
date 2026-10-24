@@ -1,4 +1,5 @@
 import {billingAudit} from './collection-workflow.js';
+import {client} from './store.js';
 import {Shortage} from './shortage-ui';
 import {receivedQuantity, updateDeliveryStatus} from './shortages';
 import React, { useEffect, useState } from "react";
@@ -23,6 +24,7 @@ import {
   roundRevenue,
   roundCost,
   roundAccounting,
+  roundSettlementStatus,
   stockRemaining,
   productTotals,
   collections,
@@ -69,16 +71,16 @@ export function Orders() {
         .sort((a, b) => b.date.localeCompare(a.date))
         .map((r) => (
           <button
-            className={`card clickable round-list-item status-${r.status}`}
+            className={`card clickable round-list-item status-${roundSettlementStatus(state,r)}`}
             key={r.id}
             onClick={() => {setJustCreated(false);setId(r.id);}}
           >
             <div className="line">
               <h2>{r.date.replaceAll("-", "/")} 着</h2>
-              <Tag>{r.status}</Tag>
+              <Tag status={roundSettlementStatus(state,r)}>{roundSettlementStatus(state,r)}</Tag>
             </div>
-            {r.test && <Tag>テスト・年度集計対象外</Tag>}
-            <small className="round-next-step">{r.status==='入力中'?'注文を入力':!r.shortageConfirmation?'次は欠品・納品確認':r.status==='納品済み'?'精算と集金を確認':state.buyers.filter(b=>collectionPosition(state,r.id,b.id).balance>0).length?`集金が残っています：${state.buyers.filter(b=>collectionPosition(state,r.id,b.id).balance>0).length}人`:'集金状況を確認'}</small>
+            {r.test && <Tag status="テスト">テスト・年度集計対象外</Tag>}
+            <small className="round-next-step">{r.status==='入力中'?'注文を入力':!r.shortageConfirmation?'次は欠品・納品確認':roundSettlementStatus(state,r)==='納品済み'?'仕入・販売を確認':state.buyers.filter(b=>collectionPosition(state,r.id,b.id).balance>0).length?`集金が残っています：${state.buyers.filter(b=>collectionPosition(state,r.id,b.id).balance>0).length}人`:'集金状況を確認'}</small>
             <span className="round-open" aria-hidden="true">›</span>
           </button>
         ))}
@@ -120,7 +122,15 @@ export function Orders() {
   );
 }
 function Round({ round: r, initialTab = null, back }) {
-  const { state, save, notify } = useApp();
+  const { state, save, notify, revision } = useApp();
+  const [recent,setRecent]=useState(null);
+  useEffect(()=>{
+    let active=true;
+    client?.rpc('wappan_round_activity',{target_round:r.id,max_items:5}).then(({data,error})=>{
+      if(active)setRecent(error?[]:data||[]);
+    });
+    return()=>{active=false;};
+  },[r.id,revision]);
   const [collectionSessions,setCollectionSessions]=useState({}),[collectionReturn,setCollectionReturn]=useState('');
   const [tab, setTab] = useState(initialTab),
     [returnStage, setReturnStage] = useState(null),
@@ -207,8 +217,13 @@ function Round({ round: r, initialTab = null, back }) {
         </Button>
       </div>
       <p>
-        <Tag>{r.status}</Tag> {r.test && <Tag>テスト・集計対象外</Tag>}
+        <Tag status={roundSettlementStatus(state,r)}>{roundSettlementStatus(state,r)}</Tag> {r.test && <Tag status="テスト">テスト・集計対象外</Tag>}
       </p>
+      <details className="round-activity"><summary>最近の操作{recent?.length?`（${recent.length}件）`:''}</summary>
+        {recent===null?<small>読み込み中…</small>:recent.length?recent.map(x=><div className="round-activity-row" key={x.revision}>
+          <span>{x.description}<small>{new Date(x.updated_at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})} ／ ログイン：{x.actor_account}</small></span>
+        </div>):<small>この注文回の保存履歴はありません。</small>}
+      </details>
       {r.note && <details className="round-note"><summary>この注文回のメモ</summary><p>{r.note}</p></details>}
       <div className="stage-list" aria-label="注文の工程">
         {["注文", "発注", "納品・精算", "集金"].map((stage, index) => (
@@ -429,7 +444,7 @@ function Round({ round: r, initialTab = null, back }) {
           <details className="after-work" id="snack-after-work"><summary>おやつ使用・財政請求</summary>
             <Events roundId={r.id} phase="after"/>
           </details>
-          <details className="after-work round-profit"><summary>商品利益{r.status==='精算済み'?'':'（見込み）'} {yen(finances.profit)}</summary>
+          <details className="after-work round-profit"><summary>商品利益{roundSettlementStatus(state,r)==='精算済み'?'':'（見込み）'} {yen(finances.profit)}</summary>
             <div className="grid2"><Summary label="売上合計" value={yen(finances.revenue)} />
               <Summary label="納品書の仕入額" value={yen(r.invoice)} /></div>
             {finances.profit!=null&&<p className="profit-result">商品利益 {yen(finances.profit)}{finances.method==='invoice'&&<small>納品書総額から計算。商品別の原価内訳は未確定のままです。</small>}</p>}
@@ -527,8 +542,6 @@ function Invoice({ round: r }) {
         {salesRows.map(st=><p key={st.id}>販売用：{st.name} ×{st.qty}</p>)}
         {ded == null && <small>{finances.method==='invoice'?'販売済み分を含む利益は納品書総額から計算できます。商品別原価は内訳が必要なときに確認します。':'用途別の仕入単価が必要な計算は、対象商品の原価を確認してください。'}</small>}
       </details>}
-      {r.status === '納品済み' && r.invoice != null && (ded != null || finances.method==='invoice') &&
-        <Button secondary onClick={() => save(s => { s.rounds.find(x => x.id === r.id).status = '精算済み'; }, '精算完了')}>精算完了を確認</Button>}
     </form>
   );
 }

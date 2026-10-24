@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {initialState,newRound,report,collections,collectionPosition,collectionDueItems,orderDraft,productTotals,unpricedOrderLines,validate} from '../src/domain.js';
-import {billingAudit,chargeLines,confirmBilling,confirmLinePrice,flagMissingCharge,receiveCollection,receiveFullCollection,receiveDueItem,saveCollectionCase,correctCollectionRecord,recordCollectionAllocation} from '../src/collection-workflow.js';
+import {billingAudit,chargeLines,confirmBilling,confirmLinePrice,flagMissingCharge,receiveCollection,receiveFullCollection,receiveDueItem,saveCollectionCase,correctCollectionRecord,recordCollectionAllocation,recordHistoricalCredit} from '../src/collection-workflow.js';
 import {reassignSale} from '../src/sale-reassignment.js';
 import {setSalesOrderQuantities,upgrade} from '../src/commerce.js';
 import {addSale} from '../src/domain.js';
@@ -32,6 +32,31 @@ test('余語：既存の現金受取1650円を9月分に指定しても受取原
  assert.throws(()=>recordCollectionAllocation(s,receipt.id,[{itemId:'july',amount:1650}]),/確認済み/);validate(s);
  correctCollectionRecord(s,'collectionEntries',receipt.id,'受取金額を間違えた');
  assert.equal(collectionPosition(s,r.id,'hori').balance,3320);assert.equal(s.collectionAllocations.length,1,'訂正後も元の充当判断を監査履歴として保持');validate(s);
+});
+test('余語：訂正済み支払確認と有効な充当が併存しても、9月の現金は一度だけ控除',()=>{
+ const {s,r}=setup();r.products[0].price=1650;r.orders.hori.quantities={base:1};
+ s.receivableItems.push({id:'july',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:1670,reason:'未受取',note:'7月分'});
+ s.collectionReconciliations.push({id:'old-confirmation',roundId:r.id,buyerId:'hori',amount:1650,note:'誤った支払確認'});
+ correctCollectionRecord(s,'collectionReconciliations','old-confirmation','支払済みの確認が誤っていた');
+ const receipt=receiveCollection(s,{roundId:r.id,buyerId:'hori',received:1650,reason:'一部しか受け取っていない'});
+ recordCollectionAllocation(s,receipt.id,[{itemId:`round:${r.id}:hori`,amount:1650}]);
+ assert.deepEqual(collectionDueItems(s,r.id,'hori').items.map(x=>x.balance),[1670,0]);
+ assert.equal(collectionPosition(s,r.id,'hori').balance,1670);
+ assert.equal(s.collectionEntries.length,1);assert.equal(s.collectionAllocations.length,1);assert.equal(s.collectionCorrections.length,1);
+ validate(s);
+});
+test('西尾：元の受取日不明の預かり100円を今回請求へ充当し、現金590円は記録しない',()=>{
+ const {s,r}=setup();r.products[0].price=690;r.orders.hori.quantities={base:1};
+ const previous=report(s,r.date,r.date,2026);
+ const credit=recordHistoricalCredit(s,{roundId:r.id,buyerId:'hori',amount:100,appliedTo:`round:${r.id}:hori`});
+ assert.equal(credit.date,null);assert.equal(credit.amount,100);
+ assert.equal(collectionPosition(s,r.id,'hori').balance,590);
+ assert.equal(collectionDueItems(s,r.id,'hori').items.at(-1).balance,590);
+ assert.equal(collectionPosition(s,r.id,'hori').availableCredit,0);
+ assert.equal(s.collectionEntries.length,0);assert.deepEqual(report(s,r.date,r.date,2026),previous);
+ assert.throws(()=>recordHistoricalCredit(s,{roundId:r.id,buyerId:'hori',amount:100,appliedTo:credit.appliedTo}),/記録済み/);
+ assert.throws(()=>receiveCollection(s,{roundId:r.id,buyerId:'hori',received:-100,reason:'返金がある'}),/返金できる預かり残高/);
+ validate(s);
 });
 test('充当先は混合受取の金額を分けて保存し、未収超過・金額不足を拒否する',()=>{
  const {s,r}=setup();r.products[0].price=1650;r.orders.hori.quantities={base:1};s.receivableItems.push({id:'july',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:1670,reason:'未受取',note:'7月分'});
