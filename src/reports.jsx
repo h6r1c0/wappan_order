@@ -167,6 +167,7 @@ export function Reports() {
                 <strong>{yen(r.profit)}</strong>
               </summary>
               <p>販売額：{r.revenue == null ? "不明" : yen(r.revenue)}</p>
+              {r.personal!=null&&<p>個人注文 {yen(r.personal)} ／ 販売用 {yen(r.onsite)}</p>}
               <p>
                 仕入額：
                 {r.cost == null

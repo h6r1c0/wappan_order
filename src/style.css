@@ -2446,32 +2446,72 @@ header small {
 }
 
 /* Reference pencil strokes: the eight embedded PNGs from wappan_pencil_final_review.html.
-   Use them for stage selection and a few primary actions, not every control. */
+   Keep semantic state colours independent from the active work-stage palette. */
 @media screen {
-  :root { --paper:#fdfdfb; --milk:#fff; --ink:#30443b; }
-  body,main { background:#fdfdfb; }
+  :root {
+    --paper:#fdfdfb; --milk:#fff; --ink:#30443b; --line:#dfe4df;
+    --work-accent:#246946; --work-tint:#ecf6ef;
+    --pencil-light:url('./assets/pencil/green-light.png');
+    --pencil-deep:url('./assets/pencil/green-deep.png');
+    font-family:ui-rounded,"Hiragino Maru Gothic ProN","BIZ UDPGothic","Yu Gothic",Meiryo,system-ui,sans-serif;
+  }
+  body,main,header,header.login-header { background:#fdfdfb; }
   .stage-1 { --work-accent:#246946; --work-tint:#ecf6ef; --pencil-light:url('./assets/pencil/green-light.png'); --pencil-deep:url('./assets/pencil/green-deep.png'); }
   .stage-2 { --stage-color:#376a9a; --stage-surface:#edf4fb; --work-accent:#285f96; --work-tint:#edf4fb; --pencil-light:url('./assets/pencil/blue-light.png'); --pencil-deep:url('./assets/pencil/blue-deep.png'); }
   .stage-3 { --work-accent:#965216; --work-tint:#fff3e6; --pencil-light:url('./assets/pencil/orange-light.png'); --pencil-deep:url('./assets/pencil/orange-deep.png'); }
   .stage-4 { --work-accent:#a52f39; --work-tint:#fff0f0; --pencil-light:url('./assets/pencil/red-light.png'); --pencil-deep:url('./assets/pencil/red-deep.png'); }
-  .stage:not(.active) > .stage-trigger { color:var(--work-accent); }
-  .stage:not(.active) .stage-number { color:var(--work-accent); }
+  .stage:not(.active) > .stage-trigger,
+  .stage:not(.active) .stage-number { color:#606b66; }
   .stage.active > .stage-trigger {
     background-color:var(--work-tint); background-image:var(--pencil-light);
     background-size:100% 100%; background-repeat:no-repeat;
     color:var(--work-accent); border-left-color:var(--work-accent);
   }
+  .button:not(.secondary):not(.danger),
+  .stage-content .button:not(.secondary):not(.danger),
   .stage-content .sticky-action .button:not(.secondary):not(.danger),
   .stage-content .invoice-input-row .button:not(.secondary):not(.danger) {
     background-color:var(--work-accent); background-image:var(--pencil-deep);
-    background-size:100% 100%; border-color:transparent; color:white;
+    background-size:100% 100%; background-repeat:no-repeat;
+    border-color:transparent; color:#fff; box-shadow:none;
+  }
+  .button.secondary { background:#fff; border-color:#cbd7ce; color:var(--work-accent); box-shadow:none; }
+  .button:disabled { background-image:none!important; }
+  .stage-content .collection-overview .collection-pay:not(.secondary):not(.danger),
+  .collection-overview .collection-pay:not(.secondary):not(.danger) {
+    background-color:#a52f39; background-image:url('./assets/pencil/red-deep.png');
+    background-size:100% 100%; background-repeat:no-repeat;
+    color:#fff; border-color:transparent; min-height:42px; min-width:76px;
+    padding:5px 7px; font-size:.77rem; font-weight:700;
+  }
+  .stage-content .collection-overview .collection-pay:hover,
+  .collection-overview .collection-pay:hover { filter:brightness(.94); }
+  .stage-content .tabs.work-tabs .button:not(.secondary),
+  .stage-content .category-tabs .button:not(.secondary),
+  .stage-content .sales-mode-grid .button:not(.secondary),
+  .stage-content .choice-grid .button:not(.secondary),
+  .stage-content .segmented .selected {
+    background-color:var(--work-tint); background-image:var(--pencil-light);
+    background-size:100% 100%; color:var(--work-accent);
+    border-color:transparent;
+  }
+  .purpose-grid .purpose {
+    min-height:47px; border-radius:8px; border:1px solid #d9e1db;
+    background:#fff; box-shadow:none; padding:6px 4px;
+  }
+  .purpose-grid .purpose.selected {
+    border-color:transparent; box-shadow:none;
   }
   .stage-content .purpose.selected {
     background-color:var(--work-tint); background-image:var(--pencil-light);
     background-size:100% 100%; color:var(--work-accent);
   }
-  .purpose-grid .purpose { justify-content:center; min-height:47px; }
+  .purpose-grid .purpose { justify-content:center; }
   .purpose-grid .purpose span { font-weight:650; }
+  .tag { background:#f2f5f1; color:#415b4b; border:1px solid #e2e9e2; border-radius:5px; }
+  .round-list-item.status-納品済み .tag { background:#fff4e5; color:#75461c; border-color:#f1dfc7; }
+  .round-list-item.status-精算済み .tag { background:#ecf7ef; color:#255b3d; border-color:#d5eadb; }
+  .stage-content .after-work[open] > summary { background-color:var(--work-tint); background-image:var(--pencil-light); background-size:100% 100%; }
   .profit-issues { margin-top:8px; border-top:1px solid var(--line); padding-top:8px; }
   .profit-issues p { margin:3px 0; font-size:.82rem; }
 }

@@ -41,7 +41,7 @@ export function registerAccountingTests(browserName){
   await p.getByLabel('実際受取額',{exact:true}).fill('2130');await expect(p.getByLabel('実際受取額',{exact:true})).toHaveAttribute('inputmode','numeric');
   await p.getByLabel('金額が違う理由').selectOption('一部しか受け取っていない');await closeToast(page);await p.getByRole('button',{name:'受取額を保存',exact:true}).click();
   expect(collectionPosition(shared.state,shared.round.id,'hori').balance).toBe(380);expect(shared.state.collectionEntries[0].received).toBe(2130);
-  const h=await person(page,'hori');await h.locator('.billing-confirm summary').click();await h.getByLabel('集金袋へ記載する金額').fill('2510');await h.getByRole('button',{name:'請求内容だけ確認'}).click();expect(shared.state.collectionEntries).toHaveLength(1);
+  const h=await person(page,'hori');if(!await h.locator('.billing-confirm').evaluate(el=>el.open))await h.locator('.billing-confirm summary').click();await h.getByLabel('集金袋へ記載する金額').fill('2510');await h.getByRole('button',{name:'請求内容だけ確認'}).click();expect(shared.state.collectionEntries).toHaveLength(1);
   await h.locator('.collection-breakdown summary').click();await widths(page,`cash-${browserName}`);
   await installPreviewProbe(page);await page.locator('.billing-audit-done > summary').click();await page.locator('.collection-print summary').click();await page.getByRole('button',{name:'金額一覧のPDFを開く ›'}).click();await expect.poll(()=>page.evaluate(()=>window.__previewUrls.length)).toBe(1);const bytes=await pdfBytes(page,await page.evaluate(()=>window.__previewUrls[0]));expect((await PDFDocument.load(bytes)).getTitle()).toBe('集金袋用請求表 2026-09-11');
  });

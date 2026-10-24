@@ -214,6 +214,38 @@ export function roundCost(s, r) {
   const deduction = invoiceDeductions(s, r);
   return r.invoice == null || deduction == null ? null : r.invoice - deduction;
 }
+// A complete invoice can establish the combined margin without allocating its
+// cost to each sold product. Keep item costs unknown until they are confirmed.
+export function roundAccounting(s, r) {
+  const ids = new Set(r.stockIds);
+  const stocks = r.stockIds.map(id => s.stocks.find(st => st.id === id));
+  const sales = s.sales.filter(x => !x.void && ids.has(x.stockId));
+  const personal = roundRevenue(r);
+  const onsite = sum(sales.map(x => x.qty * x.price));
+  const revenue = personal + onsite;
+  const unpriced = Object.values(r.orders).some(o => unpricedOrderLines(r, o).length);
+  const itemized = roundCost(s, r);
+  if (unpriced) return {personal, onsite, revenue:null, cost:null, profit:null, method:null};
+  if (itemized != null && sales.every(x => x.cost != null)) {
+    const cost = itemized + sum(sales.map(x => x.qty * x.cost));
+    return {personal, onsite, revenue, cost, profit:revenue-cost, method:'itemized'};
+  }
+  // Only same-day sales can share the invoice in a dated report. Unsold units
+  // stay in inventory and need their own cost; transfers and bundles use their
+  // separate cost rules and cannot be inferred from this invoice alone.
+  const events = r.eventIds.map(id => s.events.find(e => e.id === id));
+  const eventCosts = events.map(e => e ? eventCost(e) : null);
+  const remaining = stocks.map(st => st ? stockRemaining(s, st) : null);
+  const bundles = (s.bundleSales||[]).some(x => !x.void && (x.roundId === r.id || x.parts?.some(p => ids.has(p.stockId))));
+  const canPool = r.invoice != null && stocks.every(Boolean) &&
+    eventCosts.every(x => x != null) && sales.every(x => x.date === r.date) &&
+    remaining.every((qty,i) => qty != null && qty >= 0 && (qty === 0 || stocks[i].cost != null) && movedOut(s,stocks[i].id) === 0) && !bundles;
+  if (!canPool) return {personal, onsite, revenue, cost:null, profit:null, method:null};
+  const unsoldCost = sum(stocks.map((st,i) => remaining[i] * (st.cost || 0)));
+  const cost = r.invoice - sum(eventCosts) - unsoldCost;
+  if (cost < 0) return {personal, onsite, revenue, cost:null, profit:null, method:null};
+  return {personal, onsite, revenue, cost, profit:revenue-cost, method:'invoice', unsoldCost};
+}
 export function transfer(s, event, line, qty, sellingPrice, date) {
   integer(qty, "振替数");
   integer(sellingPrice, "販売価格");
@@ -536,22 +568,27 @@ export function collectionPosition(s, roundId, buyerId) {
 export function report(s, from, to, year) {
   const inRange = (d) => from <= d && d <= to;
   const rows = [];
+  const pooledSales = new Set();
   for (const r of s.rounds.filter((r) => !r.test && inRange(r.date) && (Object.keys(r.orders).length || r.invoice!=null))) {
-    const revenue = roundRevenue(r),
-      cost = roundCost(s, r);
+    const combined = roundAccounting(s,r);
+    const pooled = combined.method === 'invoice';
+    if (pooled) for (const x of s.sales.filter(x => !x.void && r.stockIds.includes(x.stockId))) pooledSales.add(x.id);
+    const revenue = pooled ? combined.revenue : roundRevenue(r),
+      cost = pooled ? combined.cost : roundCost(s, r);
     rows.push({
       id: r.id,
       date: r.date,
-      type: "通常販売",
+      type: pooled ? "注文・販売用（合計）" : "通常販売",
       name: `${r.date} 納品`,
       revenue,
       cost,
       profit: cost == null ? null : revenue - cost,
+      ...(pooled ? {personal:combined.personal,onsite:combined.onsite} : {}),
       provisional: r.status !== "精算済み",
     });
   }
   for (const sale of s.sales.filter(
-    (x) => !x.void && !isSaleTest(s, x) && inRange(x.date),
+    (x) => !x.void && !pooledSales.has(x.id) && !isSaleTest(s, x) && inRange(x.date),
   ))
     rows.push({
       id: sale.id,
@@ -745,7 +782,7 @@ export function validate(s) {
     }
     if (r.status === "精算済み" && r.invoice == null)
       throw Error("精算前に仕入税込総額を入力してください");
-    if (r.status === "精算済み" && invoiceDeductions(s, r) == null)
+    if (r.status === "精算済み" && invoiceDeductions(s, r) == null && roundAccounting(s,r).method !== 'invoice')
       throw Error("精算前に用途別の仕入単価を確認してください");
   }
   if (new Set(links).size !== links.length)
