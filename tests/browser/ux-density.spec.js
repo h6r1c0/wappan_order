@@ -115,3 +115,21 @@ test('集金は工程色と行密度を保ち、既存受取の充当先を分�
  await page.getByRole('button',{name:/請求・過去の履歴を調べる/}).click();
  await expect(page.locator('[data-buyer="hori"]')).toContainText('2026-09-11 1,650円');
 });
+
+test('預かり金の返金は候補を選ぶだけでは受取を作らず、保存後に請求残額へ戻る',async({page,context})=>{
+ const s=initialState(),r=newRound(s,'2026-09-11',true);s.rounds.push(r);r.status='納品済み';r.collectionLive=true;
+ r.products=[{id:'p',name:'パン',price:690,cost:400}];r.orders.nishio={name:'西尾',quantities:{p:1}};
+ s.collectionCredits=[{id:'credit100',roundId:r.id,buyerId:'nishio',date:'2026-07-24',amount:100,reason:'前回預かり'}];
+ const shared={state:s,revision:0};await backend(context,shared);await login(page);
+ await page.locator('.round-list-item').click();await page.locator('.stage-4 > .stage-trigger').click();
+ await expect(page.locator('[data-buyer="nishio"] .collection-amount')).toContainText('590円');
+ await page.locator('[data-buyer="nishio"] .collection-open').click();
+ await page.getByRole('button',{name:/預かり金を返金した場合/}).click();
+ await expect(page.getByLabel('返金額')).toHaveValue('100');
+ expect(shared.state.collectionEntries).toHaveLength(0);
+ await page.getByRole('button',{name:'返金を保存'}).click();
+ expect(shared.state.collectionEntries).toHaveLength(1);
+ expect(shared.state.collectionEntries[0].received).toBe(-100);
+ expect(collectionPosition(shared.state,r.id,'nishio').balance).toBe(690);
+ await expect(page.locator('[data-buyer="nishio"] .collection-amount')).toContainText('690円');
+});
