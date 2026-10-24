@@ -221,7 +221,7 @@ function Round({ round: r, initialTab = null, back }) {
       </p>
       <details className="round-activity"><summary>最近の操作{recent?.length?`（${recent.length}件）`:''}</summary>
         {recent===null?<small>読み込み中…</small>:recent.length?recent.map(x=><div className="round-activity-row" key={x.revision}>
-          <span>{x.description}<small>{new Date(x.updated_at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})} ／ ログイン：{x.actor_account}</small></span>
+          <span>{x.description}<small>{new Date(x.updated_at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})} ／ {x.actor_account?`ログイン：${x.actor_account}`:'管理上の記録'}</small></span>
         </div>):<small>この注文回の保存履歴はありません。</small>}
       </details>
       {r.note && <details className="round-note"><summary>この注文回のメモ</summary><p>{r.note}</p></details>}
