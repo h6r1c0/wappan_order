@@ -23,7 +23,8 @@ export function registerAccountingTests(browserName){
   shared.state.collectionCredits=[{id:'credit100',roundId:r.id,buyerId:'nishio',date:'2026-07-24',amount:100,reason:'前回預かり'}];
   await openCollections(page,context,shared);
   const sasaki=page.locator('[data-buyer="sasaki"]');await expect(sasaki.locator('.collection-amount')).toHaveText('1,070円');await expect(sasaki).toContainText('前回未収 50円を含む');
-  await sasaki.getByRole('button',{name:'全額受取'}).click();expect(shared.state.collectionEntries.at(-1).received).toBe(1070);expect(collectionPosition(shared.state,r.id,'sasaki').balance).toBe(0);
+  await sasaki.getByRole('button',{name:'今回分受取'}).click();expect(shared.state.collectionEntries.at(-1).received).toBe(1020);
+  await sasaki.getByRole('button',{name:'未収分受取'}).click();expect(shared.state.collectionEntries.at(-1).received).toBe(50);expect(collectionPosition(shared.state,r.id,'sasaki').balance).toBe(0);
   await expect(sasaki.getByRole('button',{name:'全額受取'})).toHaveCount(0);
   const nishio=page.locator('[data-buyer="nishio"]');await expect(nishio.locator('.collection-amount')).toHaveText('590円');await nishio.getByRole('button',{name:'全額受取'}).click();expect(shared.state.collectionEntries.at(-1).received).toBe(590);expect(collectionPosition(shared.state,r.id,'nishio').balance).toBe(0);
   const hori=page.locator('[data-buyer="hori"]');await expect(hori.getByRole('button',{name:'全額受取'})).toHaveCount(0);await expect(hori.locator('.collection-overview')).toContainText('2,510円');await expect(hori).toContainText('案内済み 2,130円');

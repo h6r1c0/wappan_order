@@ -361,7 +361,7 @@ test('請求漏れ・過去未収を一度の内訳展開で確認し、対象�
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   }
   const yogo=page.locator('.collection-entry').filter({hasText:'余語'});
-  await yogo.getByRole('button',{name:'全額受取'}).click();
+  await yogo.getByRole('button',{name:'未収分受取'}).click();
   expect(collections(shared.state,'','',oct.id).length).toBe(0);
   await expect.poll(()=>shared.state.collectionEntries.at(-1)?.received).toBe(1670);
 });

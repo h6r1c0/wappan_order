@@ -51,7 +51,7 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
       <button type="button" className="collection-open" aria-expanded={isOpen} aria-label={`${buyer.name}、${entryStatus} ${priceUnknown?'':yen(entryAmount)}。請求・受取の詳細を${isOpen?'閉じる':'開く'}`} onClick={()=>{if(isOpen)onDone(buyer.id,false);else onOpen(buyer.id);}}>
         <strong className="collection-buyer-name">{buyer.name}</strong><span className="collection-amount">{position.balance<=0&&!priceUnknown&&<small>{entryStatus}</small>}<strong>{priceUnknown?'金額未確定':yen(entryAmount)}</strong></span><span className="collection-chevron" aria-hidden="true">{isOpen?'⌄':'›'}</span>
       </button>
-      {singleQuick&&<Button className="collection-pay" disabled={busy} onClick={async()=>{if(await act(s=>receiveDueItem(s,round.id,buyer.id,dueOptions[0].id),'請求分を受取'))afterSave();}}>{dueOptions[0].roundId===round.id?'今回分受取':'未収分受取'}</Button>}
+      {singleQuick&&<Button className="collection-pay" disabled={busy} onClick={async()=>{if(await act(s=>receiveDueItem(s,round.id,buyer.id,dueOptions[0].id),'請求分を受取'))afterSave();}}>{dueOptions[0].roundId===round.id?'全額受取':'未収分受取'}</Button>}
       {separateQuick&&<><Button className="collection-pay" disabled={busy} onClick={async()=>{if(await act(s=>receiveDueItem(s,round.id,buyer.id,currentDue[0].id),'今回分を受取'))afterSave();}}>今回分受取</Button><Button className="collection-pay" disabled={busy} onClick={async()=>{if(await act(s=>receiveDueItem(s,round.id,buyer.id,pastDue[0].id),'未収分を受取'))afterSave();}}>未収分受取</Button></>}
     </div>
     {!isOpen&&context&&<small className={`collection-context ${pending||audit?.issues.length?'needs-check':''}`}>{context}</small>}
