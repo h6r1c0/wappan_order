@@ -2,7 +2,7 @@ import React,{useState,useRef,useEffect} from 'react';
 import {collectionPosition,collectionDueItems,today,uid,yen,collections} from './domain';
 import {useApp,Button,Field,Money,Qty,copyText,buyerCompare} from './ui';
 import {productDisplayName} from './product-names.js';
-import {billingAudit,chargeLines,collectionReasons,correctionReasons,confirmBilling,confirmLinePrice,flagMissingCharge,saveCollectionCase,receiveCollection,receiveFullCollection,correctCollectionRecord,recordCollectionAllocation,adjustReceivable} from './collection-workflow.js';
+import {billingAudit,chargeLines,collectionReasons,correctionReasons,confirmBilling,confirmLinePrice,flagMissingCharge,saveCollectionCase,receiveCollection,receiveDueItem,correctCollectionRecord,recordCollectionAllocation,adjustReceivable} from './collection-workflow.js';
 import {openPrintPreview} from './print-preview.js';
 
 function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,onSource}){
@@ -27,7 +27,12 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
   const knownDestination=knownClaim?.notifiedAmount===received?due.items.filter(x=>x.kind==='round'&&x.roundId===round.id&&x.balance===received):[];
   const receiptTarget=target||((knownDestination.length===1&&knownClaim?.amount===position.current-received)?knownDestination[0].id:'');
   const missingPast=reason===collectionReasons[0]&&delta>0?delta:reason===collectionReasons[1]&&delta<0?-delta:0;
-  const quick=position.balance>0&&position.received===0&&!position.unallocated&&!pending&&!audit?.issues.length&&!(audit?.knownBag!=null&&audit.knownBag!==audit.expected)&&!(state.collectionEntries||[]).some(x=>x.roundId===round.id&&x.buyerId===buyer.id);
+  const dueOptions=due.items.filter(x=>x.balance>0);
+  const knownQuick=position.balance>0&&!position.unallocated&&!pending&&!audit?.issues.length&&dueOptions.length>0;
+  const currentDue=dueOptions.filter(x=>x.roundId===round.id);
+  const pastDue=dueOptions.filter(x=>x.roundId!==round.id);
+  const singleQuick=knownQuick&&dueOptions.length===1&&!(position.received===0&&audit?.knownBag!=null&&audit.knownBag!==audit.expected);
+  const separateQuick=knownQuick&&currentDue.length===1&&pastDue.length===1;
   const act=async(fn,description)=>{if(busy)return false;setBusy(true);try{return await save(fn,description);}finally{setBusy(false);}};
   const afterSave=()=>{setReceived(null);setReason('');setOpen(false);setInvestigate(false);request.current=uid();onDone(buyer.id);};
   const chooseLine=key=>{setLineKey(key);setQty(1);const l=lines.find(x=>x.key===key);setUnitPrice(l?.unitPrice??l?.candidate??null);};
@@ -46,7 +51,8 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
       <button type="button" className="collection-open" aria-expanded={isOpen} aria-label={`${buyer.name}、${entryStatus} ${priceUnknown?'':yen(entryAmount)}。請求・受取の詳細を${isOpen?'閉じる':'開く'}`} onClick={()=>{if(isOpen)onDone(buyer.id,false);else onOpen(buyer.id);}}>
         <strong className="collection-buyer-name">{buyer.name}</strong><span className="collection-amount">{position.balance<=0&&!priceUnknown&&<small>{entryStatus}</small>}<strong>{priceUnknown?'金額未確定':yen(entryAmount)}</strong></span><span className="collection-chevron" aria-hidden="true">{isOpen?'⌄':'›'}</span>
       </button>
-      {quick&&<Button className="collection-pay" disabled={busy} onClick={async()=>{if(await act(s=>receiveFullCollection(s,round.id,buyer.id),'請求どおり全額受取'))afterSave();}}>全額受取</Button>}
+      {singleQuick&&<Button className="collection-pay" disabled={busy} onClick={async()=>{if(await act(s=>receiveDueItem(s,round.id,buyer.id,dueOptions[0].id),'請求分を受取'))afterSave();}}>{dueOptions[0].roundId===round.id?'今回分受取':'未収分受取'}</Button>}
+      {separateQuick&&<><Button className="collection-pay" disabled={busy} onClick={async()=>{if(await act(s=>receiveDueItem(s,round.id,buyer.id,currentDue[0].id),'今回分を受取'))afterSave();}}>今回分受取</Button><Button className="collection-pay" disabled={busy} onClick={async()=>{if(await act(s=>receiveDueItem(s,round.id,buyer.id,pastDue[0].id),'未収分を受取'))afterSave();}}>未収分受取</Button></>}
     </div>
     {!isOpen&&context&&<small className={`collection-context ${pending||audit?.issues.length?'needs-check':''}`}>{context}</small>}
     {isOpen&&knownClaim&&<p className="collection-alert">{knownClaim.note}：{yen(knownClaim.amount)}<small>今回の請求に含まれています。案内済み {yen(knownClaim.notifiedAmount)}{position.received?` ／ 実際受取 ${yen(position.received)}`:' ／ 現金は未受取'}。</small></p>}

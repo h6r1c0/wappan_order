@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {initialState,newRound,report,collections,collectionPosition,collectionDueItems,validate} from '../src/domain.js';
-import {billingAudit,chargeLines,confirmBilling,confirmLinePrice,flagMissingCharge,receiveCollection,receiveFullCollection,saveCollectionCase,correctCollectionRecord,recordCollectionAllocation} from '../src/collection-workflow.js';
+import {initialState,newRound,report,collections,collectionPosition,collectionDueItems,orderDraft,productTotals,unpricedOrderLines,validate} from '../src/domain.js';
+import {billingAudit,chargeLines,confirmBilling,confirmLinePrice,flagMissingCharge,receiveCollection,receiveFullCollection,receiveDueItem,saveCollectionCase,correctCollectionRecord,recordCollectionAllocation} from '../src/collection-workflow.js';
 import {reassignSale} from '../src/sale-reassignment.js';
 import {setSalesOrderQuantities,upgrade} from '../src/commerce.js';
 import {addSale} from '../src/domain.js';
@@ -124,6 +124,27 @@ test('通常の全額受取は過去不足・預かりを含む集金予定額�
  assert.equal(receiveFullCollection(credit,round.id,'hori').received,590);assert.equal(collectionPosition(credit,round.id,'hori').balance,0);
  const {s:past,r:later}=setup();later.orders={};past.receivableItems=[{id:'opening',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:1670,reason:'未受取',note:'7月分'}];
  assert.equal(receiveFullCollection(past,later.id,'hori').received,1670);assert.equal(collectionPosition(past,later.id,'hori').balance,0);
+});
+test('請求を選ぶと金額と充当先を同時保存し、今回・過去を別々に回収できる',()=>{
+ const {s,r}=setup();r.products[0].price=1650;r.orders.hori.quantities={base:1};
+ s.receivableItems.push({id:'july',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:1670,reason:'未受取',note:'7月'});
+ const now=`round:${r.id}:hori`;
+ const first=receiveDueItem(s,r.id,'hori',now);assert.equal(first.received,1650);assert.equal(first.itemId,now);
+ assert.equal(collectionPosition(s,r.id,'hori').balance,1670);assert.throws(()=>receiveDueItem(s,r.id,'hori',now));
+ const second=receiveDueItem(s,r.id,'hori','july');assert.equal(second.received,1670);assert.equal(collectionPosition(s,r.id,'hori').balance,0);
+ const {s:past,r:empty}=setup();empty.orders={};past.receivableItems=[{id:'old',kind:'opening',buyerId:'hori',date:'2026-07-24',amount:50,reason:'未受取',note:'7月'}];
+ assert.equal(receiveDueItem(past,empty.id,'hori','old').received,50);
+});
+test('単価未確定でも固定注文の2点は数量として残り、請求照合で止まる',()=>{
+ const s=initialState(),r=newRound(s,'2026-09-11');s.rounds.push(r);
+ const draft=orderDraft(s,r,s.buyers.find(x=>x.id==='hori'));
+ assert.equal(draft.quantities.donut,2);
+ r.orders.hori=draft;
+ assert.equal(productTotals(r).find(x=>x.id==='donut')?.qty,2);
+ assert.equal(unpricedOrderLines(r,draft).find(x=>x.productId==='donut')?.qty,2);
+ assert.ok(billingAudit(s,r.id).issues.some(x=>x.type==='price'&&x.qty===2));
+ assert.throws(()=>receiveFullCollection(s,r.id,'hori'));
+ assert.equal(s.collectionEntries.length,0);
 });
 test('過去形式の受取記録に調整額がなくても一部未収と次回繰越を保持する',()=>{
  const {s,r}=setup();r.products[0].price=190;r.orders.hori.quantities={base:2};

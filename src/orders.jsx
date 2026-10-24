@@ -270,7 +270,7 @@ function Round({ round: r, initialTab = null, back }) {
               />
               <div className="sticky-action">
                 <span>
-                  {unpricedOrderLines(r,draft).length?'確定済み金額':'合計'} <strong>{yen(orderAmount({...r,products:r.products.map(p=>({...p,cutFee:cutFees[p.id]}))}, draft))}</strong>
+                  {unpricedOrderLines(r,draft).length?'判明分の小計（請求未確定）':'合計'} <strong>{yen(orderAmount({...r,products:r.products.map(p=>({...p,cutFee:cutFees[p.id]}))}, draft))}</strong>
                 </span>
                 <Button
                   disabled={r.products.some(p => draft.cutQuantities?.[p.id] > 0 && cutFees[p.id] == null)}
@@ -324,7 +324,7 @@ function Round({ round: r, initialTab = null, back }) {
       </div>}
       {tab === "集金" && (
         <>
-          <div className="collection-total"><span>{rows.some(x=>x.unpriced.length)?'確定済み金額（価格未確認あり）':'今回の請求合計'}</span>
+          <div className="collection-total"><span>{rows.some(x=>x.unpriced.length)?'判明分の小計・請求未確定':'今回の請求合計'}</span>
             <strong>{yen(rows.reduce((a, b) => a + b.total, 0))}</strong></div>
           <RoundCollections round={r} rows={rows} sessions={collectionSessions} initialFocus={collectionReturn}
             onDraft={(id,draft)=>setCollectionSessions(s=>({...s,[id]:draft}))}
@@ -386,16 +386,6 @@ function Round({ round: r, initialTab = null, back }) {
           >
             商品名・数量をコピー ›
           </button>
-          {r.planned && r.products.some((p) => (productTotals(r, r.planned).find((x) => x.id === p.id)?.qty||0)!==(productTotals(r).find((x) => x.id === p.id)?.qty||0)) && (
-            <details>
-              <summary>発注確定時との数量差</summary>
-              {productTotals(r, r.planned).map((p) => (
-                <p key={p.id}>
-                  {p.name}：{p.qty}
-                </p>
-              ))}
-            </details>
-          )}
           {r.status === "入力中" && (
             <Button
               onClick={() =>
@@ -432,16 +422,17 @@ function Round({ round: r, initialTab = null, back }) {
           </details>
           {r.planned && r.products.some((p) => (productTotals(r, r.planned).find((x) => x.id === p.id)?.qty||0)!==(productTotals(r).find((x) => x.id === p.id)?.qty||0)) && (
             <details>
-              <summary>注文確定後に数量が変わった商品を確認</summary>
-              <small>数量変更の内容です。欠品による実渡し数は「欠品確認」で確認してください。</small>
+              <summary>発注記録と現在の数量を照合</summary>
+              <small>発注時の記録に商品がない場合は、追加注文と断定できません。欠品による実渡し数は欠品確認で扱います。</small>
               {r.products.map((p) => {
                 const before =
                     productTotals(r, r.planned).find((x) => x.id === p.id)
                       ?.qty || 0,
                   after = productTotals(r).find((x) => x.id === p.id)?.qty || 0;
-                return before === after ? null : (
+                  const recorded=Object.values(r.planned).some(o=>Object.hasOwn(o.quantities||{},p.id));
+                  return before === after ? null : (
                   <p key={p.id}>
-                    {p.name}：{before} → {after}
+                    {p.name}：{recorded?`${before}個`:'発注時の記録なし'} → 現在 {after}個
                   </p>
                 );
               })}

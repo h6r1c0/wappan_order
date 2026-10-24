@@ -155,6 +155,19 @@ export function receiveFullCollection(state,roundId,buyerId){
   return receiveCollection(state,{roundId,buyerId,received:position.balance,requestId:`full:${roundId}:${buyerId}`});
 }
 
+// The chosen unpaid claim supplies both the cash amount and its destination.
+export function receiveDueItem(state,roundId,buyerId,itemId){
+  const due=collectionDueItems(state,roundId,buyerId).items.find(x=>x.id===itemId&&x.balance>0);
+  if(!due)throw Error('対象の未収を確認してください');
+  const audit=billingAudit(state,roundId).buyers.find(x=>x.buyerId===buyerId);
+  if(audit?.issues.some(x=>x.type==='price'||x.type==='missing-product'))throw Error('請求単価を先に確認してください');
+  const position=collectionPosition(state,roundId,buyerId);
+  if(position.unallocated)throw Error('保存済みの受取の充当先を先に確認してください');
+  return receiveCollection(state,{roundId,buyerId,received:due.balance,
+    reason:due.balance===position.balance?'':'一部しか受け取っていない',itemId,
+    requestId:`claim:${roundId}:${buyerId}:${itemId}`});
+}
+
 export function adjustReceivable(state,{roundId,buyerId,amount,reason}){
  integer(amount,'債権調整額',true);
  if(!amount||!['回収しないことが確定した未収','以前の債権調整を戻す'].includes(reason))throw Error('債権調整の理由を選んでください');

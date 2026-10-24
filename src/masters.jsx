@@ -479,7 +479,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                     if (target === "new") {
                       const round = newRound(s, delivery, testRound);
                       round.id = targetId;
-                      round.products = faxProducts(s.products).filter(p => productAvailable(p, delivery, targetId) && price(p) != null).map(snapshot);
+                      round.products = faxProducts(s.products).filter(p => productAvailable(p, delivery, targetId)).map(p => snapshot(p,{snackOnly:true}));
                       s.rounds.push(round);
                     }
                     if (importedMonth) {
