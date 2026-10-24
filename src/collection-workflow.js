@@ -149,7 +149,7 @@ export function receiveCollection(state,{roundId,buyerId,received,reason='',past
   if(reason==='多く受け取ったので次回へ預かる'&&received<position.balance)throw Error('受取額は残高より少ないため、未収が残ります');
   if(reason==='前回の不足分をまとめて受け取った'&&received>position.balance)throw Error('不足分を確認してください');
   if(reason==='前回の預かり金を今回使った'&&received<position.balance)throw Error('預かり金を確認してください');
-  if(received<0&&-received>collectionDueItems(state,roundId,buyerId).credit)throw Error('返金できる預かり残高を超えています');
+  if(received<0&&-received>position.availableCredit)throw Error('返金できる預かり残高を超えています');
   if(itemId){const item=collectionDueItems(state,roundId,buyerId).items.find(x=>x.id===itemId);if(!item||received<0||received>item.balance)throw Error('対象の未収と受取額を確認してください');}
   state.collectionEntries??=[];
   const entry={id:uid(),roundId,buyerId,date:today(),received,adjustment:0,note:reason||'全額受取',reason:reason||'全額受取',requestId:requestId||uid(),...(itemId?{itemId}:{})};

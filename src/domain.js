@@ -575,8 +575,15 @@ export function collectionPosition(s, roundId, buyerId) {
   const carry = billedBefore + opening - receivedBefore - reconciled - credits;
   const confirmedHistorical=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&x.roundId===roundId).map(x=>x.amount));
   const dueState=collectionDueItems(s,roundId,buyerId);
+  // Older credits implicitly reduced the invoice. A refund reverses that use;
+  // a newly targeted credit is already committed and cannot be refunded too.
+  const legacyCredit=sum((s.collectionCredits||[]).filter(x=>x.buyerId===buyerId&&!x.appliedTo&&
+    (x.roundId===roundId||earlier.some(r=>r.id===x.roundId))&&x.date<=round.date).map(x=>x.amount));
+  const refunded=sum((s.collectionEntries||[]).filter(x=>x.buyerId===buyerId&&x.received<0&&
+    (x.roundId===roundId||earlier.some(r=>r.id===x.roundId))).map(x=>-x.received));
+  const refundableCredit=Math.max(dueState.credit,legacyCredit-refunded);
   return { carry, current, received, adjusted, confirmedHistorical, balance: carry + current - received - adjusted - confirmedHistorical,
-    credits, availableCredit:dueState.credit, entries, unallocated:dueState.unallocated, due:dueState.items.filter(x=>x.balance>0) };
+    credits, availableCredit:refundableCredit, entries, unallocated:dueState.unallocated, due:dueState.items.filter(x=>x.balance>0) };
 }
 export function report(s, from, to, year, {includeTest=false} = {}) {
   const inRange = (d) => from <= d && d <= to;
