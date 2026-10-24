@@ -118,6 +118,7 @@ test('集金は工程色と行密度を保ち、既存受取の充当先を分�
 
 test('預かり金の返金は候補を選ぶだけでは受取を作らず、保存後に請求残額へ戻る',async({page,context})=>{
  const s=initialState(),r=newRound(s,'2026-09-11',true);s.rounds.push(r);r.status='納品済み';r.collectionLive=true;
+ s.buyers=[{id:'nishio',name:'西尾',kana:'にしお',active:true,fixed:[]}];
  r.products=[{id:'p',name:'パン',price:690,cost:400}];r.orders.nishio={name:'西尾',quantities:{p:1}};
  s.collectionCredits=[{id:'credit100',roundId:r.id,buyerId:'nishio',date:'2026-07-24',amount:100,reason:'前回預かり'}];
  const shared={state:s,revision:0};await backend(context,shared);await login(page);
