@@ -11,7 +11,7 @@ test('集金一覧は通常の12人を少ないスクロールで探せ、受取
  for(const b of s.buyers)r.orders[b.id]={name:b.name,quantities:{bread:1}};
  const shared={state:s,revision:0};await backend(context,shared);await login(page);
  await page.locator('.round-list-item').click();await page.locator('.stage-4 > .stage-trigger').click();
- expect(await page.locator('.stage-2').evaluate(x=>getComputedStyle(x).getPropertyValue('--work-accent').trim())).toBe('#327052');
+ expect(await page.locator('.stage-2').evaluate(x=>getComputedStyle(x).getPropertyValue('--work-accent').trim())).toBe('#285f96');
  const rows=page.locator('.collection-list > .collection-entry');await expect(rows).toHaveCount(12);
  const output=[];
  for(const width of [320,375,430,1280]){
@@ -35,6 +35,36 @@ test('集金一覧は通常の12人を少ないスクロールで探せ、受取
  await expect(rows).toHaveCount(0);await expect(page.locator('.collection-completed summary')).toContainText('12人');
  await page.reload();await page.locator('.round-list-item').click();await page.locator('.stage-4 > .stage-trigger').click();
  await expect(page.locator('[data-buyer="buyer-0"] button:has-text("全額受取")')).toHaveCount(0);
+});
+
+test('4工程の筆跡は原本PNGを使い、非選択時も工程色を維持する',async({page,context})=>{
+ const s=initialState(),r=newRound(s,'2026-10-16',true);s.rounds.push(r);
+ const shared={state:s,revision:0};await backend(context,shared);await login(page);
+ await page.locator('.round-list-item').click();
+ for(const width of [320,375,430,1280]){
+  await page.setViewportSize({width,height:812});
+  for(let n=1;n<=4;n++){
+   await page.locator(`.stage-${n} > .stage-trigger`).click();
+   const style=await page.locator(`.stage-${n} > .stage-trigger`).evaluate(el=>({image:getComputedStyle(el).backgroundImage,color:getComputedStyle(el).color}));
+   expect(style.image).toContain(`${['green','blue','orange','red'][n-1]}-light`);
+   expect(style.color).not.toBe('rgb(116, 102, 95)');
+  }
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ }
+ expect(shared.revision).toBe(0);
+});
+
+test('変更のない注文編集を開いても画面移動に未保存警告を出さない',async({page,context})=>{
+ const s=initialState(),r=newRound(s,'2026-10-16',true);s.rounds.push(r);
+ const shared={state:s,revision:0};await backend(context,shared);await login(page);
+ await page.locator('.round-list-item').click();await page.locator('.stage-1 > .stage-trigger').click();
+ await page.getByRole('button',{name:'個人注文',exact:true}).click();
+ await page.locator('.buyer-grid .buyer').first().click();
+ await expect(page.locator('.order-editor')).toHaveAttribute('data-unsaved','false');
+ const dialogs=[];page.on('dialog',async d=>{dialogs.push(d.message());await d.dismiss();});
+ await page.getByRole('button',{name:'集計',exact:true}).click();
+ expect(dialogs).toHaveLength(0);
+ expect(shared.revision).toBe(0);
 });
 
 test('未確定・保留・一部受取・0円・高額と長い名前を誤って完了扱いにしない',async({page,context})=>{

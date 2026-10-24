@@ -25,6 +25,19 @@ test('納品書総額を用途別原価より先に保存し、精算完了は�
   assert.equal(d.roundCost(s, r), 800);
   assert.equal(d.validate(s), s);
 });
+test('未使用のおやつ行と入荷0の販売用は原価未入力でも利益を妨げず、実入荷の原価は必要',()=>{
+  const {s,r}=setup();r.invoice=1200;r.status='納品済み';
+  const event={id:d.uid(),roundId:r.id,date:r.date,name:'おやつ用',test:false,lines:[{id:d.uid(),name:'注文なし',productId:'milk',qty:0,used:0,cost:null}]};
+  s.events.push(event);r.eventIds.push(event.id);
+  const stock={id:d.uid(),roundId:r.id,productId:'milk',name:'販売用',category:'パン',qty:2,receivedQty:0,cost:null,price:280,date:r.date,test:false};
+  s.stocks.push(stock);r.stockIds.push(stock.id);
+  assert.equal(d.eventCost(event),0);assert.equal(d.eventClaim(event),0);
+  assert.equal(d.roundCost(s,r),1200);
+  stock.receivedQty=1;assert.equal(d.roundCost(s,r),null);
+  stock.cost=0;assert.equal(d.roundCost(s,r),1200);
+  stock.cost=130;assert.equal(d.roundCost(s,r),1070);
+  assert.equal(d.validate(s),s);
+});
 test('集金の過不足・繰越・返金を販売利益とは別に記録する', () => {
   const { s, r } = setup();
   r.orders.hori = { name: 'ホリ', quantities: { brown: 1 } };

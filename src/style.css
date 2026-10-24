@@ -2444,3 +2444,34 @@ header small {
   .collection-print > summary { color:#5a474e; }
   .settings-nav button[aria-selected='true'] { border-bottom-color:#286b49; color:#225940; }
 }
+
+/* Reference pencil strokes: the eight embedded PNGs from wappan_pencil_final_review.html.
+   Use them for stage selection and a few primary actions, not every control. */
+@media screen {
+  :root { --paper:#fdfdfb; --milk:#fff; --ink:#30443b; }
+  body,main { background:#fdfdfb; }
+  .stage-1 { --work-accent:#246946; --work-tint:#ecf6ef; --pencil-light:url('./assets/pencil/green-light.png'); --pencil-deep:url('./assets/pencil/green-deep.png'); }
+  .stage-2 { --stage-color:#376a9a; --stage-surface:#edf4fb; --work-accent:#285f96; --work-tint:#edf4fb; --pencil-light:url('./assets/pencil/blue-light.png'); --pencil-deep:url('./assets/pencil/blue-deep.png'); }
+  .stage-3 { --work-accent:#965216; --work-tint:#fff3e6; --pencil-light:url('./assets/pencil/orange-light.png'); --pencil-deep:url('./assets/pencil/orange-deep.png'); }
+  .stage-4 { --work-accent:#a52f39; --work-tint:#fff0f0; --pencil-light:url('./assets/pencil/red-light.png'); --pencil-deep:url('./assets/pencil/red-deep.png'); }
+  .stage:not(.active) > .stage-trigger { color:var(--work-accent); }
+  .stage:not(.active) .stage-number { color:var(--work-accent); }
+  .stage.active > .stage-trigger {
+    background-color:var(--work-tint); background-image:var(--pencil-light);
+    background-size:100% 100%; background-repeat:no-repeat;
+    color:var(--work-accent); border-left-color:var(--work-accent);
+  }
+  .stage-content .sticky-action .button:not(.secondary):not(.danger),
+  .stage-content .invoice-input-row .button:not(.secondary):not(.danger) {
+    background-color:var(--work-accent); background-image:var(--pencil-deep);
+    background-size:100% 100%; border-color:transparent; color:white;
+  }
+  .stage-content .purpose.selected {
+    background-color:var(--work-tint); background-image:var(--pencil-light);
+    background-size:100% 100%; color:var(--work-accent);
+  }
+  .purpose-grid .purpose { justify-content:center; min-height:47px; }
+  .purpose-grid .purpose span { font-weight:650; }
+  .profit-issues { margin-top:8px; border-top:1px solid var(--line); padding-top:8px; }
+  .profit-issues p { margin:3px 0; font-size:.82rem; }
+}

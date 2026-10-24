@@ -85,7 +85,7 @@ function App() {
   useEffect(() => {
     const handler = (e) => {
       if (
-        document.querySelector('[role="dialog"], [data-unsaved="true"]') ||
+        document.querySelector('[data-unsaved="true"]') ||
         saving
       ) {
         e.preventDefault();
@@ -238,7 +238,7 @@ function App() {
                     onClick={() => {
                       if (
                         document.querySelector(
-                          '[role="dialog"], [data-unsaved="true"]',
+                          '[data-unsaved="true"]',
                         ) &&
                         !confirm(
                           "入力画面を閉じて移動しますか？未保存の内容は失われます。",

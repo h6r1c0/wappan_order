@@ -334,7 +334,7 @@ function SnackUsage({event:e,onTransfer}) {
  const {state,save}=useApp();
  const [used,setUsed]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.used])));
  const [costs,setCosts]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.cost])));
- const dirty=e.lines.some(l=>used[l.id]!==l.used||costs[l.id]!==l.cost||!l.usedConfirmed);
+ const dirty=e.lines.some(l=>used[l.id]!==l.used||costs[l.id]!==l.cost||used[l.id]>0&&!l.usedConfirmed);
  return <section className="snack-usage" data-unsaved={dirty}>
   <h3>{e.name}</h3>
   {e.lines.map(l=>{const moved=transferredQty(state,l.id),remaining=receivedQuantity(l)-(used[l.id]||0)-moved;
