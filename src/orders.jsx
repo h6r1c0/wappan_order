@@ -15,6 +15,7 @@ import {ExcelImport} from './masters';
 import {TaskIcon} from './task-icon';
 import {PrintPrep} from './print-prep.jsx';
 import {productDisplayName} from './product-names.js';
+import {estimatePrice} from './price-estimate.js';
 import {
   newRound,
   productAvailable,
@@ -69,8 +70,7 @@ export function Orders() {
     <Round key={r.id} round={r} initialTab={justCreated ? "個人注文" : openStage} back={() => {setId(null);setJustCreated(false);setOpenStage(null);}} />
   ) : (
     <>
-      <div className="home-start"><Button onClick={() => setCreating(true)}>注文回を作成</Button></div>
-      <h2 className="list-heading">進行中・過去の注文</h2>
+      <div className="round-list-heading"><h2 className="list-heading">進行中・過去の注文</h2><Button onClick={() => setCreating(true)}>注文回を作成</Button></div>
       {[...state.rounds]
         .sort((a, b) => b.date.localeCompare(a.date))
         .map((r) => {
@@ -100,7 +100,11 @@ export function Orders() {
               e.preventDefault();
               const existing=state.rounds.find(r=>r.date===date&&r.test===test);
               if(existing){setCreating(false);setJustCreated(false);setId(existing.id);return;}
-              const r = newRound(state, date, test);
+              const r = newRound(state, date, test, true);
+              for (const buyer of state.buyers) for (const fixed of buyer.fixed || []) {
+                if (fixed.qty > 0 && !r.products.some(p => p.id === fixed.productId))
+                  throw Error(`${buyer.name}の固定注文の商品がこの注文回にありません。商品管理で商品ID・利用期間を確認してください`);
+              }
               if (await save((s) => s.rounds.push(r), "注文回を作成")) {
                 setCreating(false);
                 setJustCreated(true);
@@ -643,11 +647,19 @@ function RoundProducts({ round: r, onClose }) {
       {items.map((p) => (
         <div className="card" key={p.id}>
           <strong>{p.name}</strong>
+          {p.price == null && p.referenceEstimate && <small>前回採用した価格：{yen(p.referenceEstimate.price)}。今回の仕入単価・販売単位を確認してください。</small>}
+          {p.price == null && (() => {const cost=p.cost ?? state.products.find(x=>x.id===p.id)?.cost;
+            const proposal=estimatePrice(state.products,cost);
+            return proposal ? <div className="price-suggestion"><span>販売価格の候補：<strong>{yen(proposal.price)}</strong>（税込推定 {yen(proposal.gross)}）</span>
+              <button type="button" className="text-action" onClick={()=>setItems(items.map(x=>x.id===p.id?{...x,price:proposal.price,priceSource:'estimate',priceEstimate:{...proposal,cost,adoptedAt:new Date().toISOString()}}:x))}>この価格を採用</button>
+              <details><summary>推定の根拠</summary>仕入単価 {yen(cost)}と既知の{proposal.count}商品から倍率 {proposal.multiplier.toFixed(3)}。別商品を除いて検証：販売価格一致 {proposal.exact}/{proposal.count}、税込平均誤差 {proposal.meanError.toFixed(1)}円。販売単位・税区分を確認してください。</details>
+            </div> : cost != null ? <small>仕入単価 {yen(cost)}。十分な価格比較ができません。販売価格を決めて入力してください。</small> : null;
+          })()}
           <Money
             label={`${p.name} 販売価格`}
             value={p.price}
             onChange={(price) =>
-              setItems(items.map((x) => (x.id === p.id ? { ...x, price } : x)))
+              setItems(items.map((x) => (x.id === p.id ? { ...x, price, priceSource:'manual' } : x)))
             }
           />
           <Button
@@ -690,6 +702,10 @@ function RoundProducts({ round: r, onClose }) {
         ))}
       <Button
         onClick={async () => {
+          if (items.some(p=>r.products.some(old=>old.id===p.id&&old.price!==p.price)) &&
+            (r.invoice || state.collectionEntries?.some(entry=>entry.roundId===r.id))) {
+            alert('請求・受取済みの価格は、この画面で変更できません。元の請求と受取を保持し、訂正履歴から差額を確認してください。');return;
+          }
           if (
             items.some((p) =>
               r.products.some((x) => x.id === p.id && x.price !== p.price),
@@ -704,6 +720,10 @@ function RoundProducts({ round: r, onClose }) {
             await save((s) => {
               const round = s.rounds.find((x) => x.id === r.id);
               round.products = faxProducts(items);
+              for(const p of items.filter(p=>p.priceSource==='estimate'&&p.priceEstimate)){
+                const master=s.products.find(x=>x.id===p.id);
+                if(master)master.lastEstimated={roundId:r.id,price:p.price,cost:p.priceEstimate.cost,at:p.priceEstimate.adoptedAt};
+              }
               for (const order of [
                 ...Object.values(round.orders),
                 ...Object.values(round.planned || {}),

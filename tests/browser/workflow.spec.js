@@ -212,8 +212,8 @@ test('業務順: 注文開始、個人・販売・おやつ、発注数とスマ
   await page.setViewportSize({width:375,height:812});
   await page.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();
   await page.getByRole('button',{name:'ホリ',exact:true}).click();
-  await expect(page.getByRole('button',{name:/ガレット 数量 2、直接入力する/})).toHaveCount(0);
-  await page.locator('.order-editor').getByRole('button',{name:'焼き菓子',exact:true}).click();
+  await expect(page.getByRole('button',{name:/ガレット 数量 2、直接入力する/})).toBeVisible();
+  await page.locator('.order-editor .product-add > summary').click();
   await expect(page.getByRole('button',{name:/ガレット 数量 2、直接入力する/})).toBeVisible();
   await page.locator('.order-editor').getByLabel('商品名を検索').fill('黒糖');
   await expect(page.getByRole('button',{name:/黒糖ブレッド 数量 0、直接入力する/})).toBeVisible();
@@ -222,7 +222,8 @@ test('業務順: 注文開始、個人・販売・おやつ、発注数とスマ
   await expect(page.locator('.personal-saved[open]')).toContainText('黒糖ブレッド');
   await expect(page.locator('.personal-saved[open]')).not.toContainText('くるみパン');
   await page.getByRole('button',{name:'販売用',exact:true}).click();
-  await expect(page.locator('.order-editor').getByRole('button',{name:'パン',exact:true})).toBeVisible();
+  await page.locator('.stage-1 .order-editor .product-add > summary').click();
+  await page.locator('.stage-1 .order-editor').getByRole('button',{name:/^パン/}).click();
   await page.getByRole('button',{name:'くるみパン 数量を増やす'}).click();
   await page.getByRole('button',{name:'保存',exact:true}).click();
   await expect(page.getByRole('region',{name:'今回の販売用注文'})).toContainText('くるみパン');
@@ -230,6 +231,8 @@ test('業務順: 注文開始、個人・販売・おやつ、発注数とスマ
   await expect(page.getByRole('region',{name:'今回の販売用注文'})).not.toContainText('黒糖ブレッド');
   await expect(page.locator('.stage-1 .order-editor .product-row')).toHaveCount(0);
   await page.getByRole('button',{name:'おやつ用',exact:true}).click();
+  await page.locator('.stage-1 .order-editor .product-add > summary').click();
+  await page.locator('.stage-1 .order-editor').getByRole('button',{name:/^パン/}).click();
   await page.getByRole('button',{name:'くるみパン 数量を増やす'}).click();
   await page.locator('.stage-1 .order-editor').getByRole('button',{name:'保存',exact:true}).click();
   await page.locator('.stage-2 > .stage-trigger').click();
@@ -454,7 +457,8 @@ test('スライスは独立商品で選び、販売用の個人注文数を参�
   await backend(context,shared); await login(page); await openRound(page);
   await page.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();
   await page.getByRole('button',{name:'ホリ',exact:true}).click();
-  await page.locator('.order-editor').getByRole('button',{name:'パン',exact:true}).click();
+  await page.locator('.order-editor .product-add > summary').click();
+  await page.locator('.order-editor').getByRole('button',{name:/^パン/}).click();
   await page.getByRole('button',{name:'湯種食パン 数量を増やす'}).click();
   await expect(page.getByLabel('カット',{exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'保存して次の購入者へ'}).click();
@@ -462,7 +466,9 @@ test('スライスは独立商品で選び、販売用の個人注文数を参�
   await page.getByRole('button',{name:'販売用',exact:true}).click();
   await page.getByLabel('個人注文数を表示').first().check();
   await expect(page.getByLabel('個人注文数を表示').last()).toBeChecked();
-  await expect(page.locator('.product-row').filter({hasText:'湯種食パン'})).toContainText('個人注文 1個');
+  await page.locator('.stage-1 .order-editor .product-add > summary').click();
+  await page.locator('.stage-1 .order-editor').getByRole('button',{name:/^パン/}).click();
+  await expect(page.locator('.product-row').filter({hasText:'湯種食パン'})).toContainText('個人注文 2個'); // 淺野の固定1個＋ホリの追加1個
   await page.getByRole('button',{name:'湯種食パン 数量を増やす'}).click();
   await page.getByRole('button',{name:'保存',exact:true}).click();
   await expect(page.getByRole('region',{name:'今回の販売用注文'})).not.toContainText('カット');
