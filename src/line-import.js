@@ -2,7 +2,7 @@ const norm=s=>String(s).normalize('NFKC').replace(/(\d+)個入り/g,'$1個').rep
 const pack=s=>String(s).normalize('NFKC').match(/(\d+)\s*個(?:入り)?/)?.[1]||'';
 export function candidates(raw,items,aliases={}){
  const key=norm(raw), alias=aliases[key];
- const compatible=p=>!pack(raw)||pack(p.sourceName||p.name)===pack(raw);
+ const compatible=p=>!pack(raw)||(pack(p.sourceName)||pack(p.name))===pack(raw);
  if(alias&&items.some(p=>p.id===alias&&compatible(p)))return items.filter(p=>p.id===alias);
  const exact=items.filter(p=>norm(p.name)===key&&compatible(p));if(exact.length)return exact;
  if(key.length<2)return [];

@@ -6,9 +6,10 @@ import {importDifference} from '../src/product-import-diff.js';
 
 test('1個入りを3個入りへ誤照合せず、確認済みだけ保存し未解決行を保持・再開する',()=>{
   const s=initialState(),r=newRound(s,'2026-10-16');s.rounds.push(r);
-  r.products.push({id:'three',name:'天然酵母ハイジの白パン 3個',price:350});
+  r.products.push({id:'three',name:'天然酵母ハイジの白パン 3個',sourceName:'天然酵母ハイジの白パン',price:350});
   let rows=parseBatchOrder('ホリ\n黒糖ブレッド 1\n天然酵母ハイジの白パン・1個入り 16',s,r);
   assert.equal(rows[1].productId,'');
+  assert.equal(parseBatchOrder('ホリ\n天然酵母ハイジの白パン・3個入り 1',s,r)[0].productId,'three');
   assert.equal(specialSaleReference(r,rows[1].productName),120);
   assert.equal(specialSaleReference({...r,date:'2026-11-01'},rows[1].productName),null);
   rows=rows.map(x=>({...x,held:!x.productId}));
