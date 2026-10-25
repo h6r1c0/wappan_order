@@ -386,8 +386,8 @@ test('10月初回のExcel準備と同月再利用、LINE候補、固定注文追
   await page.getByRole('button',{name:'注文内容を貼り付け ›'}).click();
   await page.getByLabel('LINE・注文文章').fill('ホリ\n黒糖ブレッド 1');
   await page.getByRole('button',{name:'取込内容を確認'}).click();
-  await expect(page.getByRole('dialog').getByRole('combobox',{name:'購入者'})).toHaveValue('hori');
-  await page.getByRole('button',{name:'確認した注文を保存'}).click();
+  await expect(page.getByRole('dialog').getByText('個人注文・堀')).toBeVisible();
+  await page.getByRole('button',{name:'確認した注文と保留を保存'}).click();
   await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
   await openRound(page,'2026-10-30');
   await expect(page.getByText('商品情報を更新')).toBeVisible();
@@ -403,6 +403,31 @@ test('10月初回のExcel準備と同月再利用、LINE候補、固定注文追
   await closeToast(page);
   await page.getByRole('button',{name:'購入者・固定注文を保存'}).click();
   expect(shared.state.buyers.find(b=>b.id==='hori').fixed).toHaveLength(3);
+});
+
+test('未登録の1個入りだけ保留し、再読込後に追加して注文へ反映',async({page,context})=>{
+  const shared={state:initialState(),revision:0};await backend(context,shared);await login(page);
+  await openRound(page,'2026-10-16');
+  await page.getByRole('button',{name:'注文内容を貼り付け ›'}).click();
+  await page.getByLabel('LINE・注文文章').fill('ホリ\n黒糖ブレッド 1\n天然酵母ハイジの白パン・1個入り 16');
+  await page.getByRole('button',{name:'取込内容を確認'}).click();
+  await expect(page.getByText('保留',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'確認した注文と保留を保存'}).click();
+  expect(shared.state.rounds[0].orders.hori.quantities.brown).toBe(1);
+  expect(shared.state.rounds[0].pendingImports).toHaveLength(1);
+  await page.reload();
+  await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
+  await page.getByRole('button',{name:/注文内容を貼り付け.*保留 1行/}).click();
+  await page.getByRole('button',{name:'保留行を確認'}).click();
+  await page.getByRole('button',{name:/天然酵母ハイジの白パン.*編集/}).click();
+  await page.getByRole('button',{name:'商品表にない販売単位を追加'}).click();
+  await page.getByLabel('今回の販売価格（分かる場合）').fill('120');
+  await page.getByRole('button',{name:'この注文回に商品を追加'}).click();
+  await page.getByRole('button',{name:'確認した注文と保留を保存'}).click();
+  expect(shared.state.rounds[0].pendingImports).toHaveLength(0);
+  const product=shared.state.products.find(p=>p.name==='天然酵母ハイジの白パン 1個');
+  expect(product?.manual).toBe(120);
+  expect(shared.state.rounds[0].orders.hori.quantities[product.id]).toBe(16);
 });
 
 test('販売先割当: 10個から外部6個、購入者から複数商品をまとめて確定', async ({page,context}) => {

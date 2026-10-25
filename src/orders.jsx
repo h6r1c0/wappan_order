@@ -273,7 +273,7 @@ function Round({ round: r, initialTab = null, back }) {
                   </button>
                 ))}
               </div></>}
-      {stage==='注文'&&<button type="button" className="text-action batch-import-entry" onClick={()=>setLineImport(true)}>注文内容を貼り付け ›</button>}
+      {stage==='注文'&&<button type="button" className="text-action batch-import-entry" onClick={()=>setLineImport(true)}>注文内容を貼り付け{r.pendingImports?.length?` ／ 保留 ${r.pendingImports.length}行`:''}</button>}
       {tab==='販売用'&&<>{returnStage === '発注' && <button type="button" className="text-action return-context" onClick={() => moveTo('発注')}>‹ 発注一覧へ戻る</button>}
         <Sales roundId={r.id} phase="order" onManageProducts={() => setProducts(true)}/>
         {returnStage === '発注' && <button type="button" className="text-action return-context" onClick={() => moveTo('発注')}>‹ 発注一覧へ戻る</button>}</>}
@@ -647,6 +647,9 @@ function RoundProducts({ round: r, onClose }) {
       {items.map((p) => (
         <div className="card" key={p.id}>
           <strong>{p.name}</strong>
+          {p.priceSource==='manual'&&p.price!=null&&(()=>{const cost=p.cost??state.products.find(x=>x.id===p.id)?.cost;const proposal=estimatePrice(state.products,cost);
+            return proposal?<details className="price-suggestion"><summary>今回の販売実績 {yen(p.price)} ／ 仕入からの参考推定 {yen(proposal.price)}</summary>仕入単価 {yen(cost)}。既知の{proposal.count}商品から税込約{yen(proposal.gross)}、販売 {yen(proposal.price)}。推定との差額があっても保存済みの販売価格は変更しません。</details>:null;
+          })()}
           {p.price == null && p.referenceEstimate && <small>前回採用した価格：{yen(p.referenceEstimate.price)}。今回の仕入単価・販売単位を確認してください。</small>}
           {p.price == null && (() => {const cost=p.cost ?? state.products.find(x=>x.id===p.id)?.cost;
             const proposal=estimatePrice(state.products,cost);

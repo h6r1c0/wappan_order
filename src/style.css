@@ -2567,8 +2567,19 @@ header small {
 .close-people>div,.close-issue {display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 2px;border-bottom:1px solid #e8e9e3;}
 .close-people strong {white-space:nowrap;}
 .batch-import-entry {margin:5px 0 9px;min-height:42px;}
-.batch-import-row {border-bottom:1px solid #e5e8e2;padding:8px 0;}
-.batch-import-fields {display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:6px;}
+.batch-import-group {margin:14px 0 3px;font-size:.93rem;}
+.batch-import-row {border-bottom:1px solid #e5e8e2;padding:3px 0;}
+.batch-import-line {display:flex;align-items:center;gap:7px;min-height:42px;}
+.batch-import-name {flex:1;min-width:0;overflow-wrap:anywhere;}
+.batch-import-qty {white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:700;}
+.batch-import-state {font-size:.76rem;color:#696b69;white-space:nowrap;}
+.batch-import-line .text-action {min-width:44px;min-height:42px;white-space:nowrap;}
+.batch-import-fields {display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:6px;padding:4px 0 8px;}
+.batch-import-original {grid-column:1/-1;overflow-wrap:anywhere;}
+.batch-import-quantity-input {max-width:6ch;}
+/* Progress is already expressed by the pencil label; a second rigid stripe adds no information. */
+.round-list-shell .round-list-item {border-left:0;padding-left:10px;}
+.round-list-item .tag,.delivery-heading~p .tag {border-radius:999px;cursor:default;}
 .batch-import-fields .field {min-width:0;}
 .home-start .button {background:#edf6ee url('./assets/pencil/green-light.png') center/100% 100% no-repeat!important;color:#245a3b!important;border:0!important;box-shadow:none;}
 .round-close-button,.stage-content .button:not(.secondary) {border-color:transparent;box-shadow:none;}

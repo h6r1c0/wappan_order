@@ -1,10 +1,12 @@
-const norm=s=>String(s).normalize('NFKC').replace(/[\s　]/g,'').toLowerCase();
+const norm=s=>String(s).normalize('NFKC').replace(/(\d+)個入り/g,'$1個').replace(/[\s　・･]/g,'').toLowerCase();
+const pack=s=>String(s).normalize('NFKC').match(/(\d+)\s*個(?:入り)?/)?.[1]||'';
 export function candidates(raw,items,aliases={}){
  const key=norm(raw), alias=aliases[key];
- if(alias&&items.some(p=>p.id===alias))return items.filter(p=>p.id===alias);
- const exact=items.filter(p=>norm(p.name)===key);if(exact.length)return exact;
+ const compatible=p=>!pack(raw)||pack(p.sourceName||p.name)===pack(raw);
+ if(alias&&items.some(p=>p.id===alias&&compatible(p)))return items.filter(p=>p.id===alias);
+ const exact=items.filter(p=>norm(p.name)===key&&compatible(p));if(exact.length)return exact;
  if(key.length<2)return [];
- return items.filter(p=>norm(p.name).includes(key));
+ return items.filter(p=>compatible(p)&&norm(p.name).includes(key));
 }
 export function destinationCandidate(raw,s){
  const text=String(raw||'').trim(),people=candidates(text,s.buyers||[],s.aliases?.buyers);
