@@ -2549,7 +2549,7 @@ header small {
 }
 .tag.tag-テスト::before,.tag.tag-繰越::before {content:"";position:absolute;inset:0;z-index:-1;background:url('./assets/pencil/blue-light.png') center/100% 100% no-repeat;filter:hue-rotate(66deg) saturate(1.1);}
 .tag.tag-繰越,.round-list-item .tag.tag-繰越 {color:#4c3218;}
-.tag.tag-繰越::before {background-image:url('./assets/pencil/orange-light.png');filter:hue-rotate(30deg) saturate(2.2) brightness(1.06);}
+.tag.tag-繰越::before {background-color:#ffe137;background-image:url('./assets/pencil/orange-light.png');background-blend-mode:multiply;filter:saturate(1.15);}
 .round-list-item.status-入力中 {border-left-color:#459969;}
 .round-list-item.status-注文確定 {border-left-color:#477fa8;}
 .round-list-item.status-納品済み {border-left-color:#c8873d;}
