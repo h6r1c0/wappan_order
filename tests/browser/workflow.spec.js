@@ -417,7 +417,7 @@ test('未登録の1個入りだけ保留し、再読込後に追加して注文�
   expect(shared.state.rounds[0].pendingImports).toHaveLength(1);
   await page.reload();
   await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
-  await page.getByRole('button',{name:/注文内容を貼り付け.*保留 1行/}).click();
+  await page.getByRole('button',{name:'保留中の注文 1行を確認'}).click();
   await page.getByRole('button',{name:'保留行を確認'}).click();
   await page.getByRole('button',{name:/天然酵母ハイジの白パン.*編集/}).click();
   await page.getByRole('button',{name:'商品表にない販売単位を追加'}).click();

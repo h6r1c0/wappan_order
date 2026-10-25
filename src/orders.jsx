@@ -232,6 +232,7 @@ function Round({ round: r, initialTab = null, back }) {
       <p>
         <Tag status={progress.status}>{progress.status}</Tag> {r.test && <Tag status="テスト">テスト・集計対象外</Tag>} {progress.carry&&<Tag status="繰越">未収繰越あり</Tag>}
       </p>
+      {!!r.pendingImports?.length&&<button type="button" className="text-action round-pending-entry" onClick={()=>setLineImport(true)}>保留中の注文 {r.pendingImports.length}行を確認</button>}
       <details className="round-activity"><summary>最近の操作{recent?.length?`（${recent.length}件）`:''}</summary>
         {recent===null?<small>読み込み中…</small>:recent.length?recent.map(x=><div className="round-activity-row" key={x.revision}>
           <span>{x.description}<small>{new Date(x.updated_at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})} ／ {x.actor_account?`ログイン：${x.actor_account}`:'管理上の記録'}</small></span>

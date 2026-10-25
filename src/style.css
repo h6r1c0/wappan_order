@@ -2577,6 +2577,7 @@ header small {
 .batch-import-fields {display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:6px;padding:4px 0 8px;}
 .batch-import-original {grid-column:1/-1;overflow-wrap:anywhere;}
 .batch-import-quantity-input {max-width:6ch;}
+.round-pending-entry {min-height:42px;margin:0 0 5px;color:#815125;text-align:left;}
 /* Progress is already expressed by the pencil label; a second rigid stripe adds no information. */
 .round-list-shell .round-list-item {border-left:0;padding-left:10px;}
 .round-list-item .tag,.delivery-heading~p .tag {border-radius:999px;cursor:default;}
