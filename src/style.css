@@ -2578,8 +2578,7 @@ header small {
 .batch-import-original {grid-column:1/-1;overflow-wrap:anywhere;}
 .batch-import-quantity-input {max-width:6ch;}
 .round-pending-entry {min-height:42px;margin:0 0 5px;color:#815125;text-align:left;}
-/* Progress is already expressed by the pencil label; a second rigid stripe adds no information. */
-.round-list-shell .round-list-item {border-left:0;padding-left:10px;}
+/* Keep the round's strong left mark: it conveys the same stage as the label. */
 .round-list-item .tag,.delivery-heading~p .tag {border-radius:999px;cursor:default;}
 .batch-import-fields .field {min-width:0;}
 .home-start .button {background:#edf6ee url('./assets/pencil/green-light.png') center/100% 100% no-repeat!important;color:#245a3b!important;border:0!important;box-shadow:none;}
@@ -2603,3 +2602,54 @@ header small {
 .product-category{margin:.35rem 0}
 .price-suggestion{display:grid;gap:.25rem;padding:.45rem 0}
 @media(max-width:375px){.round-list-heading{align-items:flex-start}.round-list-heading button{margin-top:.15rem}}
+
+@media screen {
+  .round-list-shell .round-list-item {position:relative;border-left:0;padding-left:16px;}
+  .round-list-item::before {content:"";position:absolute;left:0;top:4px;bottom:4px;width:7px;background:#26704a url('./assets/pencil/green-deep.png') center/100% 100% no-repeat;pointer-events:none;}
+  .round-list-item.status-注文確定::before {background-color:#285f96;background-image:url('./assets/pencil/blue-deep.png');}
+  .round-list-item.status-納品済み::before {background-color:#965216;background-image:url('./assets/pencil/orange-deep.png');}
+  .round-list-item.status-集金中::before {background-color:#a52f39;background-image:url('./assets/pencil/red-deep.png');}
+  .round-list-item.status-完了::before {background-color:#717d75;background-image:url('./assets/pencil/green-deep.png');filter:grayscale(1);}
+  .round-list-item .tag,.delivery-heading~p .tag,.tag {border-radius:999px!important;cursor:default;box-shadow:none;}
+  .stage-trigger {position:relative;font-family:ui-rounded,"Hiragino Maru Gothic ProN","BIZ UDPGothic","Yu Gothic",Meiryo,system-ui,sans-serif;}
+  .stage.active > .stage-trigger {border-left-color:transparent;box-shadow:none;}
+  .stage.active > .stage-trigger::before {content:"";position:absolute;left:0;top:3px;bottom:3px;width:5px;background:var(--work-accent) var(--pencil-deep) center/100% 100% no-repeat;pointer-events:none;}
+  .stage.active > .stage-trigger::after {content:"";position:absolute;left:7px;right:5px;bottom:0;height:2px;background:var(--pencil-light) center/100% 100% no-repeat;pointer-events:none;}
+  .stage-number {font-family:inherit;font-size:1.07rem;font-weight:750;width:29px;}
+  .stage-chevron,.chevron,.round-open {display:inline-block;font-family:ui-rounded,"Hiragino Maru Gothic ProN",system-ui,sans-serif;font-weight:700;transform:rotate(-5deg);}
+  .button:not(.secondary):not(.danger),.home-start .button {border-color:transparent;box-shadow:none;}
+  .text-action {text-decoration:none;background-image:linear-gradient(transparent,transparent);}
+  .text-action:where(:hover,:focus-visible),.round-list-menu summary {text-decoration:none;background:url('./assets/pencil/green-light.png') center bottom/100% 5px no-repeat;}
+  .batch-import-entry,.round-pending-entry,.round-list-menu summary {background:url('./assets/pencil/green-light.png') center bottom/100% 5px no-repeat;}
+  .shortage-unchecked {margin:2px 0 8px;font-size:.83rem;color:#80511e;}
+  .delivery-total-row {display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:0 6px;align-items:center;padding:3px 0;min-height:40px;}
+  .delivery-name {grid-column:1;grid-row:1;overflow-wrap:anywhere;}
+  .delivery-amount {grid-column:2;grid-row:1;}
+  .delivery-parts {grid-column:1;grid-row:2;min-width:0;white-space:normal;line-height:1.2;}
+  .fax-adjust {grid-column:3;grid-row:1/3;margin:0;}
+  .fax-adjust .text-action {min-height:40px;padding:3px 2px;font-size:.76rem;}
+  .fax-adjust.editing {grid-column:1/-1;grid-row:3;justify-content:flex-start;padding:3px 0;}
+  .stock-summary {padding:5px 0;}
+  .stock-summary-head {display:block;line-height:1.35;}
+  .stock-summary-head strong {display:block;font-size:.92rem;}
+  .stock-summary-head>span {display:block;color:#80511e;font-size:.77rem;white-space:normal;font-variant-numeric:tabular-nums;}
+  .stock-summary>small {margin:1px 0;line-height:1.35;}
+  .stock-summary .actions {margin:0;gap:10px;}
+  .stock-summary .text-action {min-height:38px;padding:3px 0;font-size:.8rem;}
+  .inline-assignment {padding:5px 8px 8px;background:#fffaf4;}
+  .inline-assignment .assignment-destination {padding:3px 0;margin:0;}
+  .inline-assignment .choice-grid {margin:4px 0;}
+  .inline-assignment .sales-confirm {display:flex;align-items:center;justify-content:space-between;margin:3px 0;padding:0;gap:8px;}
+  .inline-assignment .sales-confirm .button {width:auto;min-height:42px;margin:0;padding:5px 16px;}
+  .batch-held-summary {margin:6px 0;padding:5px 8px;color:#8b421f;background:#fff0e6;font-size:.84rem;overflow-wrap:anywhere;}
+  .batch-import-state.held {color:#8b321e;background:#fff0e6;border-radius:999px;padding:2px 5px;font-weight:700;}
+  .batch-import-fields {display:flex;flex-wrap:wrap;align-items:end;gap:4px 8px;padding:3px 0 7px;}
+  .batch-import-fields .field {flex:1 1 105px;margin:0;}
+  .batch-import-fields .field:has(select):nth-of-type(4) {flex:3 1 190px;}
+  .batch-import-fields .field:has(.batch-import-quantity-input) {flex:0 0 66px;}
+  .batch-import-quantity-input {width:64px;max-width:64px;min-height:40px;}
+  .batch-import-fields select {min-height:40px;}
+  .batch-import-original,.batch-import-special {flex:1 0 100%;}
+  .batch-import-special textarea {width:100%;min-height:62px;}
+  .batch-all-products {align-self:end;min-height:40px;font-size:.8rem;}
+}

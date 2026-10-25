@@ -1,4 +1,4 @@
-import {candidates,looksLikePersonalName} from './line-import.js';
+import {candidates,looksLikePersonalName,samePack} from './line-import.js';
 import {salesOrderQuantities,setSalesOrderQuantities,snackOrderQuantities,setSnackOrderQuantities} from './commerce.js';
 import {uid,snapshot} from './domain.js';
 import {productDisplayName,productImportIdentity} from './product-names.js';
@@ -33,7 +33,7 @@ export function parseBatchOrder(text,state,round){
     if((kind==='personal'||!kind)&&people.length===1&&(!/\d/.test(name)||/^\w+$/.test(name))){kind='personal';buyerId=people[0].id;continue;}
     const match=line.match(/^(.+?)\s*(?:[×x✕*]\s*)?(\d+)\s*(?:個|袋|本|点)?\s*$/);
     const productName=match?.[1]?.replace(/[×x✕*]\s*$/,'').trim()||line;
-    const options=candidates(productName,round.products,state.aliases?.products);
+    const options=candidates(/\d+\s*個\s*$/.test(line)&&!/\d+\s*個/.test(productName)?line:productName,round.products,state.aliases?.products);
     if((kind==='personal'||!kind)&&!match&&!options.length&&looksLikePersonalName(name)){
       kind='personal';buyerId='';
       rows.push({raw:line,productName:line,kind:'personal',buyerId:'',productId:'',qty:0,options:[],ignored:false});
@@ -58,7 +58,7 @@ export function applyBatchOrder(state,roundId,rows){
   for(const row of included){
     if(!['personal','sales','snack'].includes(row.kind)||
       row.kind==='personal'&&!state.buyers.some(b=>b.id===row.buyerId)||
-      !round.products.some(p=>p.id===row.productId)||
+      !round.products.some(p=>p.id===row.productId&&samePack(row.productName||row.raw,p)&&(!/\b1\s*個\s*$/.test(String(row.raw||'').normalize('NFKC'))||samePack(row.raw,p)))||
       !Number.isSafeInteger(row.qty)||row.qty<=0||row.qty>100000000)
       throw Error(`「${row.raw}」の区分・購入者・商品・数量を確認してください`);
     const key=`${row.kind}:${row.buyerId||''}:${row.productId}`;

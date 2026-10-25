@@ -16,6 +16,7 @@ export function Shortage({round:r}) {
   const latest=[...new Map((r.shortages||[]).map(x=>[x.productId,x])).values()];
   return <section className="shortage-check">
     <h3>欠品確認</h3>
+    {!r.shortageConfirmation&&<p role="status" className="shortage-unchecked">未確認：納品時に欠品の有無を確認してください。</p>}
     <div className="shortage-choice">
       {r.shortageConfirmation==='none'?<strong role="status">✓ 欠品なし確認済み</strong>:<Button secondary disabled={latest.length>0} onClick={async()=>{
         if(await save(s=>{const round=s.rounds.find(x=>x.id===r.id);round.shortageConfirmation='none';round.shortageReviewComplete=true;updateDeliveryStatus(round);},'欠品なしを確認'))setChoice('none');

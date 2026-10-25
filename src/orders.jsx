@@ -264,6 +264,7 @@ function Round({ round: r, initialTab = null, back }) {
         <summary>商品情報を更新</summary>
         <Button secondary onClick={() => setExcelImport(true)}>{monthLabel}の商品を更新</Button>
       </details>}
+              <button type="button" className="text-action batch-import-entry" onClick={()=>setLineImport(true)}>注文内容を貼り付け{r.pendingImports?.length?` ／ 保留 ${r.pendingImports.length}行`:''}</button>
               <div className="purpose-grid" role="group" aria-label="注文の用途を選ぶ">
                 {PURPOSES.map((label) => (
                   <button type="button" key={label} data-purpose={label}
@@ -274,7 +275,6 @@ function Round({ round: r, initialTab = null, back }) {
                   </button>
                 ))}
               </div></>}
-      {stage==='注文'&&<button type="button" className="text-action batch-import-entry" onClick={()=>setLineImport(true)}>注文内容を貼り付け{r.pendingImports?.length?` ／ 保留 ${r.pendingImports.length}行`:''}</button>}
       {tab==='販売用'&&<>{returnStage === '発注' && <button type="button" className="text-action return-context" onClick={() => moveTo('発注')}>‹ 発注一覧へ戻る</button>}
         <Sales roundId={r.id} phase="order" onManageProducts={() => setProducts(true)}/>
         {returnStage === '発注' && <button type="button" className="text-action return-context" onClick={() => moveTo('発注')}>‹ 発注一覧へ戻る</button>}</>}
@@ -402,11 +402,11 @@ function Round({ round: r, initialTab = null, back }) {
               <span className="delivery-name">{productDisplayName(p.name)}</span>
               <span className="delivery-parts">{[["個人",p.personal],["販売",p.sales],["おやつ",p.snack]].filter(([,n])=>n>0).map(([name,n])=>`${name}${n}`).join("｜")}</span>
               <strong className="delivery-amount">{p.qty}個</strong>
-              {r.status==='入力中' && <div className="fax-adjust">{adjustProduct===p.id ? <>
+              {r.status==='入力中' && <div className={`fax-adjust ${adjustProduct===p.id?'editing':''}`}>{adjustProduct===p.id ? <>
                 <Qty label={`${p.name} 販売用の最終調整`} value={adjustQty} min={salesCutQuantities(state,r.id)[p.id]||0} onChange={setAdjustQty}/>
                 <Button onClick={async()=>{if(await save(s=>setSalesOrderQuantities(s,r.id,{...salesOrderQuantities(s,r.id),[p.id]:adjustQty}),'発注前の販売用数量を調整'))setAdjustProduct(null);}}>保存</Button>
                 <button type="button" className="text-action" onClick={()=>setAdjustProduct(null)}>取消</button>
-              </> : <button type="button" className="text-action" onClick={()=>{setAdjustProduct(p.id);setAdjustQty(p.sales);}}>販売{p.sales}を調整 ›</button>}</div>}
+              </> : <button type="button" className="text-action" aria-label={`${p.name}の販売用数量を調整`} onClick={()=>{setAdjustProduct(p.id);setAdjustQty(p.sales);}}>調整</button>}</div>}
             </div>
           ))}
           {!productTotals(r).length && (

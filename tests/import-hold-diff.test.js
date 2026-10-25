@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {initialState,newRound,validate} from '../src/domain.js';
 import {parseBatchOrder,applyBatchOrder,addSpecialProduct,specialSaleReference} from '../src/batch-import.js';
 import {importDifference} from '../src/product-import-diff.js';
+import {relatedProducts,samePack} from '../src/line-import.js';
 
 test('1個入りを3個入りへ誤照合せず、確認済みだけ保存し未解決行を保持・再開する',()=>{
   const s=initialState(),r=newRound(s,'2026-10-16');s.rounds.push(r);
@@ -32,6 +33,29 @@ test('1個入りを3個入りへ誤照合せず、確認済みだけ保存し未
   assert.equal(r.orders.hori.quantities[id],16);
   assert.equal(r.pendingImports.length,0);
   assert.equal(r.orders.hori.quantities.three,undefined);
+});
+
+test('元の白パン表記で候補を絞り、包装違いは候補に見せても選択保存できない',()=>{
+  const s=initialState(),r=newRound(s,'2026-10-16');s.rounds.push(r);
+  r.products.push({id:'three',name:'天然酵母ハイジの白パン 3個',price:350});
+  r.products.push({id:'one',name:'天然酵母ハイジの白パン 1個',price:120});
+  const options=relatedProducts('天然酵母ハイジの白パン 1個',r.products);
+  assert.deepEqual(options.map(x=>x.id),['one','three']);
+  assert.equal(samePack('天然酵母ハイジの白パン 1個',r.products.find(x=>x.id==='three')),false);
+  assert.equal(relatedProducts('天然酵母ハイジの白パン 1個',r.products).some(x=>x.id==='brown'),false);
+  const row=parseBatchOrder('天然酵母ハイジの白パン 1個',s,{...r,products:r.products.filter(x=>x.id!=='one')})[0];
+  assert.equal(row.productId,'');
+  assert.throws(()=>applyBatchOrder(s,r.id,[{...row,kind:'sales',productId:'three',held:false}]),/確認してください/);
+  assert.equal(r.orders.hori,undefined);
+  assert.equal(r.pasteRows,undefined);
+});
+
+test('新規注文回は欠品未確認で始め、発注確定だけでは確認済みにしない',()=>{
+  const s=initialState(),r=newRound(s,'2026-10-16');s.rounds.push(r);
+  assert.equal(r.shortageConfirmation,undefined);
+  r.status='注文確定';r.planned=structuredClone(r.orders);
+  assert.equal(r.shortageConfirmation,undefined);
+  assert.equal(r.shortageReviewComplete,undefined);
 });
 
 test('価格差分は同規格の継続品と包装違いを区別する',()=>{
