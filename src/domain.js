@@ -110,6 +110,7 @@ export function snapshot(p, {snackOnly=false}={}) {
   const amount = price(p);
   if (amount == null && !snackOnly) throw Error(`${p.name}の販売価格を設定してください`);
   return { id: p.id, name: p.name, category: p.category, section:p.section || '', price: amount, priceSource:p.priceSource || (amount == null ? 'undecided' : p.mode === 'manual' ? 'manual':'sheet'), cost: p.cost ?? null,
+    ...(p.lastEstimated ? {referenceEstimate:p.lastEstimated} : {}),
     cutFee: p.cutFee ?? null,
     cutSupported: p.cutSupported ?? p.name.includes('食パン'),
     ...(p.faxOrder != null ? {faxOrder:p.faxOrder} : {}) };

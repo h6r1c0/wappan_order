@@ -647,6 +647,7 @@ function RoundProducts({ round: r, onClose }) {
       {items.map((p) => (
         <div className="card" key={p.id}>
           <strong>{p.name}</strong>
+          {p.price == null && p.referenceEstimate && <small>前回採用した価格：{yen(p.referenceEstimate.price)}。今回の仕入単価・販売単位を確認してください。</small>}
           {p.price == null && (() => {const cost=p.cost ?? state.products.find(x=>x.id===p.id)?.cost;
             const proposal=estimatePrice(state.products,cost);
             return proposal ? <div className="price-suggestion"><span>販売価格の候補：<strong>{yen(proposal.price)}</strong>（税込推定 {yen(proposal.gross)}）</span>
@@ -719,6 +720,10 @@ function RoundProducts({ round: r, onClose }) {
             await save((s) => {
               const round = s.rounds.find((x) => x.id === r.id);
               round.products = faxProducts(items);
+              for(const p of items.filter(p=>p.priceSource==='estimate'&&p.priceEstimate)){
+                const master=s.products.find(x=>x.id===p.id);
+                if(master)master.lastEstimated={roundId:r.id,price:p.price,cost:p.priceEstimate.cost,at:p.priceEstimate.adoptedAt};
+              }
               for (const order of [
                 ...Object.values(round.orders),
                 ...Object.values(round.planned || {}),

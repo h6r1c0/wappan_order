@@ -212,8 +212,8 @@ test('業務順: 注文開始、個人・販売・おやつ、発注数とスマ
   await page.setViewportSize({width:375,height:812});
   await page.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();
   await page.getByRole('button',{name:'ホリ',exact:true}).click();
-  await expect(page.getByRole('button',{name:/ガレット 数量 2、直接入力する/})).toBeVisible();
-  await page.locator('.order-editor .product-add > summary').click();
+  await expect(page.getByRole('button',{name:/ガレット 数量 2、直接入力する/})).toHaveCount(0);
+  await page.locator('.order-editor').getByRole('button',{name:'焼き菓子',exact:true}).click();
   await expect(page.getByRole('button',{name:/ガレット 数量 2、直接入力する/})).toBeVisible();
   await page.locator('.order-editor').getByLabel('商品名を検索').fill('黒糖');
   await expect(page.getByRole('button',{name:/黒糖ブレッド 数量 0、直接入力する/})).toBeVisible();
@@ -454,8 +454,7 @@ test('スライスは独立商品で選び、販売用の個人注文数を参�
   await backend(context,shared); await login(page); await openRound(page);
   await page.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();
   await page.getByRole('button',{name:'ホリ',exact:true}).click();
-  await page.locator('.order-editor .product-add > summary').click();
-  await page.locator('.order-editor').getByRole('button',{name:/^パン/}).click();
+  await page.locator('.order-editor').getByRole('button',{name:'パン',exact:true}).click();
   await page.getByRole('button',{name:'湯種食パン 数量を増やす'}).click();
   await expect(page.getByLabel('カット',{exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'保存して次の購入者へ'}).click();
