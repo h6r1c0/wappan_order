@@ -343,6 +343,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
           <button type="button" className="text-action" onClick={()=>setAllProducts(!allProducts)}>{allProducts?'変更のある商品だけ表示':'すべての商品を表示'}</button>
           <p>{Object.entries(lifecycleLabels).map(([key, label]) => `${label} ${rows.filter(r => r.include && r.lifecycle === key).length}件`).join(" ／ ")}</p>
           {fixedRound ? <p className="notice">取り込み先：<strong>{fixedRound.date.replaceAll("-", "/")} 着</strong>（この注文回へ自動で反映します）</p> : <Field label="商品を使う注文回（今回限りの商品は選択必須）"><select value={target} onChange={e => setTarget(e.target.value)}><option value="">商品マスターのみ登録</option><option value="new">新しい納品日で注文回も作る</option>{state.rounds.map(r => <option key={r.id} value={r.id}>{r.date}{r.test ? "（テスト）" : ""}</option>)}</select></Field>}
+          {!target&&!fixedRound&&<Field label="商品表の対象月" type="month" value={delivery.slice(0,7)} onChange={e=>setDelivery(`${e.target.value}-01`)}/>}
           {target === "new" && <><Field label="納品予定日" type="date" value={delivery} onChange={e => setDelivery(e.target.value)} /><Check label="テスト入力（年度実績へ含めない）" checked={testRound} onChange={setTestRound} /></>}
           {visible.map(({index:i,diff,...r}) => {
             const put = (k, v) =>
@@ -431,7 +432,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                 if (
                   await save((s) => {
                     const targetId = target === "new" ? uid() : target;
-                    const targetDate = target === "new" ? delivery : s.rounds.find(x => x.id === targetId)?.date || "";
+                    const targetDate = target === "new" ? delivery : s.rounds.find(x => x.id === targetId)?.date || delivery;
                     const importedMonth = monthKey(targetDate);
                     const names = new Set(),
                       ids = new Set();
