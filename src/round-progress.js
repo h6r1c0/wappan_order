@@ -1,5 +1,6 @@
 import {collectionDueItems, roundSettlementStatus, uid} from './domain.js';
 import {billingAudit} from './collection-workflow.js';
+import {snackBillingPreview} from './snack-billing.js';
 
 // The work status is a view of saved facts. Never create a second receivable
 // when a round is closed; the original invoice remains its source of truth.
@@ -36,6 +37,11 @@ export function roundCompletionIssues(state,round){
   for(const x of audit.issues)issues.push({message:`${x.name}：${x.message}`,stage:'集金',target:'buyer',buyerId:x.buyerId});
   if(audit.stocks.some(x=>x.unconfirmed>0))
     issues.push({message:'販売済み・購入者未確認の商品があります',stage:'納品・精算',target:'sales'});
+  for(const id of round.eventIds||[]){
+    const event=state.events.find(x=>x.id===id);
+    if(event?.billing&&!snackBillingPreview(state,event).complete)
+      issues.push({message:`${event.name}：おやつ・財政請求の対象数を確認してください`,stage:'納品・精算',target:'snack'});
+  }
   if((state.collectionCases||[]).some(x=>x.roundId===round.id&&x.status==='pending'))
     issues.push({message:'要確認として保留した集金があります',stage:'集金',target:'cases'});
   const corrected=new Set((state.collectionCorrections||[]).filter(x=>x.kind==='collectionEntries').map(x=>x.targetId));

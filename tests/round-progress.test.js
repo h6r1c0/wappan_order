@@ -52,3 +52,13 @@ test('旧保存値「精算済み」を変更せず集金中へ表示し、保�
  assert.equal(validate(s),s);
  assert.equal(r.status,'精算済み');
 });
+test('保存済みのおやつ請求に必要な対象数が未確定なら終了できない',()=>{
+ const {s,r}=fixture();
+ const event={id:'snack',roundId:r.id,date:r.date,name:'おやつ',test:false,
+  lines:[{id:'line',name:'パン',qty:1,used:1,cost:100}],
+  billing:{label:'おやつ',fiscal:[],household:[],groups:[]}};
+ s.events.push(event);r.eventIds.push(event.id);
+ assert.equal(roundProgress(s,r).status,'集金中');
+ assert.match(roundProgress(s,r).issues[0].message,/おやつ・財政請求/);
+ assert.throws(()=>closeRoundWithCarry(s,r.id),/おやつ・財政請求/);
+});

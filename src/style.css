@@ -2572,3 +2572,14 @@ header small {
 .batch-import-fields .field {min-width:0;}
 .home-start .button {background:#edf6ee url('./assets/pencil/green-light.png') center/100% 100% no-repeat!important;color:#245a3b!important;border:0!important;box-shadow:none;}
 .round-close-button,.stage-content .button:not(.secondary) {border-color:transparent;box-shadow:none;}
+.stage-content .purpose-grid .purpose,
+.stage-content .purpose-grid .purpose:nth-child(2),
+.stage-content .purpose-grid .purpose:nth-child(3) {
+  min-height:47px;border:0;border-radius:0;background:transparent;box-shadow:none;
+  color:#35483b;padding:6px 4px;
+}
+.stage-content .purpose-grid .purpose.selected {
+  background:var(--pencil-light) center/100% 100% no-repeat;
+  color:var(--work-accent);font-weight:700;
+}
+.stage-content .purpose-grid .purpose:focus-visible {outline:2px solid var(--work-accent);outline-offset:2px;}

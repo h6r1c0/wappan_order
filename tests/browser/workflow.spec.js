@@ -532,6 +532,7 @@ test('未収を残して今回分を終了しても元の請求と現金は変�
  await page.getByRole('dialog').getByRole('button',{name:'未収を残して今回分を終了'}).click();
  await expect(row.locator('.tag-完了')).toBeVisible();
  await expect(row.locator('.tag-繰越')).toHaveText('未収繰越あり');
+ await page.screenshot({path:'test-results/round-carry-375.png',fullPage:true});
  expect(shared.state.rounds[0].collectionClose).toBeTruthy();
  expect(shared.state.collectionEntries).toHaveLength(0);
  await page.reload();
