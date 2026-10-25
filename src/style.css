@@ -2566,7 +2566,7 @@ header small {
 .close-people {max-height:32vh;overflow:auto;margin:8px 0 14px;}
 .close-people>div,.close-issue {display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 2px;border-bottom:1px solid #e8e9e3;}
 .close-people strong {white-space:nowrap;}
-.batch-import-entry {margin:5px 0 9px;min-height:42px;}
+.batch-import-entry {display:block;margin:5px 0 9px;min-height:42px;}
 .batch-import-group {margin:14px 0 3px;font-size:.93rem;}
 .batch-import-row {border-bottom:1px solid #e5e8e2;padding:3px 0;}
 .batch-import-line {display:flex;align-items:center;gap:7px;min-height:42px;}
