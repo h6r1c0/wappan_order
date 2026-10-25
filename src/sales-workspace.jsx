@@ -11,7 +11,7 @@ function StockSummary({stock,onHistory,onSelect,children,expanded}){
     const name=s.destinationType==='buyer'?(state.buyers.find(b=>b.id===s.buyerId)?.name||s.buyerName):s.destinationName||'外部';
     names.set(name,(names.get(name)||0)+s.qty);
   }
-  return <div className="stock-summary" aria-label={`${stock.name}の割当状況`}><div className="stock-summary-head"><strong>{productDisplayName(stock.name)}</strong><span>販売用 {a.received} ／ 割当済み {a.assigned} ／ 未割当 {available(state,stock)}</span></div>
+  return <div className="stock-summary" aria-label={`${stock.name}の割当状況`}><div className="stock-summary-head"><strong>{productDisplayName(stock.name)}</strong><span>販売用 {a.received}個 ／ 割当済み {a.assigned}個 ／ 未割当 {available(state,stock)}個</span></div>
     {!!names.size&&<small>{[...names].map(([name,q])=>`${name} ${q}個`).join(' ／ ')}</small>}
     {(a.unconfirmed>0||a.remaining>0&&available(state,stock)===0)&&<small className="stock-facts">{a.unconfirmed>0&&`購入者未確認 ${a.unconfirmed}個`}{a.remaining>0&&available(state,stock)===0&&` ／ 販売待ち ${a.remaining}個`}</small>}
     <div className="actions">{available(state,stock)>0&&<button type="button" className="text-action" aria-expanded={expanded} onClick={onSelect}>{expanded?'割当入力を閉じる':'販売先・数量を入力'}</button>}

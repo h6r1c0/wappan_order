@@ -384,7 +384,7 @@ test('10月初回のExcel準備と同月再利用、LINE候補、固定注文追
   await page.getByRole('button',{name:'確認した商品を登録'}).click();
   await expect(page.getByText('商品情報を更新')).toBeVisible();
   await page.getByRole('button',{name:'注文内容を貼り付け'}).click();
-  await page.getByLabel('注文内容').fill('ホリ\n黒糖ブレッド 1');
+  await page.getByRole('textbox',{name:'注文内容',exact:true}).fill('ホリ\n黒糖ブレッド 1');
   await page.getByRole('button',{name:'取込内容を確認'}).click();
   await expect(page.getByRole('dialog').getByText('個人注文・ホリ')).toBeVisible();
   await page.getByRole('dialog').getByRole('button',{name:'保存',exact:true}).click();
@@ -409,7 +409,7 @@ test('未登録の1個入りだけ保留し、再読込後に追加して注文�
   const shared={state:initialState(),revision:0};await backend(context,shared);await login(page);
   await openRound(page,'2026-10-16');
   await page.getByRole('button',{name:'注文内容を貼り付け'}).click();
-  await page.getByLabel('注文内容').fill('ホリ\n黒糖ブレッド 1\n天然酵母ハイジの白パン・1個入り 16');
+  await page.getByRole('textbox',{name:'注文内容',exact:true}).fill('ホリ\n黒糖ブレッド 1\n天然酵母ハイジの白パン・1個入り 16');
   await page.getByRole('button',{name:'取込内容を確認'}).click();
   await expect(page.getByText('保留',{exact:true})).toBeVisible();
   await page.getByRole('dialog').getByRole('button',{name:'保存',exact:true}).click();
