@@ -767,6 +767,8 @@ export function validate(s) {
         !close.balances||Array.isArray(close.balances)||typeof close.balances!=='object'||
         !Object.keys(close.balances).length||Object.entries(close.balances).some(([id,amount])=>!id||!Number.isSafeInteger(amount)||amount<=0||amount>100000000))
         throw Error('未収を残した終了記録を確認してください');
+      if(close.history && (!Array.isArray(close.history)||close.history.some(h=>!String(h.id||'').trim()||!h.at||!h.balances||typeof h.balances!=='object')))
+        throw Error('未収繰越の訂正履歴を確認してください');
     }
     unique(r.products);
     for (const p of r.products) {

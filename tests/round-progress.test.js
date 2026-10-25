@@ -36,9 +36,16 @@ test('繰越は請求と現金を変更せず、後日回収で黄色表示だ�
 });
 test('請求訂正により繰越時より未収が増えると自動完了せず再確認する',()=>{
  const {s,r}=fixture();closeRoundWithCarry(s,r.id);
+ const first=r.collectionClose;
  r.products[0].price=500;
  const progress=roundProgress(s,r);
  assert.equal(progress.status,'集金中');assert.equal(progress.increased,true);
+ closeRoundWithCarry(s,r.id);
+ assert.equal(roundProgress(s,r).status,'完了');
+ assert.equal(r.collectionClose.history[0].id,first.id);
+ assert.equal(r.collectionClose.history[0].balances[`round:${r.id}:hori`],430);
+ assert.equal(r.collectionClose.balances[`round:${r.id}:hori`],500);
+ validate(s);
 });
 test('納品や利益未確定を未収繰越で飛ばせない',()=>{
  const {s,r}=fixture();r.invoice=null;

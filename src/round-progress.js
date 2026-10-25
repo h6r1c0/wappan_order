@@ -65,11 +65,13 @@ export function roundProgress(state,round){
 export function closeRoundWithCarry(state,roundId){
   const round=state.rounds.find(r=>r.id===roundId);
   if(!round)throw Error('注文回が見つかりません');
-  if(round.collectionClose)throw Error('この注文回の集金終了は記録済みです');
   const progress=roundProgress(state,round);
+  if(round.collectionClose&&!progress.increased)throw Error('この注文回の集金終了は記録済みです');
   if(progress.status!=='集金中'||progress.issues.length||progress.due.total<=0)
     throw Error(progress.issues[0]?.message||'今回分の未収と集金状態を確認してください');
   const balances=Object.fromEntries(progress.due.people.flatMap(p=>p.items.map(item=>[item.id,item.balance])));
-  round.collectionClose={id:uid(),at:new Date().toISOString(),balances};
+  const prior=round.collectionClose;
+  round.collectionClose={id:uid(),at:new Date().toISOString(),balances,
+    ...(prior?{history:[...(prior.history||[]),{id:prior.id,at:prior.at,balances:prior.balances}]}:{})};
   return round.collectionClose;
 }
