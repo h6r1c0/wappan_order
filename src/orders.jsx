@@ -4,7 +4,9 @@ import {Shortage} from './shortage-ui';
 import {receivedQuantity, updateDeliveryStatus} from './shortages';
 import React, { useEffect, useState } from "react";
 import { deliveryTotals, setSalesOrderQuantities, salesOrderQuantities, salesCutQuantities } from './commerce';
-import {LineImport} from './line-import.jsx';
+import {BatchImport} from './batch-import.jsx';
+import {roundProgress} from './round-progress.js';
+import {RoundClosePrompt} from './round-close.jsx';
 import {Sales} from './sales';
 import {RoundCollections} from './collections';
 import {Events} from './events';
@@ -59,31 +61,35 @@ export function Orders() {
     [justCreated, setJustCreated] = useState(false),
     [creating, setCreating] = useState(false),
     [date, setDate] = useState(today()),
-    [test, setIsTest] = useState(false);
+    [test, setIsTest] = useState(false),
+    [closingId,setClosingId] = useState(null),
+    [openStage,setOpenStage] = useState(null);
   const r = state.rounds.find((r) => r.id === id);
   return r ? (
-    <Round key={r.id} round={r} initialTab={justCreated ? "個人注文" : null} back={() => {setId(null);setJustCreated(false);}} />
+    <Round key={r.id} round={r} initialTab={justCreated ? "個人注文" : openStage} back={() => {setId(null);setJustCreated(false);setOpenStage(null);}} />
   ) : (
     <>
-      <div className="home-start"><Button onClick={() => setCreating(true)}>＋ 新しい注文を始める</Button></div>
+      <div className="home-start"><Button onClick={() => setCreating(true)}>注文回を作成</Button></div>
       <h2 className="list-heading">進行中・過去の注文</h2>
       {[...state.rounds]
         .sort((a, b) => b.date.localeCompare(a.date))
-        .map((r) => (
-          <button
-            className={`card clickable round-list-item status-${roundSettlementStatus(state,r)}`}
+        .map((r) => {
+          const progress=roundProgress(state,r);
+          return <div className="round-list-shell" key={r.id}><button
+            className={`card clickable round-list-item status-${progress.status}`}
             key={r.id}
             onClick={() => {setJustCreated(false);setId(r.id);}}
           >
             <div className="line">
               <h2>{r.date.replaceAll("-", "/")} 着</h2>
-              <Tag status={roundSettlementStatus(state,r)}>{roundSettlementStatus(state,r)}</Tag>
+              <Tag status={progress.status}>{progress.status}</Tag>
             </div>
             {r.test && <Tag status="テスト">テスト・年度集計対象外</Tag>}
-            <small className="round-next-step">{r.status==='入力中'?'注文を入力':!r.shortageConfirmation?'次は欠品・納品確認':roundSettlementStatus(state,r)==='納品済み'?'仕入・販売を確認':state.buyers.filter(b=>collectionPosition(state,r.id,b.id).balance>0).length?`集金が残っています：${state.buyers.filter(b=>collectionPosition(state,r.id,b.id).balance>0).length}人`:'集金状況を確認'}</small>
+            {progress.carry&&<Tag status="繰越">未収繰越あり</Tag>}
+            <small className="round-next-step">{progress.status==='入力中'?'注文を入力':progress.status==='注文確定'?'次は欠品・納品確認':progress.status==='納品済み'?'仕入・販売を確認':progress.status==='集金中'?`今回分の未収 ${progress.due.people.length}人`:'今回分の業務完了'}</small>
             <span className="round-open" aria-hidden="true">›</span>
-          </button>
-        ))}
+          </button>{progress.status==='集金中'&&progress.due.total>0&&<details className="round-list-menu"><summary>操作</summary><button type="button" className="text-action" onClick={()=>setClosingId(r.id)}>未収を残して今回分を終了</button></details>}</div>;
+        })}
       {!state.rounds.length && (
         <Empty>納品日を選んで新しい注文を始めましょう。</Empty>
       )}
@@ -118,19 +124,22 @@ export function Orders() {
           </form>
         </Modal>
       )}
+      {closingId&&<RoundClosePrompt round={state.rounds.find(x=>x.id===closingId)} onClose={()=>setClosingId(null)} onResolve={issue=>{setOpenStage(issue.stage);setId(closingId);}}/>}
     </>
   );
 }
 function Round({ round: r, initialTab = null, back }) {
   const { state, save, notify, revision } = useApp();
+  const progress=roundProgress(state,r);
+  const [closing,setClosing]=useState(false),[activityLimit,setActivityLimit]=useState(5);
   const [recent,setRecent]=useState(null);
   useEffect(()=>{
     let active=true;
-    client?.rpc('wappan_round_activity',{target_round:r.id,max_items:5}).then(({data,error})=>{
+    client?.rpc('wappan_round_activity',{target_round:r.id,max_items:activityLimit}).then(({data,error})=>{
       if(active)setRecent(error?[]:data||[]);
     });
     return()=>{active=false;};
-  },[r.id,revision]);
+  },[r.id,revision,activityLimit]);
   const [collectionSessions,setCollectionSessions]=useState({}),[collectionReturn,setCollectionReturn]=useState('');
   const [tab, setTab] = useState(initialTab),
     [returnStage, setReturnStage] = useState(null),
@@ -217,12 +226,13 @@ function Round({ round: r, initialTab = null, back }) {
         </Button>
       </div>
       <p>
-        <Tag status={roundSettlementStatus(state,r)}>{roundSettlementStatus(state,r)}</Tag> {r.test && <Tag status="テスト">テスト・集計対象外</Tag>}
+        <Tag status={progress.status}>{progress.status}</Tag> {r.test && <Tag status="テスト">テスト・集計対象外</Tag>} {progress.carry&&<Tag status="繰越">未収繰越あり</Tag>}
       </p>
       <details className="round-activity"><summary>最近の操作{recent?.length?`（${recent.length}件）`:''}</summary>
         {recent===null?<small>読み込み中…</small>:recent.length?recent.map(x=><div className="round-activity-row" key={x.revision}>
           <span>{x.description}<small>{new Date(x.updated_at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})} ／ {x.actor_account?`ログイン：${x.actor_account}`:'管理上の記録'}</small></span>
         </div>):<small>この注文回の保存履歴はありません。</small>}
+        {recent?.length===activityLimit&&activityLimit<20&&<button type="button" className="text-action" onClick={()=>setActivityLimit(20)}>もっと見る ›</button>}
       </details>
       {r.note && <details className="round-note"><summary>この注文回のメモ</summary><p>{r.note}</p></details>}
       <div className="stage-list" aria-label="注文の工程">
@@ -259,6 +269,7 @@ function Round({ round: r, initialTab = null, back }) {
                   </button>
                 ))}
               </div></>}
+      {stage==='注文'&&<button type="button" className="text-action batch-import-entry" onClick={()=>setLineImport(true)}>注文内容を貼り付け ›</button>}
       {tab==='販売用'&&<>{returnStage === '発注' && <button type="button" className="text-action return-context" onClick={() => moveTo('発注')}>‹ 発注一覧へ戻る</button>}
         <Sales roundId={r.id} phase="order" onManageProducts={() => setProducts(true)}/>
         {returnStage === '発注' && <button type="button" className="text-action return-context" onClick={() => moveTo('発注')}>‹ 発注一覧へ戻る</button>}</>}
@@ -271,7 +282,6 @@ function Round({ round: r, initialTab = null, back }) {
           <div className="section-head">
               <h2>購入者ごとの注文</h2>
             <div className="compact-actions">
-              <Button secondary onClick={()=>setLineImport(true)}>注文を貼り付け</Button>
               <button type="button" className="text-action" onClick={() => setProducts(true)}>＋ 商品が見つからない場合</button>
             </div>
           </div>
@@ -361,6 +371,7 @@ function Round({ round: r, initialTab = null, back }) {
               if(kind==='order'){setTab('個人注文');setPersonalClosed(false);choose(id);}
               else{setTab('納品・精算');requestAnimationFrame(()=>{for(const d of document.querySelectorAll('.after-work'))if(d.querySelector('summary')?.textContent==='販売先を割り当てる')d.open=true;});}
             }}/>
+          {progress.status==='集金中'&&progress.due.total>0&&<div className="round-carry-action"><span>今回分の未収 {progress.due.people.length}人・{yen(progress.due.total)}</span><button type="button" className="text-action" onClick={()=>setClosing(true)}>未収を残して今回分を終了 ›</button></div>}
           <button type="button" className="text-action"
             onClick={async () => {
               try {
@@ -486,7 +497,8 @@ function Round({ round: r, initialTab = null, back }) {
           </section>
         ))}
       </div>
-      {lineImport&&<LineImport round={r} onClose={()=>setLineImport(false)}/>}
+      {lineImport&&<BatchImport round={r} onClose={()=>setLineImport(false)}/>}
+      {closing&&<RoundClosePrompt round={r} onClose={()=>setClosing(false)} onResolve={issue=>moveTo(issue.stage)}/>}
       {excelImport&&<ExcelImport targetRoundId={r.id} onClose={()=>setExcelImport(false)}/>}
       {settings && (
         <RoundSettings
