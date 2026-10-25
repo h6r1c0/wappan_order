@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import {PGlite} from '@electric-sql/pglite';
+import {initialState,newRound} from '../src/domain.js';
+import {parseBatchOrder,applyBatchOrder,addSpecialProduct} from '../src/batch-import.js';
+
+test('DBは確認済み注文と保留原文を同時保存し、再読込後の解決で正式注文を一度だけ増やす',async()=>{
+ const db=new PGlite();
+ await db.exec(`create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key,email text unique); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated;`);
+ const dir=new URL('../supabase/migrations/',import.meta.url);
+ for(const name of (await fs.readdir(dir)).filter(x=>x.endsWith('.sql')).sort())await db.exec(await fs.readFile(new URL(name,dir),'utf8'));
+ const id='00000000-0000-0000-0000-000000000001';
+ await db.exec(`insert into auth.users values('${id}','staff@example.test'); insert into wappan_private.wappan_staff(user_id) values('${id}'); set role authenticated; set "request.jwt.claim.sub"='${id}';`);
+ const s=initialState(),r=newRound(s,'2026-10-16');s.rounds.push(r);
+ const rows=parseBatchOrder('ホリ\n黒糖ブレッド 1\n天然酵母ハイジの白パン・1個入り 16',s,r).map(x=>({...x,held:!x.productId}));
+ applyBatchOrder(s,r.id,rows);
+ await db.query('select public.wappan_save(0,$1,\'partial paste\')',[s]);
+ let loaded=(await db.query('select data from public.wappan_workspace')).rows[0].data;
+ assert.equal(loaded.rounds[0].pendingImports[0].qty,16);
+ assert.equal(loaded.rounds[0].orders.hori.quantities.brown,1);
+ const productId=addSpecialProduct(loaded,r.id,'天然酵母ハイジの白パン・1個入り',120);
+ const pending=loaded.rounds[0].pendingImports[0];
+ applyBatchOrder(loaded,r.id,[{...pending,pendingId:pending.id,productId,held:false}]);
+ await db.query('select public.wappan_save(1,$1,\'resolve paste\')',[loaded]);
+ loaded=(await db.query('select data from public.wappan_workspace')).rows[0].data;
+ assert.equal(loaded.rounds[0].pendingImports.length,0);
+ assert.equal(loaded.rounds[0].orders.hori.quantities[productId],16);
+ assert.equal(loaded.rounds[0].orders.hori.quantities.brown,1);
+ await assert.rejects(()=>db.query('select public.wappan_save(1,$1,\'stale\')',[s]),/CONFLICT/);
+ await db.close();
+});

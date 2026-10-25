@@ -335,11 +335,11 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
         <>
           <p className="notice">
             {rows.length}
-            商品を読み取りました。前回との変化を先に表示します。修正する商品はタップして開けます。
+            商品を読み取りました。{previous?'前回との変化':'現行マスターとの差'}を先に表示します。修正する商品はタップして開けます。
           </p>
-          <p className="muted">比較対象：{previous?`${previous.month}の取込（${previous.at.slice(0,10)}）`:'現在の商品マスター（取込履歴なし）'}。税込価格と販売価格は別です。</p>
+          <p className="muted">比較対象：{previous?`${previous.month}の同種の商品表（${previous.at.slice(0,10)}取込）`:'現在の商品マスター（過去の取込履歴がなく、前月比は未判定）'}。税込価格と販売価格は別です。</p>
           <p>継続商品の価格変更 {difference.counts.up+difference.counts.down}件 ／ 内容・単位等の変更 {difference.counts.changed}件 ／ 新商品 {difference.counts.new}件 ／ 変更なし {difference.counts.same}件</p>
-          {difference.removed.length>0&&<details><summary>今回掲載のない商品 {difference.removed.length}件</summary><ul>{difference.removed.map((p,i)=><li key={i}>{productDisplayName(p.name)}</li>)}</ul></details>}
+          {previous&&difference.removed.length>0&&<details><summary>今回掲載のない商品 {difference.removed.length}件</summary><ul>{difference.removed.map((p,i)=><li key={i}>{productDisplayName(p.name)}</li>)}</ul></details>}
           <button type="button" className="text-action" onClick={()=>setAllProducts(!allProducts)}>{allProducts?'変更のある商品だけ表示':'すべての商品を表示'}</button>
           <p>{Object.entries(lifecycleLabels).map(([key, label]) => `${label} ${rows.filter(r => r.include && r.lifecycle === key).length}件`).join(" ／ ")}</p>
           {fixedRound ? <p className="notice">取り込み先：<strong>{fixedRound.date.replaceAll("-", "/")} 着</strong>（この注文回へ自動で反映します）</p> : <Field label="商品を使う注文回（今回限りの商品は選択必須）"><select value={target} onChange={e => setTarget(e.target.value)}><option value="">商品マスターのみ登録</option><option value="new">新しい納品日で注文回も作る</option>{state.rounds.map(r => <option key={r.id} value={r.id}>{r.date}{r.test ? "（テスト）" : ""}</option>)}</select></Field>}
