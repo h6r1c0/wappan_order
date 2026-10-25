@@ -105,7 +105,7 @@ async function login(page) {
     .fill("test-password-123");
   await page.getByRole("button", { name: "ログイン", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: /新しい注文を始める/ }),
+    page.getByRole("button", { name: '注文回を作成' }),
   ).toBeVisible();
 }
 async function nav(page, name) {
@@ -120,7 +120,7 @@ async function closeToast(page) {
 }
 
 async function openRound(page, date = '2026-09-11') {
-  await page.getByRole('button', {name:/新しい注文を始める/}).click();
+  await page.getByRole('button', {name:'注文回を作成'}).click();
   await page.getByLabel('納品予定日').fill(date);
   await page.getByRole('button', {name:'この納品日で注文を始める'}).click();
 }

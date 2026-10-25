@@ -107,7 +107,7 @@ async function login(page) {
     .fill("test-password-123");
   await page.getByRole("button", { name: "ログイン", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: /新しい注文を始める/ }),
+    page.getByRole("button", { name: '注文回を作成' }),
   ).toBeVisible();
 }
 async function nav(page, name) {
@@ -122,7 +122,7 @@ async function closeToast(page) {
 }
 
 async function openRound(page, date = '2026-09-11') {
-  await page.getByRole('button', {name:/新しい注文を始める/}).click();
+  await page.getByRole('button', {name:'注文回を作成'}).click();
   await page.getByLabel('納品予定日').fill(date);
   await page.getByRole('button', {name:'この納品日で注文を始める'}).click();
 }
@@ -168,7 +168,7 @@ test('ログアウト後、画面に入力された認証情報で再ログイ�
     document.querySelector('input[name="password"]').value='reused-password';
   });
   await page.getByRole('button',{name:'ログイン',exact:true}).click();
-  await expect(page.getByRole('button',{name:/新しい注文を始める/})).toBeVisible();
+  await expect(page.getByRole('button',{name:'注文回を作成'})).toBeVisible();
   expect(shared.authBody).toContain('reused-password');
 });
 
@@ -194,7 +194,7 @@ test('設定の係招待と管理者引継ぎ、最後の管理者保護',async(
 test('業務順: 注文開始、個人・販売・おやつ、発注数とスマホ幅', async ({page,context}) => {
   const shared={state:preparedState(),revision:0};
   await backend(context,shared); page.on('dialog',d=>d.accept()); await login(page);
-  await expect(page.getByRole('button',{name:/新しい注文を始める/})).toBeVisible();
+  await expect(page.getByRole('button',{name:'注文回を作成'})).toBeVisible();
   await openRound(page);
   await expect(page.locator('.stage-trigger')).toHaveCount(4);
   await expect(page.locator('.stage-number')).toHaveText(['01','02','03','04']);
@@ -380,11 +380,11 @@ test('10月初回のExcel準備と同月再利用、LINE候補、固定注文追
   await page.getByLabel('商品区分',{exact:true}).selectOption('once');
   await page.getByRole('button',{name:'確認した商品を登録'}).click();
   await expect(page.getByText('商品情報を更新')).toBeVisible();
-  await page.getByRole('button',{name:'注文を貼り付け'}).click();
-  await page.getByLabel('注文文章').fill('ホリ\n黒糖');
-  await page.getByRole('button',{name:'注文候補を読み取る'}).click();
-  await expect(page.getByRole('dialog').getByRole('button',{name:'ホリ',exact:true})).toHaveClass(/selected/);
-  await page.getByRole('button',{name:'この内容で注文へ反映'}).click();
+  await page.getByRole('button',{name:'注文内容を貼り付け ›'}).click();
+  await page.getByLabel('LINE・注文文章').fill('ホリ\n黒糖ブレッド 1');
+  await page.getByRole('button',{name:'取込内容を確認'}).click();
+  await expect(page.getByRole('dialog').getByRole('combobox',{name:'購入者'})).toHaveValue('hori');
+  await page.getByRole('button',{name:'確認した注文を保存'}).click();
   await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
   await openRound(page,'2026-10-30');
   await expect(page.getByText('商品情報を更新')).toBeVisible();
@@ -437,7 +437,7 @@ test('複数端末: 古いrevisionの保存は拒否して最新データを守�
     b.on('dialog',d=>d.accept());
     await login(a);await login(b);
     await openRound(a,'2026-09-11');
-    await b.getByRole('button',{name:/新しい注文を始める/}).click();
+    await b.getByRole('button',{name:'注文回を作成'}).click();
     await b.getByLabel('納品予定日').fill('2026-09-18');
     await b.getByRole('button',{name:'この納品日で注文を始める'}).click();
     await expect(b.getByRole('alert')).toContainText('別の係が先に保存しました');
@@ -504,9 +504,9 @@ test('精算は納品と利益から判定し、操作履歴は控えめに展�
  r.status='納品済み';r.shortageConfirmation='none';r.invoice=100;shared.state.rounds.push(r);
  await backend(context,shared);await login(page);
  const row=page.locator('.round-list-item').filter({hasText:'2026/09/11'});
- await expect(row.locator('.tag-精算済み')).toHaveText('精算済み');
+ await expect(row.locator('.tag-集金中')).toHaveText('集金中');
  await row.click();
- await expect(page.getByText('精算済み',{exact:true})).toBeVisible();
+ await expect(page.getByText('集金中',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'精算完了を確認'})).toHaveCount(0);
  await page.locator('.round-activity summary').click();
  await expect(page.getByText('納品・仕入額を保存')).toBeVisible();
@@ -516,6 +516,32 @@ test('精算は納品と利益から判定し、操作履歴は控えめに展�
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
  expect(shared.revision).toBe(7);
+});
+
+test('未収を残して今回分を終了しても元の請求と現金は変わらず、一覧・詳細で状態が一致する',async({page,context})=>{
+ const shared={state:preparedState(),revision:2};
+ const r=newRound(shared.state,'2026-09-11',true);r.collectionLive=true;
+ r.status='納品済み';r.shortageConfirmation='none';r.invoice=100;
+ r.orders.hori={name:'ホリ',quantities:{brown:1}};shared.state.rounds.push(r);
+ await backend(context,shared);await login(page);
+ const row=page.locator('.round-list-shell').filter({hasText:'2026/09/11'});
+ await expect(row.locator('.tag-集金中')).toBeVisible();
+ await row.locator('.round-list-menu summary').click();
+ await row.getByRole('button',{name:'未収を残して今回分を終了'}).click();
+ await expect(page.getByRole('dialog').getByText('今回分の未収：1人 ／ 430円')).toBeVisible();
+ await page.getByRole('dialog').getByRole('button',{name:'未収を残して今回分を終了'}).click();
+ await expect(row.locator('.tag-完了')).toBeVisible();
+ await expect(row.locator('.tag-繰越')).toHaveText('未収繰越あり');
+ expect(shared.state.rounds[0].collectionClose).toBeTruthy();
+ expect(shared.state.collectionEntries).toHaveLength(0);
+ await page.reload();
+ await expect(page.locator('.round-list-item').filter({hasText:'2026/09/11'}).locator('.tag-完了')).toBeVisible();
+ await page.locator('.round-list-item').filter({hasText:'2026/09/11'}).click();
+ await expect(page.locator('.delivery-heading + p .tag-繰越')).toBeVisible();
+ for(const width of [320,375,430,1024]){
+   await page.setViewportSize({width,height:812});
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ }
 });
 
 test('購入者の読みは表示名を変えず五十音索引と検索に使う', async ({page,context}) => {

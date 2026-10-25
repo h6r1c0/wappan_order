@@ -2537,3 +2537,38 @@ header small {
   .report-test-note { color:#385774; font-size:.82rem; margin:4px 0 8px; }
   .report-test-mark { color:#365b79; font-size:.75rem; font-weight:700; }
 }
+
+/* Order progress uses the same pencil marks as its work stages; labels are not controls. */
+.tag.tag-入力中,.round-list-item .tag.tag-入力中 {background:#edf6ee url('./assets/pencil/green-light.png') center/100% 100% no-repeat;color:#255b3b;border:0;}
+.tag.tag-注文確定,.round-list-item .tag.tag-注文確定 {background:#edf5fb url('./assets/pencil/blue-light.png') center/100% 100% no-repeat;color:#265779;border:0;}
+.tag.tag-納品済み,.round-list-item .tag.tag-納品済み {background:#fff4e6 url('./assets/pencil/orange-light.png') center/100% 100% no-repeat;color:#75441a;border:0;}
+.tag.tag-集金中,.round-list-item .tag.tag-集金中 {background:#fff0ee url('./assets/pencil/red-light.png') center/100% 100% no-repeat;color:#a6383f;border:0;}
+.tag.tag-完了,.round-list-item .tag.tag-完了 {background:#f0f1ef;color:#47504b;border:0;}
+.tag.tag-テスト,.round-list-item .tag.tag-テスト,.tag.tag-繰越,.round-list-item .tag.tag-繰越 {
+  position:relative;isolation:isolate;display:inline-block;background:transparent;border:0;border-radius:0;color:#543873;padding:2px 7px;font-weight:700;cursor:inherit;
+}
+.tag.tag-テスト::before,.tag.tag-繰越::before {content:"";position:absolute;inset:0;z-index:-1;background:url('./assets/pencil/blue-light.png') center/100% 100% no-repeat;filter:hue-rotate(66deg) saturate(1.1);}
+.tag.tag-繰越,.round-list-item .tag.tag-繰越 {color:#4c3218;}
+.tag.tag-繰越::before {background-image:url('./assets/pencil/orange-light.png');filter:hue-rotate(30deg) saturate(2.2) brightness(1.06);}
+.round-list-item.status-入力中 {border-left-color:#459969;}
+.round-list-item.status-注文確定 {border-left-color:#477fa8;}
+.round-list-item.status-納品済み {border-left-color:#c8873d;}
+.round-list-item.status-集金中 {border-left-color:#c44d52;}
+.round-list-item.status-完了 {border-left-color:#8b938d;}
+.round-list-shell {position:relative;min-width:0;}
+.round-list-shell .round-list-item {width:100%;}
+.round-list-menu {position:absolute;right:15px;bottom:8px;font-size:.8rem;color:#8b3e43;}
+.round-list-menu summary {cursor:pointer;min-height:32px;padding:4px;list-style:none;text-decoration:underline;text-decoration-color:#d6a1a0;text-underline-offset:4px;}
+.round-list-menu[open] {z-index:4;background:#fff;border:1px solid #ecdedc;padding:2px 7px;box-shadow:0 3px 12px #40332b22;}
+.round-list-menu .text-action {display:block;min-height:40px;text-align:left;}
+.round-carry-action {display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;justify-content:space-between;margin:8px 0;padding:6px 2px;border-top:1px solid #eadfda;font-size:.88rem;}
+.round-carry-action .text-action {min-height:40px;color:#9f3e45;}
+.close-people {max-height:32vh;overflow:auto;margin:8px 0 14px;}
+.close-people>div,.close-issue {display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 2px;border-bottom:1px solid #e8e9e3;}
+.close-people strong {white-space:nowrap;}
+.batch-import-entry {margin:5px 0 9px;min-height:42px;}
+.batch-import-row {border-bottom:1px solid #e5e8e2;padding:8px 0;}
+.batch-import-fields {display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:6px;}
+.batch-import-fields .field {min-width:0;}
+.home-start .button {background:#edf6ee url('./assets/pencil/green-light.png') center/100% 100% no-repeat!important;color:#245a3b!important;border:0!important;box-shadow:none;}
+.round-close-button,.stage-content .button:not(.secondary) {border-color:transparent;box-shadow:none;}

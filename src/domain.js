@@ -761,6 +761,13 @@ export function validate(s) {
     date(r.date);
     if (!["入力中", "注文確定", "納品済み", "精算済み"].includes(r.status))
       throw Error("注文状態が不正です");
+    if(r.collectionClose){
+      const close=r.collectionClose;
+      if(!String(close.id||'').trim()||!/^\d{4}-\d{2}-\d{2}T/.test(close.at||'')||
+        !close.balances||Array.isArray(close.balances)||typeof close.balances!=='object'||
+        !Object.keys(close.balances).length||Object.entries(close.balances).some(([id,amount])=>!id||!Number.isSafeInteger(amount)||amount<=0||amount>100000000))
+        throw Error('未収を残した終了記録を確認してください');
+    }
     unique(r.products);
     for (const p of r.products) {
       if (p.price == null) {
