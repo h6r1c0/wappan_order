@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {Modal,Field,Button,useApp} from './ui.jsx';
-import {parseBatchOrder,applyBatchOrder,addSpecialProduct} from './batch-import.js';
+import {parseBatchOrder,applyBatchOrder,addSpecialProduct,specialSaleReference} from './batch-import.js';
 import {candidates} from './line-import.js';
 import {productDisplayName} from './product-names.js';
 
@@ -35,6 +35,7 @@ export function BatchImport({round,onClose}){
         const previous=rows[i-1],heading=!previous||group(previous)!==group(row);
         const buyer=state.buyers.find(b=>b.id===row.buyerId);
         const matched=round.products.find(p=>p.id===row.productId);
+        const reference=specialSaleReference(round,row.productName||'');
         return <React.Fragment key={row.pendingId||i}>
           {heading&&<h4 className="batch-import-group">{labels[row.kind]||'区分を確認'}{row.kind==='personal'&&`・${buyer?.name||'購入者を確認'}`}</h4>}
           <div className="batch-import-row">
@@ -55,9 +56,10 @@ export function BatchImport({round,onClose}){
                 {special[i]&&<>
                   <p className="muted">3個入りと1個入りは別商品です。価格未確認なら空欄で登録し、請求前に決められます。</p>
                   <Field label="商品名（販売単位を含む）"><input value={row.productName||''} onChange={e=>edit(i,{productName:e.target.value})}/></Field>
-                  <Field label="今回の販売価格（分かる場合）"><input type="number" inputMode="numeric" min="0" value={row.specialPrice??''} onChange={e=>edit(i,{specialPrice:e.target.value===''?null:Number(e.target.value)})}/></Field>
+                  {reference!=null&&<small>この回で確認された販売実績：{reference}円。商品表の正式価格ではありません。</small>}
+                  <Field label="今回の販売価格（分かる場合）"><input type="number" inputMode="numeric" min="0" value={(row.specialPrice===undefined?reference:row.specialPrice)??''} onChange={e=>edit(i,{specialPrice:e.target.value===''?null:Number(e.target.value)})}/></Field>
                   <Field label="仕入単価（分かる場合）"><input type="number" inputMode="numeric" min="0" value={row.specialCost??''} onChange={e=>edit(i,{specialCost:e.target.value===''?null:Number(e.target.value)})}/></Field>
-                  <Button secondary onClick={async()=>{let id;if(await save(s=>{id=addSpecialProduct(s,round.id,row.productName,row.specialPrice??null,row.specialCost??null);},'特別な販売単位の商品を追加')){edit(i,{productId:id,held:false});setSpecial({...special,[i]:false});}}}>この注文回に商品を追加</Button>
+                  <Button secondary onClick={async()=>{let id;if(await save(s=>{id=addSpecialProduct(s,round.id,row.productName,row.specialPrice===undefined?reference:row.specialPrice,row.specialCost??null);},'特別な販売単位の商品を追加')){edit(i,{productId:id,held:false});setSpecial({...special,[i]:false});}}}>この注文回に商品を追加</Button>
                 </>}
               </div>}
             </div>}

@@ -4,6 +4,12 @@ import {uid,snapshot} from './domain.js';
 import {productDisplayName,productImportIdentity} from './product-names.js';
 
 const clean=x=>String(x||'').normalize('NFKC').trim();
+// A reported sale from the 2026-10-16 round, offered only as an editable
+// reference. It is never written to master data or other rounds implicitly.
+export function specialSaleReference(round,name){
+  const key=productImportIdentity(name).normalize('NFKC').replace(/[\s　・･]/g,'');
+  return round.date==='2026-10-16'&&key==='天然酵母ハイジの白パン1個'?120:null;
+}
 const section=line=>{
   const heading=line.replace(/^[【\[]|[】\]]$/g,'').trim();
   if(/^(?:個人注文|個人分)$/.test(heading))return 'personal';

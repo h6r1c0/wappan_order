@@ -421,7 +421,7 @@ test('未登録の1個入りだけ保留し、再読込後に追加して注文�
   await page.getByRole('button',{name:'保留行を確認'}).click();
   await page.getByRole('button',{name:/天然酵母ハイジの白パン.*編集/}).click();
   await page.getByRole('button',{name:'商品表にない販売単位を追加'}).click();
-  await page.getByLabel('今回の販売価格（分かる場合）').fill('120');
+  await expect(page.getByLabel('今回の販売価格（分かる場合）')).toHaveValue('120');
   await page.getByRole('button',{name:'この注文回に商品を追加'}).click();
   await page.getByRole('button',{name:'確認した注文と保留を保存'}).click();
   expect(shared.state.rounds[0].pendingImports).toHaveLength(0);

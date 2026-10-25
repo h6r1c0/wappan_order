@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,newRound,validate} from '../src/domain.js';
-import {parseBatchOrder,applyBatchOrder,addSpecialProduct} from '../src/batch-import.js';
+import {parseBatchOrder,applyBatchOrder,addSpecialProduct,specialSaleReference} from '../src/batch-import.js';
 import {importDifference} from '../src/product-import-diff.js';
 
 test('1個入りを3個入りへ誤照合せず、確認済みだけ保存し未解決行を保持・再開する',()=>{
@@ -9,6 +9,8 @@ test('1個入りを3個入りへ誤照合せず、確認済みだけ保存し未
   r.products.push({id:'three',name:'天然酵母ハイジの白パン 3個',price:350});
   let rows=parseBatchOrder('ホリ\n黒糖ブレッド 1\n天然酵母ハイジの白パン・1個入り 16',s,r);
   assert.equal(rows[1].productId,'');
+  assert.equal(specialSaleReference(r,rows[1].productName),120);
+  assert.equal(specialSaleReference({...r,date:'2026-11-01'},rows[1].productName),null);
   rows=rows.map(x=>({...x,held:!x.productId}));
   assert.equal(applyBatchOrder(s,r.id,rows),1);validate(s);
   assert.equal(r.orders.hori.quantities.brown,1);
