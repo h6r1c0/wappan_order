@@ -1,5 +1,14 @@
 const norm=s=>String(s).normalize('NFKC').replace(/(\d+)個入り/g,'$1個').replace(/[\s　・･]/g,'').toLowerCase();
 const pack=s=>String(s).normalize('NFKC').match(/(\d+)\s*個(?:入り)?/)?.[1]||'';
+export const samePack=(raw,product)=>!pack(raw)||!(pack(product.sourceName)||pack(product.name))||(pack(product.sourceName)||pack(product.name))===pack(raw);
+export function relatedProducts(raw,items){
+ const name=norm(raw).replace(/\d+個/g,'').replace(/[\d×x✕*]+$/g,'');
+ if(name.length<3)return [];
+ return items.filter(p=>{
+  const candidate=norm(p.name).replace(/\d+個/g,'');
+  return candidate.includes(name)||name.includes(candidate)&&candidate.length>=3;
+ }).sort((a,b)=>Number(samePack(raw,b))-Number(samePack(raw,a)));
+}
 export function candidates(raw,items,aliases={}){
  const key=norm(raw), alias=aliases[key];
  const compatible=p=>!pack(raw)||(pack(p.sourceName)||pack(p.name))===pack(raw);

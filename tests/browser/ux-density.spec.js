@@ -58,6 +58,27 @@ test('4工程は閉じたとき落ち着いた灰色、開いた工程だけ原�
  expect(shared.revision).toBe(0);
 });
 
+test('注文回の濃い左筆跡と丸い状態、発注・貼り付けの密度を幅ごとに保つ',async({page,context})=>{
+ const s=initialState(),r=newRound(s,'2026-10-16',true);s.rounds.push(r);
+ r.orders.hori={name:'堀',quantities:{brown:1}};
+ const shared={state:s,revision:0};await backend(context,shared);await login(page);
+ for(const width of [320,375,430,1280]){
+  await page.setViewportSize({width,height:812});
+  const round=page.locator('.round-list-item').first();
+  const pencil=await round.evaluate(el=>({image:getComputedStyle(el,'::before').backgroundImage,width:parseFloat(getComputedStyle(el,'::before').width),radius:getComputedStyle(el.querySelector('.tag')).borderRadius}));
+  expect(pencil.image).toContain('green-deep');expect(pencil.width).toBeGreaterThanOrEqual(6);expect(pencil.radius).toBe('999px');
+  await round.click();await page.locator('.stage-1 > .stage-trigger').click();
+  const placement=await page.evaluate(()=>{const paste=document.querySelector('.batch-import-entry'),purpose=document.querySelector('.stage-1 .purpose-grid');return {paste:paste.getBoundingClientRect().top,purpose:purpose.getBoundingClientRect().top,precedes:!!(paste.compareDocumentPosition(purpose)&Node.DOCUMENT_POSITION_FOLLOWING)};});
+  expect(placement.precedes).toBe(true);expect(placement.paste).toBeLessThan(placement.purpose);
+  await page.locator('.stage-2 > .stage-trigger').click();
+  const row=page.locator('.delivery-total-row').filter({hasText:'黒糖ブレッド'});
+  expect(await row.evaluate(el=>el.getBoundingClientRect().height)).toBeLessThanOrEqual(66);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
+ }
+ expect(shared.revision).toBe(0);
+});
+
 test('変更のない注文編集を開いても画面移動に未保存警告を出さない',async({page,context})=>{
  const s=initialState(),r=newRound(s,'2026-10-16',true);s.rounds.push(r);
  const shared={state:s,revision:0};await backend(context,shared);await login(page);
