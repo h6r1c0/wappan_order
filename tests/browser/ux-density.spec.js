@@ -68,8 +68,8 @@ test('注文回の濃い左筆跡と丸い状態、発注・貼り付けの密�
   const pencil=await round.evaluate(el=>({image:getComputedStyle(el,'::before').backgroundImage,width:parseFloat(getComputedStyle(el,'::before').width),radius:getComputedStyle(el.querySelector('.tag')).borderRadius}));
   expect(pencil.image).toContain('green-deep');expect(pencil.width).toBeGreaterThanOrEqual(6);expect(pencil.radius).toBe('999px');
   await round.click();await page.locator('.stage-1 > .stage-trigger').click();
-  const paste=page.getByRole('button',{name:'注文内容を貼り付け'}),purpose=page.locator('.purpose-grid');
-  expect((await paste.boundingBox()).y).toBeLessThan((await purpose.boundingBox()).y);
+  const placement=await page.evaluate(()=>{const paste=document.querySelector('.batch-import-entry'),purpose=document.querySelector('.stage-1 .purpose-grid');return {paste:paste.getBoundingClientRect().top,purpose:purpose.getBoundingClientRect().top,precedes:!!(paste.compareDocumentPosition(purpose)&Node.DOCUMENT_POSITION_FOLLOWING)};});
+  expect(placement.precedes).toBe(true);expect(placement.paste).toBeLessThan(placement.purpose);
   await page.locator('.stage-2 > .stage-trigger').click();
   const row=page.locator('.delivery-total-row').filter({hasText:'黒糖ブレッド'});
   expect(await row.evaluate(el=>el.getBoundingClientRect().height)).toBeLessThanOrEqual(66);
