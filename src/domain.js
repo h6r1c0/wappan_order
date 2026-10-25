@@ -109,27 +109,31 @@ export function initialState() {
 export function snapshot(p, {snackOnly=false}={}) {
   const amount = price(p);
   if (amount == null && !snackOnly) throw Error(`${p.name}の販売価格を設定してください`);
-  return { id: p.id, name: p.name, category: p.category, price: amount, cost: p.cost ?? null,
+  return { id: p.id, name: p.name, category: p.category, section:p.section || '', price: amount, priceSource:p.priceSource || (amount == null ? 'undecided' : p.mode === 'manual' ? 'manual':'sheet'), cost: p.cost ?? null,
     cutFee: p.cutFee ?? null,
     cutSupported: p.cutSupported ?? p.name.includes('食パン'),
     ...(p.faxOrder != null ? {faxOrder:p.faxOrder} : {}) };
 }
-export function newRound(state, date, test = false) {
+export function newRound(state, date, test = false, includeFixed = false) {
   if (!date) throw Error("納品日を入力してください");
   if(state.rounds.some(r=>r.date===date&&r.test===test))throw Error("同じ納品日の注文回があります。既存の納品回を開いてください");
+  const products = faxProducts(state.products)
+    .filter((p) => productAvailable(p, date) && (price(p) != null || p.lifecycle === 'permanent' || state.buyers.some(b => b.fixed.some(f => f.productId === p.id))))
+    .map(p => snapshot(p,{snackOnly:true}));
+  const orders = {};
+  for (const buyer of includeFixed ? state.buyers : []) {
+    const fixed = buyer.fixed.filter(f => f.qty > 0 && products.some(p => p.id === f.productId));
+    if (!fixed.length) continue;
+    orders[buyer.id] = {name:buyer.name, quantities:Object.fromEntries(fixed.map(f => [f.productId,f.qty]))};
+  }
   return {
     id: uid(),
     date,
     test,
     status: "入力中",
     note: "",
-    products: faxProducts(state.products)
-      .filter(
-        (p) =>
-          productAvailable(p, date) && (price(p) != null || p.lifecycle === 'permanent' || state.buyers.some(b=>b.fixed.some(f=>f.productId===p.id))),
-      )
-      .map(p=>snapshot(p,{snackOnly:true})),
-    orders: {},
+    products,
+    orders,
     planned: null,
     invoice: null,
     eventIds: [],

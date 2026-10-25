@@ -2,9 +2,13 @@ import {candidates,looksLikePersonalName} from './line-import.js';
 import {salesOrderQuantities,setSalesOrderQuantities,snackOrderQuantities,setSnackOrderQuantities} from './commerce.js';
 
 const clean=x=>String(x||'').normalize('NFKC').trim();
-const section=line=>/^(?:【|\[)?(?:個人注文|個人分)(?:】|\])?$/.test(line)?'personal':
-  /^(?:【|\[)?(?:販売用|園内販売用)(?:】|\])?$/.test(line)?'sales':
-  /^(?:【|\[)?(?:おやつ用|おやつ)(?:】|\])?$/.test(line)?'snack':null;
+const section=line=>{
+  const heading=line.replace(/^[【\[]|[】\]]$/g,'').trim();
+  if(/^(?:個人注文|個人分)$/.test(heading))return 'personal';
+  if(/^(?:販売|販売用|園内販売用)(?:[・･／/]\s*.+)?$/.test(heading))return 'sales';
+  if(/^(?:おやつ|おやつ用)(?:[・･／/]\s*.+)?$/.test(heading))return 'snack';
+  return null;
+};
 export function parseBatchOrder(text,state,round){
   let kind=null,buyerId='';const rows=[];
   for(const rawLine of String(text).split(/\r?\n/)){

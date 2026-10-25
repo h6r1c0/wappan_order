@@ -451,10 +451,12 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                         name: productDisplayName(r.name),
                         sourceName: r.name.trim(),
                         gross: r.gross,
+                        section: r.section || existing?.section || '',
                         faxOrder: r.faxOrder,
                         category: r.category,
-                        mode: r.mode,
-                        manual: r.manual,
+                        mode: 'auto',
+                        manual: existing?.manual ?? null,
+                        priceSource: 'sheet',
                         lifecycle: permanentProduct(r.name) ? "permanent" : r.lifecycle,
                         roundId: r.lifecycle === "once" ? targetId : "",
                         importMonth: r.lifecycle === "once" && importedMonth ? importedMonth : "",
@@ -467,17 +469,18 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                       const round = s.rounds.find(x => x.id === targetId);
                       if (round) {
                         const index = round.products.findIndex(x => x.id === p.id);
-                        const used = Object.values(round.orders).some(order => (order.quantities[p.id] || 0) > 0) ||
-                          s.stocks.some(stock => stock.roundId === targetId && stock.productId === p.id && stock.qty > 0) ||
-                          s.events.some(event => event.roundId === targetId && event.lines.some(line => line.productId === p.id && line.qty > 0));
-                        if (index >= 0 && !used && round.status === '入力中') round.products[index] = snapshot(p);
+                        // Fixed orders are saved as soon as a round is made. Their quantity
+                        // must not prevent a later monthly price from reaching that draft.
+                        if (index >= 0 && round.status === '入力中' && !round.invoice &&
+                          !s.collectionEntries?.some(entry => entry.roundId === targetId))
+                          round.products[index] = snapshot(p,{snackOnly:true});
                         else if (index < 0 && round.status === '入力中') round.products.push(snapshot(p));
                       }
                     }
                     const importedRound = s.rounds.find(x => x.id === targetId);
                     if (importedRound) importedRound.products = faxProducts(importedRound.products);
                     if (target === "new") {
-                      const round = newRound(s, delivery, testRound);
+                      const round = newRound(s, delivery, testRound, true);
                       round.id = targetId;
                       round.products = faxProducts(s.products).filter(p => productAvailable(p, delivery, targetId)).map(p => snapshot(p,{snackOnly:true}));
                       s.rounds.push(round);

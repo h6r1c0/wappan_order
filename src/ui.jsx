@@ -204,12 +204,9 @@ export function ProductQuantityEditor({
   priceHeading = null,
 }) {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("パン");
-  const filtered = products.filter(
-    (product) =>
-      (query.trim() || category === "ALL" || product.category === category) &&
-      normalize(productSearchText(product)).includes(normalize(query)),
-  );
+  const [openCategory, setOpenCategory] = useState(null);
+  const ordered = products.filter(p => (quantities[p.id] || 0) > 0);
+  const categories = [...new Set(products.filter(p => !(quantities[p.id] > 0)).map(p => p.section || p.category || 'その他'))];
   const row = (product) => (
     <div className="product-entry" key={product.id}><div className="product-row">
       <span className="grow">
@@ -230,18 +227,9 @@ export function ProductQuantityEditor({
   return (
     <>
       {priceHeading && <small className="list-unit-heading">{priceHeading}</small>}
-      <div className="tabs category-tabs">
-        {["パン", "焼き菓子", "ALL"].map((value) => (
-          <Button
-            secondary={category !== value}
-            key={value}
-            onClick={() => setCategory(value)}
-          >
-
-            {value === "ALL" ? "すべて" : value}
-          </Button>
-        ))}
-      </div>
+      {ordered.length > 0 && <div className="ordered-products"><strong>注文済み</strong>{ordered.map(row)}</div>}
+      <details className="product-add" open={Boolean(query) || openCategory !== null}>
+      <summary>商品を追加</summary>
       <Field
         placeholder="商品名を検索（例：食パン）"
         label="商品名を検索"
@@ -249,7 +237,9 @@ export function ProductQuantityEditor({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
       />
-      {filtered.map(row)}
+      {query.trim() ? products.filter(p => !(quantities[p.id] > 0) && normalize(productSearchText(p)).includes(normalize(query))).map(row) :
+        categories.map(label => <div key={label} className="product-category"><button type="button" className="text-action" aria-expanded={openCategory === label} onClick={()=>setOpenCategory(openCategory===label?null:label)}>{label} {openCategory===label?'⌄':'›'}</button>{openCategory===label&&products.filter(p=>!(quantities[p.id]>0)&&(p.section||p.category||'その他')===label).map(row)}</div>)}
+      </details>
     </>
   );
 }
