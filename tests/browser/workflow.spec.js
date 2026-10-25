@@ -468,7 +468,7 @@ test('スライスは独立商品で選び、販売用の個人注文数を参�
   await expect(page.getByLabel('個人注文数を表示').last()).toBeChecked();
   await page.locator('.stage-1 .order-editor .product-add > summary').click();
   await page.locator('.stage-1 .order-editor').getByRole('button',{name:/^パン/}).click();
-  await expect(page.locator('.product-row').filter({hasText:'湯種食パン'})).toContainText('個人注文 1個');
+  await expect(page.locator('.product-row').filter({hasText:'湯種食パン'})).toContainText('個人注文 2個'); // 淺野の固定1個＋ホリの追加1個
   await page.getByRole('button',{name:'湯種食パン 数量を増やす'}).click();
   await page.getByRole('button',{name:'保存',exact:true}).click();
   await expect(page.getByRole('region',{name:'今回の販売用注文'})).not.toContainText('カット');
