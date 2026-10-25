@@ -8,8 +8,14 @@ const section=line=>/^(?:【|\[)?(?:個人注文|個人分)(?:】|\])?$/.test(li
 export function parseBatchOrder(text,state,round){
   let kind=null,buyerId='';const rows=[];
   for(const rawLine of String(text).split(/\r?\n/)){
-    const line=clean(rawLine).replace(/^[・●]\s*/,'').replace(/[。！!]+$/,'');if(!line)continue;
+    let line=clean(rawLine).replace(/^[・●]\s*/,'').replace(/[。！!]+$/,'');if(!line)continue;
     const next=section(line);if(next){kind=next;buyerId='';continue;}
+    const inline=line.match(/^([^:：]+)[:：]\s*(.+)$/);
+    if(inline&&(kind==='personal'||!kind)){
+      const names=candidates(inline[1].replace(/(?:さん|様)$/,'').trim(),state.buyers.filter(b=>!b.testOnly||round.test),state.aliases?.buyers);
+      if(names.length===1){kind='personal';buyerId=names[0].id;line=inline[2].trim();}
+      else {buyerId='';kind='personal';}
+    }
     const name=line.replace(/^(?:購入者|お名前|名前)\s*[:：]\s*/,'').replace(/(?:さん|様)$/,'').trim();
     const people=candidates(name,state.buyers.filter(b=>!b.testOnly||round.test),state.aliases?.buyers);
     if((kind==='personal'||!kind)&&people.length===1&&(!/\d/.test(name)||/^\w+$/.test(name))){kind='personal';buyerId=people[0].id;continue;}
@@ -22,7 +28,7 @@ export function parseBatchOrder(text,state,round){
       continue;
     }
     const qty=match?Number(match[2]):1;
-    rows.push({raw:line,kind:kind||'',buyerId:kind==='personal'?buyerId:'',productId:options.length===1?options[0].id:'',qty,options,ignored:false});
+    rows.push({raw:clean(rawLine),kind:kind||'',buyerId:kind==='personal'?buyerId:'',productId:options.length===1?options[0].id:'',qty,options,ignored:false});
   }
   return rows;
 }

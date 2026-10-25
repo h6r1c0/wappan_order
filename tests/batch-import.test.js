@@ -34,3 +34,8 @@ test('未登録の購入者名の後に続く商品を直前の購入者へ誤�
  assert.throws(()=>applyBatchOrder(s,r.id,rows),/確認/);
  assert.equal(Object.keys(r.orders).length,0);
 });
+test('名前：商品数量のLINE形式を購入者別に分ける',()=>{
+ const {s,r}=fixture();
+ const rows=parseBatchOrder('ホリ：黒糖ブレッド 2\n浅野：ミルクスティックパン ×1',s,r);
+ assert.deepEqual(rows.map(x=>[x.buyerId,x.productId,x.qty]),[['hori','brown',2],['asano','milk',1]]);
+});
