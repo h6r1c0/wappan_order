@@ -15,6 +15,7 @@ import {
 } from "./ui";
 import { readExcel, detectColumns, extractRows, analyzeSheet, permanentProduct } from "./excel";
 import {productDisplayName,productSearchText,productImportIdentity} from './product-names.js';
+import {importDifference} from './product-import-diff.js';
 const lifecycleLabels = { staple: "定番", once: "今回限り／月内", seasonal: "期間商品", permanent: "常設定番" };
 const importIdentity = name => normalize(productImportIdentity(name));
 const legacyImportAliases = new Map([
@@ -154,6 +155,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
   const { state, save, notify } = useApp();
   const fixedRound = state.rounds.find((round) => round.id === targetRoundId);
   const [analysis, setAnalysis] = useState(null), [target, setTarget] = useState(targetRoundId);
+  const [allProducts,setAllProducts]=useState(false);
   const [delivery, setDelivery] = useState(fixedRound?.date || today()), [testRound, setTestRound] = useState(fixedRound?.test || false);
   const [sheets, setSheets] = useState([]),
     [sheet, setSheet] = useState(0),
@@ -178,6 +180,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
       return;
     }
     const seen = new Set();
+    setAllProducts(false);
     setRows(
       data.map((x, sourceIndex) => {
         const p = matchedProduct(state.products,x.name),
@@ -200,6 +203,12 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
       }),
     );
   };
+  const comparisonMonth=monthKey(target==='new'?delivery:state.rounds.find(x=>x.id===target)?.date||delivery);
+  const previous=[...(state.productImportHistory||[])].filter(x=>(!comparisonMonth||x.month<=comparisonMonth)&&x.format===(analysis?.format||'unknown')).sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0];
+  const baseline=previous?.products||state.products.filter(p=>p.active!==false&&p.priceSource==='sheet');
+  const difference=rows?importDifference(rows,baseline):null;
+  const priority={up:0,down:0,changed:1,new:2,same:4};
+  const visible=rows?.map((r,i)=>({...r,index:i,diff:difference.changes[i]})).filter(r=>allProducts||r.diff.kind!=='same').sort((a,b)=>priority[a.diff.kind]-priority[b.diff.kind]||a.index-b.index)||[];
   return (
     <Modal title="今月のExcel注文表を取り込む" onClose={onClose}>
       <p>01 Excelを選ぶ → 02 読取結果を確認 → 03 登録</p>
@@ -326,17 +335,22 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
         <>
           <p className="notice">
             {rows.length}
-            商品を読み取りました。名前・価格・区分を確認してください。修正する商品はタップして開けます。
+            商品を読み取りました。{previous?'前回との変化':'現行マスターとの差'}を先に表示します。修正する商品はタップして開けます。
           </p>
+          <p className="muted">比較対象：{previous?`${previous.month}の同種の商品表（${previous.at.slice(0,10)}取込）`:'現在の商品マスター（過去の取込履歴がなく、前月比は未判定）'}。税込価格と販売価格は別です。</p>
+          <p>継続商品の価格変更 {difference.counts.up+difference.counts.down}件 ／ 内容・単位等の変更 {difference.counts.changed}件 ／ 新商品 {difference.counts.new}件 ／ 変更なし {difference.counts.same}件</p>
+          {previous&&difference.removed.length>0&&<details><summary>今回掲載のない商品 {difference.removed.length}件</summary><ul>{difference.removed.map((p,i)=><li key={i}>{productDisplayName(p.name)}</li>)}</ul></details>}
+          <button type="button" className="text-action" onClick={()=>setAllProducts(!allProducts)}>{allProducts?'変更のある商品だけ表示':'すべての商品を表示'}</button>
           <p>{Object.entries(lifecycleLabels).map(([key, label]) => `${label} ${rows.filter(r => r.include && r.lifecycle === key).length}件`).join(" ／ ")}</p>
           {fixedRound ? <p className="notice">取り込み先：<strong>{fixedRound.date.replaceAll("-", "/")} 着</strong>（この注文回へ自動で反映します）</p> : <Field label="商品を使う注文回（今回限りの商品は選択必須）"><select value={target} onChange={e => setTarget(e.target.value)}><option value="">商品マスターのみ登録</option><option value="new">新しい納品日で注文回も作る</option>{state.rounds.map(r => <option key={r.id} value={r.id}>{r.date}{r.test ? "（テスト）" : ""}</option>)}</select></Field>}
+          {!target&&!fixedRound&&<Field label="商品表の対象月" type="month" value={delivery.slice(0,7)} onChange={e=>setDelivery(`${e.target.value}-01`)}/>}
           {target === "new" && <><Field label="納品予定日" type="date" value={delivery} onChange={e => setDelivery(e.target.value)} /><Check label="テスト入力（年度実績へ含めない）" checked={testRound} onChange={setTestRound} /></>}
-          {rows.map((r, i) => {
+          {visible.map(({index:i,diff,...r}) => {
             const put = (k, v) =>
               setRows(rows.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
             return (
               <details className="card import-product" key={r.id} open={!r.lifecycle || r.mode === "manual"}>
-                <summary>{r.name}<br /><span>税込 {yen(r.gross)} → 販売 {yen(price(r))} ／ {lifecycleLabels[r.lifecycle] || "区分の確認が必要"}{!r.include ? "（登録しない）" : ""}</span></summary>
+                <summary>{r.name}<br /><span>{diff.kind==='up'?'値上がり':diff.kind==='down'?'値下がり':diff.kind==='changed'?'単位・内容など変更':diff.kind==='new'?'今月の新商品・季節商品':'変更なし'} ／ 税込 {diff.old?.gross!=null&&['up','down'].includes(diff.kind)?`${yen(diff.old.gross)} → `:''}{yen(r.gross)} → 販売 {yen(price(r))} ／ {lifecycleLabels[r.lifecycle] || "区分の確認が必要"}{!r.include ? "（登録しない）" : ""}</span></summary>
                 <Check
                   label={`${r.row}行目${r.duplicate ? "・重複候補（初期は除外）" : ""}`}
                   checked={r.include}
@@ -418,7 +432,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                 if (
                   await save((s) => {
                     const targetId = target === "new" ? uid() : target;
-                    const targetDate = target === "new" ? delivery : s.rounds.find(x => x.id === targetId)?.date || "";
+                    const targetDate = target === "new" ? delivery : s.rounds.find(x => x.id === targetId)?.date || delivery;
                     const importedMonth = monthKey(targetDate);
                     const names = new Set(),
                       ids = new Set();
@@ -490,6 +504,8 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                       s.rounds.push(round);
                     }
                     if (importedMonth) {
+                      s.productImportHistory??=[];
+                      s.productImportHistory.push({id:uid(),month:importedMonth,format:analysis?.format||'unknown',at:new Date().toISOString(),products:rows.filter(r=>r.include).map(r=>({name:r.name,gross:r.gross,category:r.category,section:r.section||'',price:price(r)}))});
                       s.productImports ??= [];
                       if (!s.productImports.includes(importedMonth)) s.productImports.push(importedMonth);
                       const round = s.rounds.find(x => x.id === targetId);

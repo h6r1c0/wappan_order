@@ -732,6 +732,8 @@ export function validate(s) {
     s.productImports.some((month) => !/^\d{4}-\d{2}$/.test(month))
   )
     throw Error("Excel取り込み月を確認してください");
+  if(s.productImportHistory && (!Array.isArray(s.productImportHistory)||s.productImportHistory.some(x=>!x.id||!/^\d{4}-\d{2}$/.test(x.month)||!Array.isArray(x.products)||x.products.some(p=>!String(p.name||'').trim()||p.gross!=null&&!Number.isSafeInteger(p.gross)))))
+    throw Error('商品表の取込履歴を確認してください');
   const date = (d) => {
     if (
       !/^\d{4}-\d{2}-\d{2}$/.test(d) ||
@@ -764,6 +766,8 @@ export function validate(s) {
   const links = [];
   for (const r of s.rounds) {
     date(r.date);
+    if(r.pendingImports && (!Array.isArray(r.pendingImports)||new Set(r.pendingImports.map(x=>x.id)).size!==r.pendingImports.length||r.pendingImports.some(x=>!x.id||!String(x.raw||'').trim()||!Number.isSafeInteger(x.qty)||x.qty<0||!['','personal','sales','snack'].includes(x.kind)||x.buyerId&&!s.buyers.some(b=>b.id===x.buyerId))))
+      throw Error('保留中の注文内容を確認してください');
     if (!["入力中", "注文確定", "納品済み", "精算済み"].includes(r.status))
       throw Error("注文状態が不正です");
     if(r.collectionClose){
