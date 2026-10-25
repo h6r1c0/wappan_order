@@ -12,6 +12,7 @@ test('LINEの複数人と販売用・おやつ用を一回の貼り付けで区�
  assert.equal(Object.keys(r.orders).length,0);
  applyBatchOrder(s,r.id,rows);validate(s);
  assert.equal(r.orders.hori.quantities.brown,2);assert.equal(r.orders.asano.quantities.milk,1);
+ assert.equal(r.orders.asano.quantities.brown,1); // 既存の固定注文も保持
  assert.equal(salesOrderQuantities(s,r.id).brown,3);assert.equal(snackOrderQuantities(s,r.id).milk,4);
  assert.throws(()=>applyBatchOrder(s,r.id,rows),/取込済み/);
 });
@@ -23,4 +24,13 @@ test('曖昧な区分や未登録商品は自動確定せず、既存の注文�
  const rows=parseBatchOrder('ホリ\n黒糖ブレッド 3',s,r);
  assert.throws(()=>applyBatchOrder(s,r.id,rows),/登録済み/);
  assert.equal(r.orders.hori.quantities.brown,2);
+});
+test('未登録の購入者名の後に続く商品を直前の購入者へ誤割当しない',()=>{
+ const {s,r}=fixture();
+ const rows=parseBatchOrder('ホリ\n黒糖ブレッド 1\n山田花子\nミルクスティックパン 2',s,r);
+ assert.equal(rows[0].buyerId,'hori');
+ assert.equal(rows[1].productId,'');
+ assert.equal(rows[2].buyerId,'');
+ assert.throws(()=>applyBatchOrder(s,r.id,rows),/確認/);
+ assert.equal(Object.keys(r.orders).length,0);
 });

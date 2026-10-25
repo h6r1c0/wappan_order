@@ -46,3 +46,9 @@ test('納品や利益未確定を未収繰越で飛ばせない',()=>{
  assert.match(roundProgress(s,r).issues[0].message,/納品書/);
  assert.throws(()=>closeRoundWithCarry(s,r.id),/納品書/);
 });
+test('旧保存値「精算済み」を変更せず集金中へ表示し、保存形式は互換',()=>{
+ const {s,r}=fixture();r.status='精算済み';
+ assert.equal(roundProgress(s,r).status,'集金中');
+ assert.equal(validate(s),s);
+ assert.equal(r.status,'精算済み');
+});

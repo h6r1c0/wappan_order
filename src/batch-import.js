@@ -1,4 +1,4 @@
-import {candidates} from './line-import.js';
+import {candidates,looksLikePersonalName} from './line-import.js';
 import {salesOrderQuantities,setSalesOrderQuantities,snackOrderQuantities,setSnackOrderQuantities} from './commerce.js';
 
 const clean=x=>String(x||'').normalize('NFKC').trim();
@@ -16,6 +16,11 @@ export function parseBatchOrder(text,state,round){
     const match=line.match(/^(.+?)\s*(?:[×x✕*]\s*)?(\d+)\s*(?:個|袋|本|点)?\s*$/);
     const productName=match?.[1]?.replace(/[×x✕*]\s*$/,'').trim()||line;
     const options=candidates(productName,round.products,state.aliases?.products);
+    if((kind==='personal'||!kind)&&!match&&!options.length&&looksLikePersonalName(name)){
+      kind='personal';buyerId='';
+      rows.push({raw:line,kind:'personal',buyerId:'',productId:'',qty:0,options:[],ignored:false});
+      continue;
+    }
     const qty=match?Number(match[2]):1;
     rows.push({raw:line,kind:kind||'',buyerId:kind==='personal'?buyerId:'',productId:options.length===1?options[0].id:'',qty,options,ignored:false});
   }
@@ -45,7 +50,8 @@ export function applyBatchOrder(state,roundId,rows){
     if(kind==='personal'){
       const b=state.buyers.find(b=>b.id===buyerId),old=round.orders[buyerId];
       if((old?.quantities?.[productId]||0)>0)throw Error(`${b.name}の${round.products.find(p=>p.id===productId).name}は登録済みです。注文画面で確認してください`);
-      round.orders[buyerId]={name:b.name,quantities:{...(old?.quantities||{}),[productId]:qty},...(old?.cutQuantities?{cutQuantities:old.cutQuantities}:{})};
+      const fixed=Object.fromEntries((b.fixed||[]).filter(x=>round.products.some(p=>p.id===x.productId)).map(x=>[x.productId,x.qty]));
+      round.orders[buyerId]={name:b.name,quantities:{...fixed,...(old?.quantities||{}),[productId]:qty},...(old?.cutQuantities?{cutQuantities:old.cutQuantities}:{})};
     }else if(kind==='sales'){
       if((sales[productId]||0)>0)throw Error('販売用の同じ商品は登録済みです。販売用の注文で確認してください');
       sales[productId]=qty;
