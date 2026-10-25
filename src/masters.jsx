@@ -204,7 +204,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
     );
   };
   const comparisonMonth=monthKey(target==='new'?delivery:state.rounds.find(x=>x.id===target)?.date||delivery);
-  const previous=[...(state.productImportHistory||[])].filter(x=>!comparisonMonth||x.month<=comparisonMonth).sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0];
+  const previous=[...(state.productImportHistory||[])].filter(x=>(!comparisonMonth||x.month<=comparisonMonth)&&x.format===(analysis?.format||'unknown')).sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0];
   const baseline=previous?.products||state.products.filter(p=>p.active!==false&&p.priceSource==='sheet');
   const difference=rows?importDifference(rows,baseline):null;
   const priority={up:0,down:0,changed:1,new:2,same:4};
@@ -504,7 +504,7 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                     }
                     if (importedMonth) {
                       s.productImportHistory??=[];
-                      s.productImportHistory.push({id:uid(),month:importedMonth,at:new Date().toISOString(),products:rows.filter(r=>r.include).map(r=>({name:r.name,gross:r.gross,category:r.category,section:r.section||'',price:price(r)}))});
+                      s.productImportHistory.push({id:uid(),month:importedMonth,format:analysis?.format||'unknown',at:new Date().toISOString(),products:rows.filter(r=>r.include).map(r=>({name:r.name,gross:r.gross,category:r.category,section:r.section||'',price:price(r)}))});
                       s.productImports ??= [];
                       if (!s.productImports.includes(importedMonth)) s.productImports.push(importedMonth);
                       const round = s.rounds.find(x => x.id === targetId);
