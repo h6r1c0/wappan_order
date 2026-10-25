@@ -483,6 +483,10 @@ export function ExcelImport({ onClose, targetRoundId = "", onImported }) {
                       const round = newRound(s, delivery, testRound, true);
                       round.id = targetId;
                       round.products = faxProducts(s.products).filter(p => productAvailable(p, delivery, targetId)).map(p => snapshot(p,{snackOnly:true}));
+                      for (const buyer of s.buyers) for (const fixed of buyer.fixed || []) {
+                        if (fixed.qty > 0 && !round.products.some(p=>p.id===fixed.productId))
+                          throw Error(`${buyer.name}の固定注文の商品がありません。先に商品管理で確認してください`);
+                      }
                       s.rounds.push(round);
                     }
                     if (importedMonth) {
