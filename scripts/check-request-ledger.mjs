@@ -35,7 +35,7 @@ function checkHandoff(body,label){
     const line=body.split('\n').find(x=>x.startsWith(`| ${id} |`));
     if(!line){errors.push(`${label}: ${id} の対応結果行がありません`);continue;}
     const cells=line.split('|').slice(1,-1).map(x=>x.trim());
-    if(cells.length<4||!/^(実装済み|部分完了|未完了|既存で充足|実装報告あり)/.test(cells[1]||'')||!cells[2]||!cells[3]||cells.some(x=>x.includes('例：')))
+    if(cells.length<4||!/^(実装済み|部分完了|未完了|既存で充足|実装報告あり|台帳へ回収)/.test(cells[1]||'')||!cells[2]||!cells[3]||cells.some(x=>x.includes('例：')))
       errors.push(`${label}: ${id} の結果・証拠・実機欄が未記入です`);
   }
   const reported=body.split('\n').filter(x=>/^\| WAP-\d{4} \|/.test(x)).map(x=>x.split('|')[1].trim());
