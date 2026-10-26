@@ -18,6 +18,8 @@
 
 開発担当は最初に [AGENTS.md](AGENTS.md) を読み、[現行業務仕様](docs/BUSINESS_RULES.md)、[UX基準](docs/ux-finish-checklist.md#今後の変更に適用するux基準)、[開発・検証手順](docs/DEVELOPMENT_CHECKS.md) へ進んでください。自動読込に依存せず、新しい作業セッションでもこの順で確認します。[初期検証記録](docs/VERIFICATION.md) の件数やDB状態は現在のものではありません。
 
+実機の改善要望は [要望台帳](docs/REQUEST_LEDGER.md) にIDを保持します。受領時の保存、Work指示との照合、保存失敗時の手順は [引渡し手順](docs/REQUEST_HANDOFF.md) を参照してください。本人に台帳の入力を依頼しません。
+
 Node.js 22.12以降（CIは24）。
 
 ```sh
