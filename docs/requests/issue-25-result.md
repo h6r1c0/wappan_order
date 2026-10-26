@@ -70,7 +70,7 @@
 | WAP-0061 | 台帳へ回収 | `f0af0b5` `src/markets.jsx` `src/sales.jsx`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
 | WAP-0062 | 台帳へ回収 | `d050475` `src/sales.jsx`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
 | WAP-0063 | 台帳へ回収 | `d050475` `src/style.css`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
-| WAP-0064 | 台帳へ回収 | `src/ui.jsx` `src/style.css`。PR #1は未統合の旧系列で、後続PR #5/#6と現行コードを照合する。。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
+| WAP-0064 | 台帳へ回収 | `src/ui.jsx` `src/style.css`。PR #1は未統合の旧系列で、後続PR #5/#6と現行コードを照合する。現行の最終CSSは1列のflex表示で、3列条件は未充足。後続の確定変更か退行かは元会話が取得できず判断保留。今回アプリは変更しない。 | 未確認 |
 | WAP-0065 | 台帳へ回収 | `e7770aa` `src/collection-workflow.js` `tests/collection-workflow.test.js`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
 | WAP-0066 | 台帳へ回収 | `e7770aa` `src/print-prep.jsx` `tests/print-prep.test.js`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
 | WAP-0067 | 台帳へ回収 | `d5c7676` `src/sales.jsx` `tests/browser/workflow.spec.js`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
