@@ -24,7 +24,7 @@ WAP-0002: 注文回一覧の太い左線を消さず、状態色の濃い筆跡�
 台帳未反映の要望: なし
 ```
 
-模擬完了報告での機械照合用対応表：
+過去の形式例（現在の検査には別に保存した依頼記録が必要）：
 
 | ID | 対応結果 | 証拠・残る作業 | 実機確認 |
 | --- | --- | --- | --- |
@@ -46,4 +46,16 @@ WAP-0002: 注文回一覧の太い左線を消さず、状態色の濃い筆跡�
 | WAP-0001 | 数量欄を狭くし商品名幅を守る。 | 台帳の同ID、2026-10-25指示第6部14・第11部40 | `6204a5e` の入力欄とブラウザ回帰 | 未確認。古い広い編集欄への不合格は経過として保持 |
 | WAP-0002 | 太い左線を削除せず、濃い状態色の筆跡にする。 | 台帳の同ID、2026-10-25指示第9部31・第11部41 | `6204a5e` の7px筆跡とブラウザ回帰 | 未確認。過去の削除は再発として保持 |
 
-この表の4列のうち一つでも欠ければ引渡し未完了。機械テストは次の模擬指示でIDの漏れを検出する：`node scripts/check-request-ledger.mjs --handoff docs/REQUEST_HANDOFF.md`。これは書式の検査であり、別Chatへの自動伝達・本人の実機合格を証明しない。
+この表の4列のうち一つでも欠ければ引渡し未完了。機械テストは次の模擬指示でIDの漏れを検出する：`node scripts/check-request-ledger.mjs --handoff docs/requests/issue-25-result.md --request docs/requests/issue-25.json`。これは書式の検査であり、別Chatへの自動伝達・本人の実機合格を証明しない。
+
+## 独立した対象一覧で照合する（3代目による補強）
+
+Workへ渡す前に `docs/requests/<依頼名>.json` を保存する。`source`（取得できる出典）、`purpose`（今回の範囲）、`targets`（各IDの `id`・台帳と同じ `intent`・`acceptance`）、`deferred`（対象外IDの `id`・`reason`・`next`）を記す。[今回の実記録](requests/issue-25.json) を形式例にする。内容はAIが照合・作成し、利用者へ台帳入力を求めない。PR本文から逆算して対象を減らさない。新しい出典や訂正で範囲が変われば、根拠・旧意図を台帳履歴へ保存してから依頼記録も更新する。
+
+- 開始：`node scripts/check-request-ledger.mjs --request docs/requests/issue-25.json`
+- 完了：`node scripts/check-request-ledger.mjs --handoff docs/requests/issue-25-result.md --request docs/requests/issue-25.json`
+- PR本文：行頭に `依頼記録: docs/requests/issue-25.json` と `対象ID: ...`、全IDの対応表を置く。本文編集もCI対象。比較元mainの既存ID削除と旧意図・受入条件の履歴なし変更も失敗する。IDは連番へ振り直さない。
+
+受入条件は依頼記録から台帳へ明示参照され、PRでは同じIDの結果・証拠・残作業へつなぐ。CIはテキストの意味や元会話から最初に落ちた要望を理解して回収する仕組みではない。`npm run check:docs` 単独（PR外）では台帳書式だけの検査なので、依頼と完了の上記検査も行う。
+
+GitHub保存の読み戻しでは、コミットSHA・対象ブランチまたはmain・更新した全ID・意図・受入条件・履歴・実機状態をローカル期待値と比較する。部分保存や古い読出し、返却成功だけを登録済みとしない。保存失敗時の復旧手順は本書冒頭を使う。別Chatでの初回受領・保存・読み戻しの実運用は、今回のWorkでの記録更新とは別に確認する。

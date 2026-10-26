@@ -5,7 +5,8 @@ const root = resolve(import.meta.dirname, '..');
 const files = ['AGENTS.md', 'README.md', 'docs/BUSINESS_RULES.md',
   'docs/DEVELOPMENT_CHECKS.md', 'docs/ux-finish-checklist.md',
   'docs/DESIGN.md', 'docs/ACCEPTANCE.md', 'docs/VERIFICATION.md',
-  'docs/REQUEST_LEDGER.md', 'docs/REQUEST_HANDOFF.md'];
+  'docs/REQUEST_LEDGER.md', 'docs/REQUEST_HANDOFF.md',
+  'docs/REQUEST_AUDIT_20261026.md', 'docs/requests/issue-25-result.md'];
 const errors = [];
 for (const file of files) {
   const full = resolve(root, file);
