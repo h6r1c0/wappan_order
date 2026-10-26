@@ -1,9 +1,9 @@
 ## Issue #25：要望の取りこぼし防止を既存基盤へ統合
 
 依頼記録: docs/requests/issue-25.json
-対象ID: WAP-0001, WAP-0002, WAP-0003, WAP-0004, WAP-0005, WAP-0006, WAP-0007, WAP-0008, WAP-0009, WAP-0010, WAP-0011, WAP-0012, WAP-0013, WAP-0014, WAP-0015, WAP-0016, WAP-0017, WAP-0018, WAP-0019, WAP-0020, WAP-0021, WAP-0022, WAP-0023, WAP-0024, WAP-0025, WAP-0026, WAP-0027, WAP-0028, WAP-0029, WAP-0030, WAP-0031, WAP-0032, WAP-0033, WAP-0034, WAP-0035, WAP-0036, WAP-0037, WAP-0038, WAP-0039, WAP-0040, WAP-0041, WAP-0042, WAP-0043, WAP-0044, WAP-0045, WAP-0046, WAP-0047, WAP-0048, WAP-0049, WAP-0050, WAP-0051, WAP-0052, WAP-0053, WAP-0054, WAP-0055, WAP-0056, WAP-0057, WAP-0058
+対象ID: WAP-0001, WAP-0002, WAP-0003, WAP-0004, WAP-0005, WAP-0006, WAP-0007, WAP-0008, WAP-0009, WAP-0010, WAP-0011, WAP-0012, WAP-0013, WAP-0014, WAP-0015, WAP-0016, WAP-0017, WAP-0018, WAP-0019, WAP-0020, WAP-0021, WAP-0022, WAP-0023, WAP-0024, WAP-0025, WAP-0026, WAP-0027, WAP-0028, WAP-0029, WAP-0030, WAP-0031, WAP-0032, WAP-0033, WAP-0034, WAP-0035, WAP-0036, WAP-0037, WAP-0038, WAP-0039, WAP-0040, WAP-0041, WAP-0042, WAP-0043, WAP-0044, WAP-0045, WAP-0046, WAP-0047, WAP-0048, WAP-0049, WAP-0050, WAP-0051, WAP-0052, WAP-0053, WAP-0054, WAP-0055, WAP-0056, WAP-0057, WAP-0058, WAP-0059, WAP-0060, WAP-0061, WAP-0062, WAP-0063, WAP-0064, WAP-0065, WAP-0066, WAP-0067
 
-前WorkのPR #26・2コミット・54件を継承。業務等53件＋管理基盤1件に、GitHub履歴から不足4件を追加回収し58件。アプリ本体・業務データは変更しない。元会話全文・画像全件は未確認。
+前WorkのPR #26・2コミット・54件を継承。業務等53件＋管理基盤1件に、GitHub履歴から不足13件を追加回収し67件。アプリ本体・業務データは変更しない。元会話全文・画像全件は未確認。
 
 | ID | 対応結果 | 証拠・残る作業 | 実機確認 |
 | --- | --- | --- | --- |
@@ -60,11 +60,20 @@
 | WAP-0051 | 台帳へ回収 | `29b03ed` `20516c6` `tests/domain.test.js`。 | 未確認 |
 | WAP-0052 | 台帳へ回収 | `20516c6` `tests/browser/ux-density.spec.js`。 | 未確認 |
 | WAP-0053 | 台帳へ回収 | `6204a5e` 公開前後 revision 79・同一ハッシュと報告。今回の文書作業も変更禁止。 | 対象外 |
-| WAP-0054 | 部分完了 | `scripts/check-request-ledger.mjs`、依頼記録と58件を照合。残：別Chatの受領時自動登録の実運用確認。Issue #25へ継続。 | 対象外 |
+| WAP-0054 | 部分完了 | `scripts/check-request-ledger.mjs`、依頼記録と67件を照合。残：別Chatの受領時自動登録の実運用確認。Issue #25へ継続。 | 対象外 |
 | WAP-0055 | 台帳へ回収 | `a6b4018` `tests/print-pdf.test.js`。3代目が履歴から追加回収。元の利用者原文は未取得。 | 未確認 |
 | WAP-0056 | 台帳へ回収 | `ad5bad0` `tests/print-prep.test.js`。3代目追加回収。実機合格は未取得。 | 未確認 |
 | WAP-0057 | 台帳へ回収 | `217bc4d` `aa34da3` `src/ui.jsx` `tests/browser/workflow.spec.js`。3代目追加回収。IME候補の専用自動試験は未確認。原発言の細部は未確認。 | 未確認 |
 | WAP-0058 | 台帳へ回収 | `d050475` `src/ui.jsx` `tests/browser/workflow.spec.js`。3代目追加回収。実機合格は未取得。 | 未確認 |
+| WAP-0059 | 台帳へ回収 | `bf2f0bd` `src/sales.jsx`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
+| WAP-0060 | 台帳へ回収 | `bf2f0bd` `src/sales.jsx` `src/ui.jsx`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
+| WAP-0061 | 台帳へ回収 | `f0af0b5` `src/markets.jsx` `src/sales.jsx`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
+| WAP-0062 | 台帳へ回収 | `d050475` `src/sales.jsx`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
+| WAP-0063 | 台帳へ回収 | `d050475` `src/style.css`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
+| WAP-0064 | 台帳へ回収 | `src/ui.jsx` `src/style.css`。PR #1は未統合の旧系列で、後続PR #5/#6と現行コードを照合する。。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
+| WAP-0065 | 台帳へ回収 | `e7770aa` `src/collection-workflow.js` `tests/collection-workflow.test.js`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
+| WAP-0066 | 台帳へ回収 | `e7770aa` `src/print-prep.jsx` `tests/print-prep.test.js`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
+| WAP-0067 | 台帳へ回収 | `d5c7676` `src/sales.jsx` `tests/browser/workflow.spec.js`。3代目がPR本文から追加回収。専用の受入試験と原発言の細部は未確認。 | 未確認 |
 
 ### 変更・維持・検証
 - 元の対象ID集合とPR・完了報告を照合。受入条件、未知ID、結果行欠落、誤実機合格、旧意図の消失を検出する。

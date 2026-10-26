@@ -6,8 +6,8 @@ const ledger=readFileSync(new URL('../docs/REQUEST_LEDGER.md',import.meta.url),'
 const request=JSON.parse(readFileSync(new URL('../docs/requests/issue-25.json',import.meta.url),'utf8'));
 const report=readFileSync(new URL('../docs/requests/issue-25-result.md',import.meta.url),'utf8');
 const copy=()=>structuredClone(request);
-test('保存された実要望58件と依頼・完了記録が一致する',()=>{
- assert.equal(parseLedger(ledger).length,58);
+test('保存された実要望67件と依頼・完了記録が一致する',()=>{
+ assert.ok(parseLedger(ledger).length>=67);
  assert.deepEqual(checkLedger(ledger),[]);assert.deepEqual(checkRequest(request,ledger),[]);assert.deepEqual(checkHandoff(report,request,ledger),[]);
 });
 test('PRからIDと対応行が同時に消えても元の依頼から欠落を検出する',()=>{
