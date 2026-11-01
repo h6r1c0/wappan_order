@@ -5,7 +5,8 @@ import {execFileSync} from 'node:child_process';
 
 const root=resolve(fileURLToPath(new URL('..',import.meta.url)));
 const statuses=['未依頼','Workに依頼済み','実装報告あり','未解決','判断待ち','明示的に撤回'];
-const cells=line=>line.split('|').slice(1,-1).map(x=>x.trim());
+// Markdown permits an omitted final pipe; preserve the last (device) column.
+const cells=line=>line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(x=>x.trim());
 export function parseLedger(body){return body.split('\n').filter(x=>/^\| WAP-\d{4} \|/.test(x)).map(cells);}
 export function checkLedger(body,previous=''){
  const errors=[],rows=parseLedger(body),ids=new Set();
