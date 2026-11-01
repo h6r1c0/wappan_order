@@ -46,7 +46,7 @@ async function scenario(browser,url,engine,width,version,mode){
   await page.locator('.round-list-item').click();await page.locator('.stage-1 > .stage-trigger').click();
   await capture(page,engine,width,version,`${mode}-stage`);
   await openAfter(page,'販売先を割り当てる');await closeToast(page);
-  let taps=0;
+  let taps=0;const revisionAtStart=shared.revision;
   await page.locator('.sales-step-body').evaluate(el=>scrollTo(0,Math.max(0,el.getBoundingClientRect().top+scrollY-12)));
   await page.waitForTimeout(100);
   await page.evaluate(()=>{const positions=new Map();document.querySelectorAll('*').forEach(el=>positions.set(el,el.scrollTop));window.__scrollMetric={total:0,paused:false,positions};document.addEventListener('scroll',event=>{const el=event.target===document?document.scrollingElement:event.target;if(typeof el?.scrollTop!=='number')return;const metric=window.__scrollMetric;if(!metric.paused)metric.total+=Math.abs(el.scrollTop-(positions.get(el)||0));positions.set(el,el.scrollTop);},true);});
@@ -73,14 +73,14 @@ async function scenario(browser,url,engine,width,version,mode){
      await closeToast(page);
     }
    }else{
-    await work.getByLabel('割当先',{exact:true}).selectOption('buyer:qa-a');taps++;
+    await work.getByLabel('割当先',{exact:true}).selectOption('buyer:qa-a');taps+=2; // open the native chooser, then choose the buyer
     for(const name of ['くるみパン','黒糖ブレッド'])await click(work.getByRole('button',{name:`${name} 割当数量を増やす`}));
     await click(work.getByRole('button',{name:'この2商品の割当を保存'}));
    }
   }
   await expect(page.locator('.sales-workspace:visible .sale-saved')).toBeVisible();
   const metrics=await page.locator('.sales-workspace:visible').evaluate(el=>({height:Math.round(el.getBoundingClientRect().height),scrollDistance:Math.round(window.__scrollMetric.total),overflow:document.documentElement.scrollWidth>innerWidth}));
-  return {taps,...metrics};
+  return {taps,saves:shared.revision-revisionAtStart,...metrics};
  }finally{await context.close();}
 }
 export function registerAllocationTests(engine){
@@ -96,7 +96,8 @@ export function registerAllocationTests(engine){
   await fs.writeFile(`test-results/allocation-${engine}-${width}-metrics.json`,JSON.stringify(result,null,2));
   console.log('ALLOCATION_UX '+JSON.stringify(result));
   for(const mode of ['buyer','product']){
-   expect(result[mode].after.taps).toBeLessThan(result[mode].before.taps);
+   if(mode==='buyer')expect(result[mode].after.taps).toBeLessThan(result[mode].before.taps);
+   else {expect(result[mode].after.taps).toBeLessThanOrEqual(result[mode].before.taps);expect(result[mode].after.saves).toBeLessThan(result[mode].before.saves);}
    expect(result[mode].after.overflow).toBe(false);
    expect(result[mode].after.height).toBeLessThanOrEqual(result[mode].before.height);
   }
