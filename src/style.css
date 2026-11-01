@@ -2660,10 +2660,10 @@ header small {
 
 /* Allocation controls and text-sized purpose accents. Scope changes to these components. */
 @media screen {
-  .sales-mode-grid.assignment-modes {display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:0 0 8px;}
-  .assignment-mode {min-height:44px;padding:6px 10px;border:0;border-radius:0;color:var(--work-accent);background:transparent;font:inherit;font-weight:650;}
+  .sales-mode-grid.assignment-modes {display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:0 0 8px;}
+  .assignment-mode {min-height:44px;padding:6px 6px;font-size:.86rem;border:0;border-radius:0;color:var(--work-accent);background:transparent;font-family:inherit;font-weight:650;}
   .assignment-mode.selected {background:var(--pencil-light) center/100% 80% no-repeat;}
-  .assignment-modes .text-action {min-height:44px;padding:6px 3px;}
+  .assignment-modes .text-action {min-height:44px;padding:6px 2px;font-size:.8rem;}
   .assignment-modes [aria-pressed="true"] {font-weight:700;}
   .assignment-mode:focus-visible {outline:2px solid var(--work-accent);outline-offset:2px;}
   .stock-summary-line {display:flex;justify-content:space-between;align-items:center;gap:4px 8px;}
@@ -2677,7 +2677,7 @@ header small {
   .stock-breakdown p {margin:3px 0;}
   .product-assignment-destination {margin:0 0 4px;}
   .product-assignment-destination .field {margin:4px 0;}
-  .sales-workspace-product .sales-confirm {position:sticky;bottom:6px;z-index:2;background:#fdfdfb;border-top:1px solid var(--line);padding:6px 0;}
+  .sales-workspace-product .sales-confirm {position:sticky;bottom:calc(70px + env(safe-area-inset-bottom));z-index:2;background:#fdfdfb;border-top:1px solid var(--line);padding:6px 0;}
   .sales-workspace-product .sales-confirm .button {min-height:44px;}
   .stage-content .purpose-grid .purpose.selected {background:transparent;}
   .stage-content .purpose-grid .purpose {position:relative;min-height:44px;}
@@ -2685,4 +2685,12 @@ header small {
   .stage-content .purpose-grid .purpose.selected>span {background:var(--pencil-light) center/100% 100% no-repeat;}
   .stage-content .purpose-grid .purpose.selected>span::before {content:"";position:absolute;left:-3px;top:-2px;bottom:-2px;width:3px;background:var(--pencil-deep) center/100% 100% no-repeat;pointer-events:none;}
   .stage-content .purpose-grid .purpose.selected>span::after {content:"";position:absolute;left:-3px;right:0;bottom:-2px;height:3px;background:var(--pencil-deep) center/100% 100% no-repeat;transform:rotate(-.7deg);transform-origin:left bottom;pointer-events:none;}
+}
+
+@media screen {
+  /* Let grid/flex children shrink to the viewport without clipping the buyer controls. */
+  .after-work .sales-steps {grid-template-columns:minmax(0,1fr);min-width:0;}
+  .sales-step-body,.sales-step-body>div,.sales-workspace,.assignment-destination {min-width:0;max-width:100%;}
+  .sales-workspace .buyer-search-add,.sales-workspace .buyer-index {min-width:0;max-width:100%;}
+  .sales-workspace .field,.sales-workspace .field input,.sales-workspace .field select {min-width:0;max-width:100%;}
 }

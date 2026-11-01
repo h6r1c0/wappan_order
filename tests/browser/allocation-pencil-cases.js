@@ -85,11 +85,13 @@ export function registerAllocationTests(engine){
   const result={engine,width,beforeSHA};
   for(const mode of ['buyer','product']){
    result[mode]={before:await scenario(browser,before.url,engine,width,'before',mode),after:await scenario(browser,baseURL,engine,width,'after',mode)};
-   expect(result[mode].after.taps).toBeLessThan(result[mode].before.taps);
-   expect(result[mode].after.overflow).toBe(false);
   }
   await fs.writeFile(`test-results/allocation-${engine}-${width}-metrics.json`,JSON.stringify(result,null,2));
   console.log('ALLOCATION_UX '+JSON.stringify(result));
+  for(const mode of ['buyer','product']){
+   expect(result[mode].after.taps).toBeLessThan(result[mode].before.taps);
+   expect(result[mode].after.overflow).toBe(false);
+  }
  });
  test('分割・再読込・連続保存・保存失敗・再試行でも会計と原本を守る',async({page,context})=>{
   const shared=fixture(),before=structuredClone(shared.state),round=shared.state.rounds[0];
@@ -108,7 +110,7 @@ export function registerAllocationTests(engine){
   fail=false;await closeToast(page);attempts=0;
   await work.getByRole('button',{name:'この2商品の割当を保存'}).evaluate(button=>{button.click();button.click();});
   await expect(work).toHaveAttribute('data-unsaved','false');expect(attempts).toBe(1);
-  await closeToast(page);await work.locator('.buyer-index').getByRole('button',{name:'い',exact:true}).click();
+  await closeToast(page);
   await work.getByRole('button',{name:'検証の購入者B',exact:true}).click();
   await work.getByRole('button',{name:'くるみパン 割当数量を増やす'}).click();
   await work.getByRole('button',{name:'この1商品の割当を保存'}).click();
