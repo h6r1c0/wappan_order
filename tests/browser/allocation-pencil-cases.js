@@ -62,6 +62,7 @@ async function scenario(browser,url,engine,width,version,mode){
   }else{
    if(version==='after')await click(page.getByRole('button',{name:'商品別・残数',exact:true}));
    const work=page.locator('.sales-workspace:visible');
+   if(version==='after')expect(await work.getByLabel('割当先',{exact:true}).evaluate(el=>el.getBoundingClientRect().width)).toBeGreaterThan(140);
    await capture(page,engine,width,version,'product-list');
    if(version==='before'){
     for(const name of ['くるみパン','黒糖ブレッド']){
