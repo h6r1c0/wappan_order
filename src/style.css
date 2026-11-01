@@ -2604,18 +2604,22 @@ header small {
 @media(max-width:375px){.round-list-heading{align-items:flex-start}.round-list-heading button{margin-top:.15rem}}
 
 @media screen {
-  .round-list-shell .round-list-item {position:relative;border-left:0;padding-left:16px;}
-  .round-list-item::before {content:"";position:absolute;left:0;top:4px;bottom:4px;width:7px;background:#26704a url('./assets/pencil/green-deep.png') center/100% 100% no-repeat;pointer-events:none;}
-  .round-list-item.status-注文確定::before {background-color:#285f96;background-image:url('./assets/pencil/blue-deep.png');}
-  .round-list-item.status-納品済み::before {background-color:#965216;background-image:url('./assets/pencil/orange-deep.png');}
-  .round-list-item.status-集金中::before {background-color:#a52f39;background-image:url('./assets/pencil/red-deep.png');}
-  .round-list-item.status-完了::before {background-color:#717d75;background-image:url('./assets/pencil/green-deep.png');filter:grayscale(1);}
+  /* WAP-0002: retain the approved deep stroke and extend it into a pencil L. */
+  .round-list-shell .round-list-item {position:relative;border-left:0;padding-left:16px;--round-accent:#26704a;--round-pencil:url('./assets/pencil/green-deep.png');}
+  .round-list-item::before {content:"";position:absolute;left:0;top:4px;bottom:0;width:7px;background:var(--round-accent) var(--round-pencil) center/100% 100% no-repeat;pointer-events:none;}
+  .round-list-item::after {content:"";position:absolute;left:0;right:8px;bottom:0;height:4px;background:var(--round-pencil) center/100% 100% no-repeat;transform:rotate(-.7deg);transform-origin:left bottom;pointer-events:none;}
+  .round-list-shell .round-list-item.status-注文確定 {--round-accent:#285f96;--round-pencil:url('./assets/pencil/blue-deep.png');}
+  .round-list-shell .round-list-item.status-納品済み {--round-accent:#965216;--round-pencil:url('./assets/pencil/orange-deep.png');}
+  .round-list-shell .round-list-item.status-集金中 {--round-accent:#a52f39;--round-pencil:url('./assets/pencil/red-deep.png');}
+  .round-list-shell .round-list-item.status-完了 {--round-accent:#717d75;}
+  .round-list-item.status-完了::before,.round-list-item.status-完了::after {filter:grayscale(1);}
   .round-list-item .tag,.delivery-heading~p .tag,.tag {border-radius:999px!important;cursor:default;box-shadow:none;}
-  .stage-trigger {position:relative;font-family:ui-rounded,"Hiragino Maru Gothic ProN","BIZ UDPGothic","Yu Gothic",Meiryo,system-ui,sans-serif;}
-  .stage.active > .stage-trigger {border-left-color:transparent;box-shadow:none;}
-  .stage.active > .stage-trigger::before {content:"";position:absolute;left:0;top:3px;bottom:3px;width:5px;background:var(--work-accent) var(--pencil-deep) center/100% 100% no-repeat;pointer-events:none;}
-  .stage.active > .stage-trigger::after {content:"";position:absolute;left:7px;right:5px;bottom:0;height:2px;background:var(--pencil-light) center/100% 100% no-repeat;pointer-events:none;}
-  .stage-number {font-family:inherit;font-size:1.07rem;font-weight:750;width:29px;}
+  /* WAP-0043: the L follows the outside of the stage surface, not its text inset. */
+  .stage-trigger {position:relative;font-family:inherit;}
+  .stage.active > .stage-trigger {border:0;padding-left:14px;box-shadow:none;}
+  .stage.active > .stage-trigger::before {content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--pencil-deep) center/100% 100% no-repeat;pointer-events:none;}
+  .stage.active > .stage-trigger::after {content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--pencil-deep) center/100% 100% no-repeat;transform:rotate(-.7deg);transform-origin:left bottom;pointer-events:none;}
+  .stage-trigger .stage-number {font-family:inherit;font-size:1em;font-weight:inherit;font-variant-numeric:tabular-nums;width:29px;}
   .stage-chevron,.chevron,.round-open {display:inline-block;font-family:ui-rounded,"Hiragino Maru Gothic ProN",system-ui,sans-serif;font-weight:700;transform:rotate(-5deg);}
   .button:not(.secondary):not(.danger),.home-start .button {border-color:transparent;box-shadow:none;}
   .text-action {text-decoration:none;background-image:linear-gradient(transparent,transparent);}
@@ -2652,4 +2656,33 @@ header small {
   .batch-import-original,.batch-import-special {flex:1 0 100%;}
   .batch-import-special textarea {width:100%;min-height:62px;}
   .batch-all-products {align-self:end;min-height:40px;font-size:.8rem;}
+}
+
+/* Allocation controls and text-sized purpose accents. Scope changes to these components. */
+@media screen {
+  .sales-mode-grid.assignment-modes {display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:0 0 8px;}
+  .assignment-mode {min-height:44px;padding:6px 10px;border:0;border-radius:0;color:var(--work-accent);background:transparent;font:inherit;font-weight:650;}
+  .assignment-mode.selected {background:var(--pencil-light) center/100% 80% no-repeat;}
+  .assignment-modes .text-action {min-height:44px;padding:6px 3px;}
+  .assignment-modes [aria-pressed="true"] {font-weight:700;}
+  .assignment-mode:focus-visible {outline:2px solid var(--work-accent);outline-offset:2px;}
+  .stock-summary-line {display:flex;justify-content:space-between;align-items:center;gap:4px 8px;}
+  .stock-summary-line .stock-summary-head {flex:1;min-width:0;overflow-wrap:anywhere;}
+  .stock-summary-line .qty {flex:0 0 auto;}
+  .stock-summary-head>span {font-size:.8rem;color:var(--work-accent);}
+  .stock-breakdown {font-size:.79rem;margin:0;}
+  .stock-breakdown>summary {min-height:32px;display:flex;align-items:center;cursor:pointer;width:fit-content;color:#626962;}
+  .stock-breakdown>summary::before {content:'›';padding-right:5px;}
+  .stock-breakdown[open]>summary::before {content:'⌄';}
+  .stock-breakdown p {margin:3px 0;}
+  .product-assignment-destination {margin:0 0 4px;}
+  .product-assignment-destination .field {margin:4px 0;}
+  .sales-workspace-product .sales-confirm {position:sticky;bottom:6px;z-index:2;background:#fdfdfb;border-top:1px solid var(--line);padding:6px 0;}
+  .sales-workspace-product .sales-confirm .button {min-height:44px;}
+  .stage-content .purpose-grid .purpose.selected {background:transparent;}
+  .stage-content .purpose-grid .purpose {position:relative;min-height:44px;}
+  .stage-content .purpose-grid .purpose>span {position:relative;display:inline-block;padding:2px 4px;white-space:nowrap;}
+  .stage-content .purpose-grid .purpose.selected>span {background:var(--pencil-light) center/100% 100% no-repeat;}
+  .stage-content .purpose-grid .purpose.selected>span::before {content:"";position:absolute;left:-3px;top:-2px;bottom:-2px;width:3px;background:var(--pencil-deep) center/100% 100% no-repeat;pointer-events:none;}
+  .stage-content .purpose-grid .purpose.selected>span::after {content:"";position:absolute;left:-3px;right:0;bottom:-2px;height:3px;background:var(--pencil-deep) center/100% 100% no-repeat;transform:rotate(-.7deg);transform-origin:left bottom;pointer-events:none;}
 }

@@ -2,12 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {checkLedger,checkRequest,checkHandoff,parseLedger} from '../scripts/check-request-ledger.mjs';
-const ledger=readFileSync(new URL('../docs/REQUEST_LEDGER.md',import.meta.url),'utf8');
+const currentLedger=readFileSync(new URL('../docs/REQUEST_LEDGER.md',import.meta.url),'utf8');
 const request=JSON.parse(readFileSync(new URL('../docs/requests/issue-25.json',import.meta.url),'utf8'));
 const report=readFileSync(new URL('../docs/requests/issue-25-result.md',import.meta.url),'utf8');
+const ledger=currentLedger.split('\n').map(line=>{
+ if(!/^\| WAP-\d{4} \|/.test(line))return line;
+ const row=parseLedger(line)[0],snapshot=request.targets.find(x=>x.id===row[0]);
+ if(snapshot){row[1]=snapshot.intent;row[3]=snapshot.acceptance;}
+ return '| '+row.join(' | ')+' |';
+}).join('\n');
 const copy=()=>structuredClone(request);
 test('保存された実要望67件と依頼・完了記録が一致する',()=>{
- assert.ok(parseLedger(ledger).length>=67);
+ assert.ok(parseLedger(currentLedger).length>=67);
+ assert.deepEqual(checkLedger(currentLedger),[]);
  assert.deepEqual(checkLedger(ledger),[]);assert.deepEqual(checkRequest(request,ledger),[]);assert.deepEqual(checkHandoff(report,request,ledger),[]);
 });
 test('PRからIDと対応行が同時に消えても元の依頼から欠落を検出する',()=>{
@@ -45,4 +52,15 @@ test('対象外は理由と継続先を必須にする',()=>{
 });
 test('訂正・撤回で欠番があっても既存IDを振り直さない',()=>{
  const gapped=ledger.replace(/^\| WAP-0010 \|.*\n/m,'');assert.deepEqual(checkLedger(gapped),[]);
+});
+
+test('Markdown末尾のパイプを省略しても実機欄と7列を失わない',()=>{
+ const without=ledger.replace(/ \|$/gm,'');
+ assert.deepEqual(parseLedger(without),parseLedger(ledger));
+ assert.deepEqual(checkLedger(without),[]);
+});
+test('今回の5件は現行の意図・受入条件と一致する',()=>{
+ const active=JSON.parse(readFileSync(new URL('../docs/requests/allocation-pencil-20261101.json',import.meta.url),'utf8'));
+ assert.deepEqual(active.targets.map(x=>x.id),['WAP-0002','WAP-0004','WAP-0005','WAP-0006','WAP-0043']);
+ assert.deepEqual(checkRequest(active,currentLedger),[]);
 });
