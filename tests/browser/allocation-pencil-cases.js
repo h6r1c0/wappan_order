@@ -12,11 +12,12 @@ const root=fileURLToPath(new URL('../..',import.meta.url));
 const beforeSHA='b90a2e2769bb7aab712c7418d842d591ec18bee7';
 function fixture(){
  const state=initialState();
+ state.products.forEach(p=>{if(p.manual==null)p.gross=300;});state.productImports.push('2026-10');
  state.buyers=[{id:'qa-a',name:'検証の購入者A',kana:'あ',active:true,fixed:[]},{id:'qa-b',name:'検証の購入者B',kana:'い',active:true,fixed:[]}];
  const round=newRound(state,'2026-10-16',true);state.rounds.push(round);
  setSalesOrderQuantities(state,round.id,{walnut:4,brown:3});
  for(const stock of state.stocks){stock.cost=100;addSale(state,stock,{qty:stock.qty,date:round.date,price:stock.price,destinationType:'unknown',paymentStatus:'unconfirmed'});}
- upgrade(state);validate(state);return {state,revision:0};
+ upgrade(state);validate(state);if(state.stocks.length!==2)throw Error('検証データは価格確定した2商品が必要です');return {state,revision:0};
 }
 async function openWorkspace(page,context,shared){await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売先を割り当てる');}
 async function freePort(){const server=net.createServer();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const port=server.address().port;await new Promise(resolve=>server.close(resolve));return port;}
