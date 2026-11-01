@@ -2707,3 +2707,6 @@ header small {
 @media screen {
   .sales-workspace .sale-saved {margin:4px 0 0;padding:5px 8px;border-radius:4px;font-size:.86rem;}
 }
+@media screen {
+  .sales-workspace-product .stock-summary {padding:3px 0;}
+}
