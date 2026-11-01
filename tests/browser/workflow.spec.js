@@ -274,7 +274,7 @@ test('納品後: 未確認2個を購入者と名称なし外部へ分割', async
   await work.getByLabel('割当先',{exact:true}).selectOption('external');
   await expect(work.getByLabel('販売先・団体名（任意）')).toHaveValue('');
   await work.getByRole('button',{name:'この1商品の割当を保存',exact:true}).click();
-  await work.locator('.completed-stocks summary').click();
+  await work.locator('.completed-stocks > summary').click();
   await expect(work.getByLabel('くるみパンの割当状況')).toContainText('ホリ 1個');
   await expect(work.getByLabel('くるみパンの割当状況')).toContainText('割当済み');
   expect(shared.state.sales.reduce((n,s)=>n+s.qty,0)).toBe(2);

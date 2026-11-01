@@ -58,13 +58,13 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
     {destinationType==='external'&&<Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field>}</div>;
   const saleOptions=<details className="sale-date"><summary>販売日・場所・特別単価（任意）</summary><Field label="販売日" type="date" value={date} onChange={e=>setDate(e.target.value)}/><Field label="販売場所・催し名"><input list={`assignment-places-${mode}`} value={salePlace} onChange={e=>setSalePlace(e.target.value)}/></Field><datalist id={`assignment-places-${mode}`}>{state.markets.filter(m=>m.roundId===roundId).map(m=><option key={m.id} value={m.name}/>)}</datalist>{mode==='product'&&picked.filter(stock=>pendingFor(state,stock).length===0).map(stock=><Money key={stock.id} label={`${productDisplayName(stock.name)} この販売だけの単価`} value={unit(stock)} onChange={v=>setPrices({...prices,[stock.id]:v})}/>)}</details>;
   const filters=<><div className="tabs category-tabs" aria-label="販売商品を絞り込む">{[['ALL','すべて'],['パン','パン'],['焼き菓子','焼き菓子']].map(([v,label])=><Button key={v} secondary={category!==v} onClick={()=>setCategory(v)}>{label}</Button>)}</div><Field label="商品名を検索" type="search" value={query} onChange={e=>setQuery(e.target.value)}/></>;
+  const productFilters=<div className="product-allocation-filters"><Field label="商品名を検索" type="search" placeholder="商品名を検索" value={query} onChange={e=>setQuery(e.target.value)}/><select aria-label="販売商品の分類" value={category} onChange={e=>setCategory(e.target.value)}><option value="ALL">すべて</option><option value="パン">パン</option><option value="焼き菓子">焼き菓子</option></select></div>;
   const quantity=stock=><Qty label={`${stock.name} 割当数量`} min={0} max={available(state,stock)} value={quantities[stock.id]||0} onChange={q=>{setQuantities({...quantities,[stock.id]:q});setLastSaved('');}}/>;
   return <section className={`sales-workspace sales-workspace-${mode}`} data-unsaved={picked.length>0}>
-    <h2>{mode==='buyer'?'購入者からまとめて入力':'商品別・残数'}</h2>
     {lastSaved&&<p role="status" className="sale-saved">{lastSaved}</p>}
     {mode==='buyer'?destinationFields:productDestination}
     {(mode==='product'||buyerId||destinationType==='external')&&<>
-      {filters}
+      {mode==='buyer'?filters:productFilters}
       {mode==='product'&&<div className="sales-product-list">{shown.map(stock=><StockSummary key={stock.id} stock={stock} onHistory={onHistory}>{quantity(stock)}</StockSummary>)}
         {!!complete.length&&<details className="completed-stocks"><summary>割当済み（{complete.length}商品）</summary>{complete.map(stock=><StockSummary key={stock.id} stock={stock} onHistory={onHistory}/>)}</details>}
         {!eligible.length&&<p>未割当の商品はありません。割当済みの商品から履歴を確認できます。</p>}</div>}

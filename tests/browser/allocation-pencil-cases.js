@@ -32,7 +32,12 @@ async function startBefore(){
  if(!ready){child.kill();throw Error('変更前の隔離画面を起動できませんでした');}
  return {url,async stop(){child.kill();await new Promise(resolve=>child.once('exit',resolve));execFileSync('git',['worktree','remove','--force',dir],{cwd:root,stdio:'pipe'});}};
 }
-async function capture(page,engine,width,version,name){await fs.mkdir('test-results',{recursive:true});await page.screenshot({path:`test-results/allocation-${engine}-${width}-${version}-${name}.png`,fullPage:true});}
+async function capture(page,engine,width,version,name){
+ await fs.mkdir('test-results',{recursive:true});
+ await page.evaluate(()=>{if(window.__scrollMetric)window.__scrollMetric.paused=true;});
+ await page.screenshot({path:`test-results/allocation-${engine}-${width}-${version}-${name}.png`,fullPage:true});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>{if(window.__scrollMetric){document.querySelectorAll('*').forEach(el=>window.__scrollMetric.positions.set(el,el.scrollTop));window.__scrollMetric.paused=false;}resolve();})));
+}
 async function scenario(browser,url,engine,width,version,mode){
  const context=await browser.newContext({baseURL:url,viewport:{width,height:812}}),page=await context.newPage(),shared=fixture();
  try{
@@ -42,7 +47,9 @@ async function scenario(browser,url,engine,width,version,mode){
   await capture(page,engine,width,version,`${mode}-stage`);
   await openAfter(page,'販売先を割り当てる');await closeToast(page);
   let taps=0;
-  await page.evaluate(()=>{window.__scrollMetric={total:0,previous:scrollY};addEventListener('scroll',()=>{window.__scrollMetric.total+=Math.abs(scrollY-window.__scrollMetric.previous);window.__scrollMetric.previous=scrollY;});});
+  await page.locator('.sales-step-body').evaluate(el=>scrollTo(0,Math.max(0,el.getBoundingClientRect().top+scrollY-12)));
+  await page.waitForTimeout(100);
+  await page.evaluate(()=>{const positions=new Map();document.querySelectorAll('*').forEach(el=>positions.set(el,el.scrollTop));window.__scrollMetric={total:0,paused:false,positions};document.addEventListener('scroll',event=>{const el=event.target===document?document.scrollingElement:event.target;if(typeof el?.scrollTop!=='number')return;const metric=window.__scrollMetric;if(!metric.paused)metric.total+=Math.abs(el.scrollTop-(positions.get(el)||0));positions.set(el,el.scrollTop);},true);});
   const click=async locator=>{await locator.click();taps++;};
   if(mode==='buyer'){
    if(version==='before')await click(page.getByRole('button',{name:'購入者から複数商品をまとめて入力 ›',exact:true}));
@@ -91,6 +98,7 @@ export function registerAllocationTests(engine){
   for(const mode of ['buyer','product']){
    expect(result[mode].after.taps).toBeLessThan(result[mode].before.taps);
    expect(result[mode].after.overflow).toBe(false);
+   expect(result[mode].after.height).toBeLessThanOrEqual(result[mode].before.height);
   }
  });
  test('分割・再読込・連続保存・保存失敗・再試行でも会計と原本を守る',async({page,context})=>{
@@ -127,7 +135,7 @@ export function registerAllocationTests(engine){
   expect(totalsBefore.revenue).toBeGreaterThan(0);expect(totalsBefore.cost).toBeGreaterThan(0);
   for(const key of ['revenue','cost','profit'])expect(totalsAfter[key]).toEqual(totalsBefore[key]);
   validate(shared.state);await page.reload();await page.locator('.round-list-item').click();
-  await page.locator('.stage-3 > .stage-trigger').click();await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'販売先を割り当てる'})}).locator('summary').click();
+  await page.locator('.stage-3 > .stage-trigger').click();await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'販売先を割り当てる'})}).locator(':scope > summary').click();
   await page.getByRole('button',{name:'商品別・残数',exact:true}).click();
   const product=page.locator('.sales-workspace:visible');
   await expect(product.getByLabel('くるみパンの割当状況')).toContainText('未割当 2個');

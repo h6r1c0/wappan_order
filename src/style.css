@@ -2694,3 +2694,12 @@ header small {
   .sales-workspace .buyer-search-add,.sales-workspace .buyer-index {min-width:0;max-width:100%;}
   .sales-workspace .field,.sales-workspace .field input,.sales-workspace .field select {min-width:0;max-width:100%;}
 }
+
+@media screen {
+  .product-assignment-destination>.field {display:flex;align-items:center;gap:8px;min-height:44px;margin:0;}
+  .product-assignment-destination>.field>span {flex:0 0 auto;font-size:.82rem;}
+  .product-assignment-destination>.field>select,.product-assignment-destination>.field>input {flex:1;min-width:0;width:0;}
+  .product-allocation-filters {display:flex;gap:6px;align-items:center;margin:4px 0;}
+  .product-allocation-filters>.field {flex:1;min-width:0;margin:0;}
+  .product-allocation-filters>select {width:88px;min-height:40px;padding:5px;font:inherit;font-size:.8rem;}
+}
