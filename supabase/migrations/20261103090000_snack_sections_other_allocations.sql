@@ -64,13 +64,29 @@ begin
           jsonb_typeof(coalesce(old_e->'groups','[]'::jsonb)) is distinct from 'array'
           then raise exception 'Invalid confirmed snack sections'; end if;
        if exists(select 1 from jsonb_array_elements(old_e->'fiscal') x group by x->>'lineId' having count(*)>1) or
+          exists(select 1 from jsonb_array_elements(old_e->'groups') x group by x->>'id' having count(*)>1) or
           exists(select 1 from jsonb_array_elements(old_e->'household') x group by x->>'buyerId',x->>'lineId',x->>'groupId' having count(*)>1)
           then raise exception 'Duplicate snack assignment'; end if;
+       if exists(select 1 from jsonb_array_elements(old_e->'fiscal') x where
+           not exists(select 1 from jsonb_array_elements(e->'lines') l where l->>'id'=x->>'lineId') or
+           jsonb_typeof(x->'qty') is distinct from 'number' or
+           (x->>'qty')::numeric<0 or trunc((x->>'qty')::numeric)<>(x->>'qty')::numeric or
+           ((x->>'qty')::numeric>0 and exists(select 1 from jsonb_array_elements(e->'lines') l
+              where l->>'id'=x->>'lineId' and l->'cost' is null)))
+          then raise exception 'Invalid fiscal snack section'; end if;
        for group_record in select value from jsonb_array_elements(coalesce(old_e->'groups','[]'::jsonb)) loop
          if jsonb_typeof(group_record->'quantities') is distinct from 'object' or
             jsonb_typeof(group_record->'lineIds') is distinct from 'array' or
-            jsonb_typeof(group_record->'unitPrice') is distinct from 'number'
+            jsonb_typeof(group_record->'unitPrice') is distinct from 'number' or
+            (group_record->>'unitPrice')::numeric<0 or
+            coalesce(group_record->>'id','')='' or coalesce(group_record->>'label','')=''
             then raise exception 'Invalid explicit snack group'; end if;
+         if exists(select 1 from jsonb_each(group_record->'quantities') x where
+             jsonb_typeof(x.value) is distinct from 'number' or
+             (x.value #>> '{}')::numeric<0 or
+             trunc((x.value #>> '{}')::numeric)<>(x.value #>> '{}')::numeric or
+             not exists(select 1 from jsonb_array_elements(e->'lines') l where l->>'id'=x.key))
+            then raise exception 'Invalid snack group product quantity'; end if;
          select coalesce(sum((x.value)::numeric),0) into qty from jsonb_each_text(group_record->'quantities') x;
          select coalesce(sum((x->>'qty')::numeric),0) into assigned
            from jsonb_array_elements(old_e->'household') x where x->>'groupId'=group_record->>'id';
@@ -95,6 +111,7 @@ begin
          if not exists(select 1 from jsonb_array_elements(d->'buyers') b where b->>'id'=alloc->>'buyerId') or
            jsonb_typeof(alloc->'qty') is distinct from 'number' or (alloc->>'qty')::numeric<1 or
            jsonb_typeof(alloc->'unitPrice') is distinct from 'number' or
+           (alloc->>'unitPrice')::numeric<0 or
            (alloc->>'lineId' is not null and not exists(select 1 from jsonb_array_elements(e->'lines') l where l->>'id'=alloc->>'lineId')) or
            (alloc->>'groupId' is not null and not exists(select 1 from jsonb_array_elements(old_e->'groups') grp where
              grp->>'id'=alloc->>'groupId' and grp->'unitPrice'=alloc->'unitPrice'))

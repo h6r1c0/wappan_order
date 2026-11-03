@@ -162,6 +162,7 @@ export function confirmSnackPlan(state,eventId,reason='請求を確定'){
   }
   const preview=snackBillingPreview(state,copy,plan);
   if(!preview.complete)throw Error('共通単価の商品別対象数と家庭への割当数を確認してください');
+  if(preview.cost==null)throw Error('使用した商品の実際の仕入単価を確認してください');
   // Validate the whole replacement before touching the live state. A rejected
   // correction must leave both physical use and the former invoice intact.
   const candidate={...state,events:state.events.map(e=>e.id===eventId?copy:e)};

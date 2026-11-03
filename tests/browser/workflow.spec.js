@@ -3,6 +3,7 @@ import {installPreviewProbe,openPdf,pdfBytes} from './print-preview-helpers.js';
 import { test, expect } from "@playwright/test";
 import { addSale, collections, initialState, newRound, report, stockRemaining, validate } from "../../src/domain.js";
 import { setSalesOrderQuantities, upgrade } from "../../src/commerce.js";
+import { saveOtherSale } from "../../src/other-sales.js";
 import * as XLSX from "xlsx";
 import fs from "node:fs/promises";
 async function qaFont(page) {
@@ -705,6 +706,66 @@ async function mobileShots(page,prefix) {
     await page.screenshot({path:`test-results/${prefix}-${width}.png`});
   }
 }
+test('販売用残数からおやつへ振り替え、用途と請求先を保存・再読込する',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  shared.state.buyers.push({id:'test-family',name:'検証家庭',kana:'けんしょうかてい',active:true,fixed:[]});
+  const r=newRound(shared.state,'2026-10-16',true);r.status='注文確定';shared.state.rounds.push(r);
+  const e={id:'snack-transfer-ui',roundId:r.id,date:r.date,name:'検証おやつ',test:true,lines:[
+    {id:'bean-ui',name:'こしあんぱん',qty:4,used:0,cost:130},
+  ]};shared.state.events.push(e);r.eventIds.push(e.id);
+  const st={id:'test-stock',roundId:r.id,date:r.date,name:'検証ゼリー',category:'その他',qty:3,price:270,cost:90,test:true};
+  shared.state.stocks.push(st);r.stockIds.push(st.id);
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
+  await openAfter(page,'おやつ使用・財政請求');
+  await page.locator('.stock-to-snack > summary').click();
+  await page.getByLabel('販売用の商品').selectOption(st.id);
+  await page.getByLabel('振替先の用途').selectOption('direct');
+  await page.locator('.stock-to-snack').getByLabel('名前を検索').fill('検証家庭');
+  await page.locator('.stock-to-snack .buyer').filter({hasText:'検証家庭'}).click();
+  await page.locator('.stock-to-snack').getByLabel('請求単価').fill('150');
+  await mobileShots(page,'snack-transfer-before-save');
+  await page.getByRole('button',{name:'振替と用途を途中保存'}).click();
+  expect(stockRemaining(shared.state,st)).toBe(2);
+  expect(shared.state.events[0].billing).toBeUndefined();
+  await page.reload();await page.locator('.round-list-item').click();
+  await openAfter(page,'おやつ使用・財政請求');
+  await page.locator('.snack-billing > summary').click();
+  await expect(page.locator('.snack-billing')).toContainText('検証家庭・検証ゼリー 1個');
+  await page.getByRole('button',{name:'保存済みの区分で請求を確定'}).click();
+  expect(collections(shared.state,'','',r.id,true).find(x=>x.id==='test-family').snack).toBe(150);
+  await mobileShots(page,'snack-transfer-confirmed');
+});
+
+test('その他販売の既存売上を複数購入者の請求へ割り当てて再読込する',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  shared.state.buyers.push(...['検証A','検証B'].map((name,i)=>({id:`other-buyer-${i}`,name,kana:'けんしょう',active:true,fixed:[]})));
+  const r=newRound(shared.state,'2026-10-16',true);r.status='注文確定';shared.state.rounds.push(r);
+  const sale=saveOtherSale(shared.state,{name:'検証果物',date:r.date,qty:8,unitPrice:120,unitCost:0,paymentStatus:'unpaid',test:true});
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
+  await openAfter(page,'販売先を割り当てる');
+  await page.getByRole('button',{name:'商品別・残数'}).click();
+  await page.getByLabel('販売商品の分類').selectOption('その他');
+  await page.locator('.other-sales > summary').click();
+  await page.locator('.other-allocation > summary').click();
+  for(const [name,qty] of [['検証A',3],['検証B',5]]){
+    await page.locator('.other-allocation').getByLabel('名前を検索').fill(name);
+    await page.locator('.other-allocation .buyer').filter({hasText:name}).click();
+    await page.getByLabel('追加する数量').fill(String(qty));
+    await page.getByRole('button',{name:'この購入者を追加'}).click();
+  }
+  await mobileShots(page,'other-buyers-before-save');
+  await page.getByRole('button',{name:'この購入者への割当をまとめて保存'}).click();
+  expect(shared.state.otherSales[0].allocations).toHaveLength(2);
+  expect(report(shared.state,r.date,r.date,2026,{includeTest:true}).rows.find(x=>x.id===sale.id).revenue).toBe(960);
+  await page.reload();await page.locator('.round-list-item').click();
+  await openAfter(page,'販売先を割り当てる');
+  await page.getByRole('button',{name:'商品別・残数'}).click();
+  await page.getByLabel('販売商品の分類').selectOption('その他');
+  await page.locator('.other-sales > summary').click();
+  await expect(page.locator('.other-sale-row')).toContainText('割当待ち 0個');
+  expect(collections(shared.state,'','',r.id,true).find(x=>x.id==='other-buyer-0').onsite).toBe(360);
+  await mobileShots(page,'other-buyers-saved');
+});
 test('欠品抽選: 未選択ゲート、1人1個を優先、確認後に集金へ反映、連絡文を表示',async({page,context})=>{
   const shared={state:preparedState(),revision:0};
   shared.state.buyers=['渡辺','近藤','堀','浅野'].map((name,i)=>({id:'b'+i,name,kana:['わたなべ','こんどう','ほり','あさの'][i],active:true,fixed:[]}));

@@ -85,6 +85,18 @@ test('販売用5個のうち販売済み3個を守り、おやつへ1個移し�
  assert.equal(e.stockTransferHistory[0].sourceStockId,source.id);
  validate(s);
 });
+test('仕入原価が未確認の振替は用途を途中保存し、確定請求を保留する',()=>{
+ const {s,r,e}=setup();
+ const stock={id:'uncosted',roundId:r.id,date:r.date,name:'検証商品',qty:2,cost:null,price:120,test:true};
+ s.stocks.push(stock);r.stockIds.push(stock.id);
+ const line=transferStockToSnack(s,stock.id,e.id,1);
+ saveSnackSection(s,e.id,'fiscal',[{lineId:'bean',qty:4},{lineId:'apple',qty:4}]);
+ saveSnackSection(s,e.id,'direct',[{buyerId:'buyer-a',lineId:line.id,qty:1,unitPrice:120}]);
+ assert.equal(stockRemaining(s,stock),1);
+ assert.throws(()=>confirmSnackPlan(s,e.id),/仕入単価/);
+ assert.equal(e.billing,undefined);
+ assert.equal(line.used,1);
+});
 test('DBは新しい途中保存と確定請求を受け取り、在庫・家庭請求の過剰を拒否する',async()=>{
  const db=new PGlite();
  await db.exec("create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key,email text unique); create function auth.uid() returns uuid language sql stable as $$select null::uuid$$;");
@@ -103,6 +115,10 @@ test('DBは新しい途中保存と確定請求を受け取り、在庫・家庭
  await db.query('select public.wappan_validate($1)',[s]);
  confirmSnackPlan(s,e.id);
  await db.query('select public.wappan_validate($1)',[s]);
+ const original=structuredClone(e.billing);
+ e.billing.fiscal.push({lineId:'does-not-exist',qty:1});
+ await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Invalid fiscal snack section/);
+ e.billing=original;
  item.allocations[0].qty=4;
  await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Other sale overallocated/);
  item.allocations[0].qty=3;st.qty=3;
