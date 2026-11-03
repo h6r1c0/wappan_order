@@ -139,7 +139,8 @@ async function setQty(page, name, value) {
 }
 async function openAfter(page, name) {
   await page.locator('.stage-3 > .stage-trigger').click();
-  await page.getByRole('button',{name:'欠品なしを確認'}).click();
+  if(await page.getByRole('button',{name:'欠品なしを確認'}).count())
+    await page.getByRole('button',{name:'欠品なしを確認'}).click();
   await page.locator('.after-work').filter({has:page.locator('summary', {hasText:name})}).locator('summary').first().click();
 }
 

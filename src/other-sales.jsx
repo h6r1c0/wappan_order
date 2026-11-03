@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {useApp,Button,Field,Money,Qty} from './ui';
+import {useApp,Button,Field,Money,Qty,BuyerPicker} from './ui';
 import {today,yen} from './domain';
 import {saveOtherSale,voidOtherSale,replaceOtherAllocations} from './other-sales.js';
 
