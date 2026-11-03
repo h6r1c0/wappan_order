@@ -184,9 +184,9 @@ export function stockAllocation(s, stock) {
 export const transferredQty = (s, lineId) =>
   sum(s.stocks.filter((x) => x.eventLineId === lineId).map((x) => x.qty));
 export const eventCost = (e) =>
-  e.lines.some((l) => receivedQuantity(l) > 0 && l.cost == null)
+  e.lines.some((l) => !l.sourceStockId && receivedQuantity(l) > 0 && l.cost == null)
     ? null
-    : sum(e.lines.map((l) => receivedQuantity(l) * (l.cost || 0)));
+    : sum(e.lines.filter(l=>!l.sourceStockId).map((l) => receivedQuantity(l) * (l.cost || 0)));
 export const eventClaim = (e) => e.billing
   ? (e.billing.fiscal||[]).some(x=>x.qty>0&&e.lines.find(l=>l.id===x.lineId)?.cost==null)
     ? null : sum((e.billing.fiscal||[]).map(x=>x.qty*(e.lines.find(l=>l.id===x.lineId)?.cost||0)))
@@ -481,6 +481,12 @@ export function collections(s, from, to, roundId = null, includeTest = false) {
       add(item.buyerId,buyer?.name||'', 'snack',item.qty*item.unitPrice,
         `${event.date} ${event.billing.label}・${line?.name||group?.label||'共通単価'} ${item.unitPrice}円 ×${item.qty}`,'おやつ');
     }
+  for(const item of (s.otherSales||[]).filter(x=>!x.void&&x.paymentStatus==='unpaid'&&
+    (includeTest||!x.test)))for(const assignment of item.allocations||[]){
+    if(roundId?assignment.chargeRoundId!==roundId:!(from<=item.date&&item.date<=to))continue;
+    add(assignment.buyerId,s.buyers.find(b=>b.id===assignment.buyerId)?.name||'', 'onsite',
+      assignment.qty*item.unitPrice,`${item.date} ${item.name} ×${assignment.qty}`,'その他');
+  }
   return [...map.values()].map((r) => ({ ...r, total: r.normal + r.onsite + r.snack,
     unpriced: roundId ? unpricedOrderLines(s.rounds.find(x=>x.id===roundId),s.rounds.find(x=>x.id===roundId)?.orders[r.id] || {quantities:{}}) : [] }));
 }
@@ -852,6 +858,13 @@ export function validate(s) {
     integer(item.qty,'その他の販売数量');integer(item.unitPrice,'その他の販売単価');integer(item.unitCost,'その他の販売原価');
     if(item.qty<1||!['paid','unpaid'].includes(item.paymentStatus)||typeof item.test!=='boolean')throw Error('その他の販売数量・受取状況を確認してください');
     if(!Array.isArray(item.history))throw Error('その他の販売の変更履歴を確認してください');
+    if(item.allocations!=null){
+      if(!Array.isArray(item.allocations)||item.paymentStatus!=='unpaid'||
+        new Set(item.allocations.map(a=>a.buyerId)).size!==item.allocations.length||
+        item.allocations.some(a=>!s.buyers.some(b=>b.id===a.buyerId)||!Number.isSafeInteger(a.qty)||a.qty<1||
+          !s.rounds.some(r=>r.id===a.chargeRoundId&&r.date===item.date&&r.test===item.test))||
+        sum(item.allocations.map(a=>a.qty))>item.qty)throw Error('その他商品の個人請求先・数量を確認してください');
+    }
   }
   for (const st of s.stocks) {
     if (!st.name.trim()) throw Error("園内販売の商品名を入力してください");
