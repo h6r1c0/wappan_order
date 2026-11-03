@@ -35,7 +35,8 @@ export function syncDeliveryLinks(s){
   }
 }
 export const bundleUsed = (s,id) => sum((s.bundleSales||[]).filter(x=>!x.void).flatMap(x=>x.components.filter(c=>c.stockId===id).map(c=>c.qty*x.qty)));
-export const movedOut = (s,id) => sum(s.stocks.filter(x=>x.sourceStockId===id).map(x=>x.qty));
+export const movedOut = (s,id) => sum(s.stocks.filter(x=>x.sourceStockId===id).map(x=>x.qty))+
+  sum(s.events.flatMap(e=>e.lines.filter(l=>l.sourceStockId===id).map(l=>l.qty)));
 export const remaining = (s,st) => receivedQuantity(st)-sum(s.sales.filter(x=>!x.void&&x.stockId===st.id).map(x=>x.qty))-bundleUsed(s,st.id)-movedOut(s,st.id);
 export function moveStock(s,source,qty,marketId=null,price=source.price){
   requireInt(qty,'振替数量',true);requireInt(price,'販売価格');
@@ -274,6 +275,11 @@ export function validateCommerce(s){
   const keys=new Set();for(const r of s.rounds){const k=r.date+':'+r.test;if(keys.has(k))throw Error('同じ納品日は既存の注文回を開いてください');keys.add(k);}
   for(const col of ['markets','bundles','bundleSales'])if(!Array.isArray(s[col])||new Set(s[col].map(x=>x.id)).size!==s[col].length)throw Error('販売データが重複しています');
   for(const e of s.events){const r=s.rounds.find(r=>r.id===e.roundId);if(!r||r.test!==e.test||!r.eventIds.includes(e.id))throw Error('行事の納品回を確認してください');}
+  for(const e of s.events)for(const line of e.lines.filter(l=>l.sourceStockId)){
+    const source=s.stocks.find(st=>st.id===line.sourceStockId);
+    if(!source||source.eventId||source.roundId!==e.roundId||source.test!==e.test||source.cost!==line.cost||
+      line.qty<1||e.date<source.date)throw Error('販売用からおやつへの振替元・原価・納品回を確認してください');
+  }
   for(const st of s.stocks){
     const r=s.rounds.find(r=>r.id===st.roundId);if(!r||r.test!==st.test)throw Error('商品の納品回を確認してください');
     if(remaining(s,st)<0)throw Error('販売・セット・振替の数量が在庫を超えています');

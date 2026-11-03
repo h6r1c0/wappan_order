@@ -1,6 +1,8 @@
 import {receivedQuantity} from './shortages';
 import {productDisplayName} from './product-names.js';
 import {SnackBilling} from './snack-billing.jsx';
+import {transferStockToSnack} from './snack-transfer.js';
+import {saveSnackSection,suggestedSnackPrice} from './snack-billing.js';
 import React, { useState } from "react";
 import {
   delivery,
@@ -19,6 +21,7 @@ import {
   setEventTest,
   undoTransfer,
   soldQty,
+  stockRemaining,
 } from "./domain";
 import {
   useApp,
@@ -32,6 +35,7 @@ import {
   Empty,
   Summary,
   ProductQuantityEditor,
+  BuyerPicker,
 } from "./ui";
 export function Events({roundId=null,onManageProducts=null,phase='all'}) {
   const { state, save } = useApp();
@@ -84,7 +88,7 @@ export function Events({roundId=null,onManageProducts=null,phase='all'}) {
       )}
       {phase !== 'order' && !roundId && <h2>おやつ使用・財政請求</h2>}
       {phase !== 'order' && <>
-      {usageEvents.map(e=><SnackUsage key={e.id} event={e} onTransfer={line=>setMove({event:e,line})}/>)}
+      {usageEvents.map(e=><SnackUsage key={e.id+':'+e.lines.map(l=>l.id+':'+l.used+':'+l.cost).join('|')} event={e} onTransfer={line=>setMove({event:e,line})}/>)}
       {!usageEvents.length && (
         <Empty>
           {phase==='after'?'おやつ用の入荷・使用はありません。':'上の商品一覧で注文数量を入力して保存します。'}
@@ -341,17 +345,52 @@ function SnackUsage({event:e,onTransfer}) {
   {e.lines.map(l=>{const moved=transferredQty(state,l.id),remaining=receivedQuantity(l)-(used[l.id]||0)-moved;
    const masterCost=state.products.find(p=>p.id===l.productId)?.cost;
    return <div className="event-line" key={l.id}><div className="product-row"><span className="grow">{l.name}<small>入荷 {receivedQuantity(l)}個 ／ 余剰 {remaining}個{moved?` ／ 振替済 ${moved}個`:''}</small></span>
-    <Qty label={`${l.name} おやつ使用数`} max={receivedQuantity(l)-moved} value={used[l.id]||0} onChange={n=>setUsed({...used,[l.id]:n})}/></div>
+    {l.sourceStockId?<strong>おやつへ振替済み {l.used}個</strong>:<Qty label={`${l.name} おやつ使用数`} max={receivedQuantity(l)-moved} value={used[l.id]||0} onChange={n=>setUsed({...used,[l.id]:n})}/>}</div>
     <details className="snack-cost"><summary>仕入単価 {costs[l.id]==null?(masterCost==null?'未登録':`基準 ${yen(masterCost)}`):yen(costs[l.id])} ・変更</summary>
      {costs[l.id]==null&&masterCost!=null&&!moved&&<button type="button" className="text-action" onClick={()=>setCosts({...costs,[l.id]:masterCost})}>基準単価 {yen(masterCost)}を今回に適用</button>}
-     {!moved&&<Money label={`${l.name} 今回の仕入単価`} value={costs[l.id]} onChange={n=>setCosts({...costs,[l.id]:n})}/>}
+     {!moved&&!l.sourceStockId&&<Money label={`${l.name} 今回の仕入単価`} value={costs[l.id]} onChange={n=>setCosts({...costs,[l.id]:n})}/>}
     </details>
     {remaining>0&&<button type="button" className="text-action" disabled={dirty||l.cost==null} onClick={()=>onTransfer(l)}>余剰を販売用へ振替 ›</button>}
     {state.stocks.filter(st=>st.eventLineId===l.id&&st.qty>0).map(st=><div className="line" key={st.id}><small>振替 {st.qty}個 ／ 販売 {soldQty(state,st.id)}個</small><button type="button" className="text-action" disabled={soldQty(state,st.id)>0} onClick={()=>{if(confirm('振替を戻しますか？'))save(s=>undoTransfer(s,st.id),'余剰振替取消');}}>戻す</button></div>)}
    </div>;
   })}
   <div className="snack-claim"><span>財政請求{e.billing?'（請求先別）':''}</span><strong>{yen(eventClaim({...e,lines:e.lines.map(l=>({...l,used:used[l.id]||0,cost:costs[l.id]}))}))}</strong>
-   <Button disabled={!dirty} onClick={()=>save(s=>{const current=s.events.find(x=>x.id===e.id);for(const l of current.lines){l.used=used[l.id]||0;l.usedConfirmed=true;l.cost=costs[l.id];}},'おやつ使用数・今回原価を保存')}>保存</Button></div>
+   <Button disabled={!dirty} onClick={()=>save(s=>{const current=s.events.find(x=>x.id===e.id);for(const l of current.lines){if(l.sourceStockId)continue;l.used=used[l.id]||0;l.usedConfirmed=true;l.cost=costs[l.id];}},'おやつ使用数・今回原価を保存')}>保存</Button></div>
+  <StockToSnack event={e}/>
   <SnackBilling event={e}/>
  </section>;
+}
+
+function StockToSnack({event}){
+ const {state,save}=useApp(),sources=state.stocks.filter(st=>st.roundId===event.roundId&&!st.eventId&&stockRemaining(state,st)>0);
+ const [stockId,setStockId]=useState(''),[qty,setQty]=useState(1),[purpose,setPurpose]=useState('fiscal');
+ const [buyerId,setBuyerId]=useState(''),[unitPrice,setUnitPrice]=useState(null),[error,setError]=useState('');
+ const source=sources.find(s=>s.id===stockId);
+ return <details className="stock-to-snack"><summary>販売用からおやつへ振替</summary>
+  <p className="muted">販売用の未割当残数を使用します。販売・請求済みの商品は振り替えません。</p>
+  <Field label="販売用の商品"><select value={stockId} onChange={e=>{setStockId(e.target.value);setUnitPrice(null);setError('');}}>
+   <option value="">商品を選ぶ</option>{sources.map(st=><option value={st.id} key={st.id}>{st.name}（残り{stockRemaining(state,st)}個）</option>)}</select></Field>
+  {source&&<><Qty label="おやつへ振り替える数量" min={1} max={stockRemaining(state,source)} value={qty} onChange={setQty}/>
+   <Field label="振替先の用途"><select value={purpose} onChange={e=>setPurpose(e.target.value)}>
+    <option value="fiscal">財政分</option><option value="direct">そのまま購入者へ請求</option><option value="common">共通単価を設定する分</option>
+   </select></Field>
+   {purpose==='direct'&&<BuyerPicker value={buyerId} onChange={setBuyerId} includeTest={event.test}/>}
+   {purpose!=='fiscal'&&<Money label="請求単価" value={unitPrice} onChange={setUnitPrice}/>}
+   {source.cost==null&&<p className="notice">この販売用商品の仕入原価は未確定です。振替後も原価は推測せず、請求確定前に元の販売用商品から入力してください。</p>}
+   {error&&<p role="alert" className="notice">{error}</p>}
+   <Button disabled={purpose==='direct'&&!buyerId||purpose!=='fiscal'&&unitPrice==null} onClick={async()=>{
+    try{
+     const action=s=>{
+      const line=transferStockToSnack(s,stockId,event.id,qty);
+      const draft=s.events.find(x=>x.id===event.id).snackDraft||s.events.find(x=>x.id===event.id).billing||{label:'',fiscal:[],household:[],groups:[]};
+      if(purpose==='fiscal')saveSnackSection(s,event.id,'fiscal',[...draft.fiscal,{lineId:line.id,qty}]);
+      if(purpose==='direct')saveSnackSection(s,event.id,'direct',[...draft.household.filter(x=>!x.groupId&&x.lineId),{buyerId,lineId:line.id,qty,unitPrice}]);
+      if(purpose==='common')saveSnackSection(s,event.id,'common',{groups:[...draft.groups,{id:crypto.randomUUID(),label:'共通単価',unitPrice,lineIds:[line.id],quantities:{[line.id]:qty}}],
+       household:draft.household.filter(x=>x.groupId)});
+     };
+     action(structuredClone(state));setError('');
+     if(await save(action,'販売用からおやつへ振替し用途を途中保存')){setStockId('');setQty(1);setBuyerId('');setUnitPrice(null);}
+    }catch(e){setError(e.message);}
+   }}>振替と用途を途中保存</Button></>}
+ </details>;
 }

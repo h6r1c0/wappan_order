@@ -2157,14 +2157,19 @@ header small {
 .snack-billing > summary { padding:9px 0; font-weight:600; cursor:pointer; }
 .snack-billing-body { display:grid; gap:8px; padding:6px 0 12px; }
 .snack-billing-body h4 { margin:5px 0 0; }
-.snack-billing-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-.snack-billing-row > span { min-width:0; }
+.snack-billing-row { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; min-width:0; border-bottom:1px solid var(--line); padding:5px 0; }
+.snack-billing-row > span { min-width:0; flex:1 1 130px; overflow-wrap:anywhere; }
 .snack-billing-row small { display:block; color:var(--muted); }
 .snack-household { border-top:1px solid var(--line); padding:8px 0; display:grid; gap:6px; }
 .snack-household-amount { display:flex; flex-wrap:wrap; align-items:end; gap:8px; }
 .snack-household-amount .money-input { max-width:120px; }
 .snack-billing-preview { display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px 12px; font-weight:600; }
 .snack-billing-preview small { color:var(--muted); font-weight:400; }
+.snack-billing-preview { display:grid; overflow-wrap:anywhere; }
+.snack-billing-preview p { margin:3px 0; }
+.stock-to-snack { margin:9px 0; border-top:1px solid var(--line); padding:8px 0; }
+.stock-to-snack > summary,.other-allocation > summary { cursor:pointer; font-weight:600; padding:7px 0; }
+.other-allocation { flex-basis:100%; min-width:0; }
 
 /* Small-screen working density: each row carries one decision, auxiliary actions stay quiet. */
 @media screen {
@@ -2329,7 +2334,7 @@ header small {
 .other-sales > summary { cursor:pointer; font-weight:600; font-size:.86rem; }
 .other-sales-form { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:8px; padding:8px 0; }
 .other-sales-form .actions,.other-sales-form p { grid-column:1/-1; margin:0; }
-.other-sale-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--line); font-size:.84rem; }
+.other-sale-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--line); font-size:.84rem; }
 .other-sale-row > span { flex:1; min-width:0; }
 .other-sale-row small { display:block; color:var(--muted); }
 /* Facts first: billing and cash are separate operations. */

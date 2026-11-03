@@ -129,7 +129,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
         {['product','buyer'].map(v=><div hidden={inputMode!==v} key={v}><SalesWorkspace stocks={stocks} roundId={roundId} mode={v} onHistory={st=>setEdit(st)}/></div>)}
       </section>}
     </div>
-    {phase !== 'order' && <OtherSales round={round}/>}
+    {phase !== 'order' && !round && <OtherSales round={round}/>}
     {batchSelling && <BatchSaleEditor stocks={remainingStocks} roundId={roundId} onClose={() => setBatchSelling(false)}/>}
     {unconfirmedOpen && <UnconfirmedSalesEditor stocks={stocks} roundId={roundId} onClose={() => setUnconfirmedOpen(false)}/>}
     {edit && <StockEditor roundId={roundId} marketId={marketId} stock={edit.id ? edit : null}
@@ -374,6 +374,8 @@ export function StockEditor({ stock, onClose,roundId=null,marketId=null }) {
               st.test=s.rounds.find(r=>r.id===st.roundId).test;
               if (stock?.cost == null && st.cost != null) {
                 for (const sale of s.sales.filter(x => x.stockId === st.id && x.cost == null)) sale.cost = st.cost;
+                for(const event of s.events)for(const line of event.lines.filter(l=>l.sourceStockId===st.id&&l.cost==null))line.cost=st.cost;
+                st.costHistory=[...(stock.costHistory||[]),{at:new Date().toISOString(),previous:null,updated:st.cost,reason:'未確定の元仕入単価を確認'}];
               }
               if (stock)
                 s.stocks[s.stocks.findIndex((x) => x.id === st.id)] = st;
