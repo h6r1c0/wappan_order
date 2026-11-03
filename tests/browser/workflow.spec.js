@@ -751,7 +751,7 @@ test('その他販売の既存売上を複数購入者の請求へ割り当て�
   for(const [name,qty] of [['検証A',3],['検証B',5]]){
     await page.locator('.other-allocation').getByLabel('名前を検索').fill(name);
     await page.locator('.other-allocation .buyer').filter({hasText:name}).click();
-    await page.getByLabel('追加する数量').fill(String(qty));
+    await setQty(page,'追加する数量',qty);
     await page.getByRole('button',{name:'この購入者を追加'}).click();
   }
   await mobileShots(page,'other-buyers-before-save');
