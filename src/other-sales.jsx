@@ -1,16 +1,16 @@
 import React,{useState} from 'react';
 import {useApp,Button,Field,Money,Qty,BuyerPicker} from './ui';
-import {today,yen} from './domain';
+import {today,yen,normalize} from './domain';
 import {saveOtherSale,voidOtherSale,replaceOtherAllocations} from './other-sales.js';
 
 const empty=(date,test)=>({name:'',date:date||today(),qty:1,unitPrice:null,unitCost:0,paymentStatus:'',note:'',test});
-export function OtherSales({round}){
+export function OtherSales({round,query=''}){
   const {state,save}=useApp();
   const [editing,setEditing]=useState(null);
   const [draft,setDraft]=useState(null);
   const [reason,setReason]=useState('');
   const [error,setError]=useState('');
-  const sales=(state.otherSales||[]).filter(x=>!x.void&&x.test===Boolean(round?.test)&&(!round||x.date===round.date))
+  const sales=(state.otherSales||[]).filter(x=>!x.void&&x.test===Boolean(round?.test)&&(!round||x.date===round.date)&&normalize(x.name).includes(normalize(query)))
     .sort((a,b)=>b.date.localeCompare(a.date));
   const choose=(item)=>{setEditing(item?.id||null);setDraft(item?structuredClone(item):empty(round?.date,Boolean(round?.test)));setReason('');setError('');};
   const update=change=>setDraft({...draft,...change});
@@ -59,7 +59,7 @@ function OtherAllocation({sale,round}){
       <span>{state.buyers.find(b=>b.id===x.buyerId)?.name}</span>
       <Qty label={`${sale.name} ${state.buyers.find(b=>b.id===x.buyerId)?.name}の数量`} min={0} max={sale.qty} value={x.qty} onChange={n=>{setRows(n?rows.map(a=>a===x?{...a,qty:n}:a):rows.filter(a=>a!==x));setSaved('');}}/>
     </div>)}
-    <BuyerPicker value={buyerId} onChange={setBuyerId} includeTest={round.test}/>
+    <BuyerPicker key={rows.length} value={buyerId} onChange={setBuyerId} includeTest={round.test}/>
     {buyerId&&<div className="snack-billing-row"><Qty label="追加する数量" min={1} max={sale.qty-count+(rows.find(x=>x.buyerId===buyerId)?.qty||0)} value={qty} onChange={setQty}/>
       <Button secondary onClick={()=>{setRows([...rows.filter(x=>x.buyerId!==buyerId),{buyerId,qty,chargeRoundId:round.id}]);setBuyerId('');setQty(1);setSaved('');}}>この購入者を追加</Button></div>}
     {count>sale.qty&&<p role="alert">販売済み数量を{count-sale.qty}個超えています。</p>}

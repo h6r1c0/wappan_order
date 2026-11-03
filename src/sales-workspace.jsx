@@ -63,10 +63,10 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
   const quantity=stock=><Qty label={`${stock.name} 割当数量`} min={0} max={available(state,stock)} value={quantities[stock.id]||0} onChange={q=>{setQuantities({...quantities,[stock.id]:q});setLastSaved('');}}/>;
   return <section className={`sales-workspace sales-workspace-${mode}`} data-unsaved={picked.length>0}>
     {lastSaved&&<p role="status" className="sale-saved">{lastSaved}</p>}
-    {mode==='buyer'?destinationFields:productDestination}
+    {category==='その他'?null:mode==='buyer'?destinationFields:productDestination}
     {(mode==='product'||buyerId||destinationType==='external')&&<>
       {mode==='buyer'?filters:productFilters}
-      {category==='その他'&&<OtherSales round={state.rounds.find(r=>r.id===roundId)}/>}
+      {category==='その他'&&<OtherSales round={state.rounds.find(r=>r.id===roundId)} query={query}/>}
       {mode==='product'&&category!=='その他'&&<div className="sales-product-list">{shown.map(stock=><StockSummary key={stock.id} stock={stock} onHistory={onHistory}>{quantity(stock)}</StockSummary>)}
         {!!complete.length&&<details className="completed-stocks"><summary>割当済み（{complete.length}商品）</summary>{complete.map(stock=><StockSummary key={stock.id} stock={stock} onHistory={onHistory}/>)}</details>}
         {!eligible.length&&<p>未割当の商品はありません。割当済みの商品から履歴を確認できます。</p>}</div>}

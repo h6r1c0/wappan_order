@@ -746,6 +746,10 @@ test('その他販売の既存売上を複数購入者の請求へ割り当て�
   await openAfter(page,'販売先を割り当てる');
   await page.getByRole('button',{name:'商品別・残数'}).click();
   await page.getByLabel('販売商品の分類').selectOption('その他');
+  await expect(page.getByLabel('割当先')).toHaveCount(0);
+  await page.getByLabel('商品名を検索').fill('該当なし');
+  await expect(page.locator('.other-sale-row')).toHaveCount(0);
+  await page.getByLabel('商品名を検索').fill('検証果物');
   await page.locator('.other-sales > summary').click();
   await page.locator('.other-allocation > summary').click();
   for(const [name,qty] of [['検証A',3],['検証B',5]]){
