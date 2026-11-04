@@ -955,3 +955,27 @@ test('11/4レビュー：レモン1個の既存割当へ7個追加し、原価�
   expect(shared.state.events[0].lines.find(x=>x.sourceStockId===st.id).cost).toBe(75);
   expect(shared.state.events[0].snackDraft.fiscal[0].qty).toBe(1);
 });
+
+test('11/4レビュー：購入者から商品へ切替えても同じ入力を一度だけ保存',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  shared.state.buyers.push(...['検証A','検証B'].map((name,i)=>({id:'switch-'+i,name,kana:'けんしょう',active:true,fixed:[]})));
+  const r=newRound(shared.state,'2026-10-16',true);r.status='注文確定';shared.state.rounds.push(r);
+  const st={id:'switch-stock',roundId:r.id,date:r.date,name:'隔離パン',category:'パン',qty:3,price:140,cost:80,test:true};
+  shared.state.stocks.push(st);r.stockIds.push(st.id);
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売先を割り当てる');
+  const work=page.locator('.sales-workspace:visible');
+  await work.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();
+  await work.getByRole('button',{name:'検証A',exact:true}).click();
+  await setQty(work,'隔離パン 割当数量',1);
+  await page.getByRole('button',{name:'商品から複数人へ割当'}).click();
+  await work.getByRole('button',{name:/隔離パン 未割当 3個/}).click();
+  await expect(work.getByRole('button',{name:'隔離パン 検証Aの数量 1、直接入力する'})).toBeVisible();
+  await setQty(work,'隔離パン 検証Bの数量',2);
+  await work.getByRole('button',{name:'この商品の割当をまとめて保存'}).click();
+  expect(shared.state.sales.reduce((n,x)=>n+x.qty,0)).toBe(3);
+  await page.getByRole('button',{name:'購入者からまとめて割当'}).click();
+  await expect(work.getByRole('button',{name:'隔離パン 割当数量 0、直接入力する'})).toHaveCount(0);
+  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'販売先を割り当てる');
+  expect(shared.state.sales.filter(x=>x.stockId===st.id).map(x=>x.qty).sort()).toEqual([1,2]);
+  expect(collections(shared.state,'','',r.id,true).find(x=>x.id==='switch-1').onsite).toBe(280);
+});

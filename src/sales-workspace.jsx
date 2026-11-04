@@ -31,12 +31,21 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
  const {state,save}=useApp(),busy=useRef(false),round=state.rounds.find(r=>r.id===roundId);
  const [buyerId,setBuyerId]=useState(''),[category,setCategory]=useState('ALL'),[query,setQuery]=useState('');
  const [destinationType,setDestinationType]=useState('buyer'),[destinationName,setDestinationName]=useState(''),[externalQty,setExternalQty]=useState(0);
- const [picked,setPicked]=useState(''),[buyerDraft,setBuyerDraft]=useState({}),[grids,setGrids]=useState({});
+ const [picked,setPicked]=useState(''),[buyerDrafts,setBuyerDrafts]=useState({}),[grids,setGrids]=useState({});
  const [reason,setReason]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[saving,setSaving]=useState(false);
- const [date,setDate]=useState(today()),[prices,setPrices]=useState({});
+ const [date,setDate]=useState(round?.date||today()),[prices,setPrices]=useState({});
  const others=(state.otherSales||[]).filter(s=>!s.void&&s.paymentStatus==='unpaid'&&round&&s.date===round.date&&s.test===round.test);
  const items=[...stocks.map(s=>({key:'stock:'+s.id,name:s.name,category:s.category||'パン',stock:s,left:available(state,s)})),
   ...others.map(s=>({key:'other:'+s.id,name:s.name,category:'その他',other:s,left:otherRemaining(s)}))];
+ const buyerKey=destinationType==='external'?'external':buyerId,personalDraft=buyerDrafts[buyerKey]||{};
+ const buyerDraft=Object.fromEntries(items.map(x=>{
+  if(destinationType==='buyer'&&buyerId&&x.stock)return [x.key,grids[x.key]?.[buyerId]||0];
+  if(destinationType==='buyer'&&buyerId&&x.other&&grids[x.key]){
+   const saved=x.other.allocations?.find(a=>a.buyerId===buyerId)?.qty||0;
+   return [x.key,Math.max(0,(grids[x.key][buyerId]||0)-saved)];
+  }
+  return [x.key,personalDraft[x.key]||0];
+ }));
  const matches=x=>(category==='ALL'||category===x.category)&&normalize(x.name).includes(normalize(query));
  const shown=items.filter(x=>matches(x)&&x.left>0),current=items.find(x=>x.key===picked);
  const grid=grids[picked]||{},total=Object.values(grid).reduce((n,q)=>n+(q||0),0);
@@ -44,7 +53,10 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
  const correction=current?.other&&otherAllocationNeedsReason(current.other,rows);
  const otherChanged=current?.other&&(rows.length!==(current.other.allocations||[]).length||rows.some(x=>(current.other.allocations||[]).find(a=>a.buyerId===x.buyerId)?.qty!==x.qty));
  const choose=key=>{setPicked(key);setError('');setNotice('');const x=items.find(item=>item.key===key);
-  if(x?.other&&!grids[key])setGrids(prev=>({...prev,[key]:Object.fromEntries((x.other.allocations||[]).map(a=>[a.buyerId,a.qty]))}));};
+  if(x?.other&&!grids[key])setGrids(prev=>({...prev,[key]:Object.fromEntries([
+   ...(x.other.allocations||[]).map(a=>[a.buyerId,a.qty]),
+   ...Object.entries(buyerDrafts).filter(([id,v])=>id!=='external'&&v[key]>0).map(([id,v])=>[id,(x.other.allocations||[]).find(a=>a.buyerId===id)?.qty+v[key]||v[key]])
+  ])}));};
  const applyStock=(next,stock,qty,id)=>{
   const s=next.stocks.find(x=>x.id===stock.id);
   if(!s||!Number.isSafeInteger(qty)||qty<1||qty>available(next,s))throw Error(stock.name+'の未割当数を超えています');
@@ -71,11 +83,20 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
   };
   busy.current=true;setSaving(true);setError('');
   try{action(structuredClone(state));if(await save(action,'販売先と数量をまとめて割り当て')){
-   if(product){if(external)setExternalQty(0);else setGrids(v=>({...v,[picked]:current.other?Object.fromEntries(rows.map(x=>[x.buyerId,x.qty])):{}}));}else setBuyerDraft({});
+   if(product){if(external)setExternalQty(0);else {
+    setGrids(v=>({...v,[picked]:current.other?Object.fromEntries(rows.map(x=>[x.buyerId,x.qty])):{}}));
+    if(current.other)setBuyerDrafts(v=>Object.fromEntries(Object.entries(v).map(([id,d])=>[id,{...d,[picked]:0}])));
+   }}else{
+    setBuyerDrafts(v=>({...v,[buyerKey]:{...v[buyerKey],...Object.fromEntries(selection.map(x=>[x.key,0]))}}));
+    if(destinationType==='buyer')setGrids(v=>Object.fromEntries(Object.entries(v).map(([key,values])=>{
+     const x=selection.find(item=>item.key===key);
+     return [key,x?.stock?{...values,[buyerId]:0}:x?.other?{...values,[buyerId]:(x.other.allocations||[]).find(a=>a.buyerId===buyerId)?.qty+buyerDraft[key]||buyerDraft[key]}:values];
+    })));
+   }
    setReason('');setNotice('割当を保存しました。');
   }}catch(e){setError(e.message);}finally{busy.current=false;setSaving(false);}
  };
- return <section className={'sales-workspace sales-workspace-'+mode} data-unsaved={Object.values(buyerDraft).some(Boolean)||Object.entries(grids).some(([key,v])=>key.startsWith('other:')?(()=>{const sale=others.find(x=>'other:'+x.id===key);return sale&&Object.entries(v).some(([id,qty])=>qty!==(sale.allocations||[]).find(a=>a.buyerId===id)?.qty)})():Object.values(v).some(Boolean))}>
+ return <section className={'sales-workspace sales-workspace-'+mode} data-unsaved={Object.values(buyerDrafts).some(d=>Object.values(d).some(Boolean))||Object.entries(grids).some(([key,v])=>key.startsWith('other:')?(()=>{const sale=others.find(x=>'other:'+x.id===key);return sale&&Object.entries(v).some(([id,qty])=>qty!==((sale.allocations||[]).find(a=>a.buyerId===id)?.qty||0))})():Object.values(v).some(Boolean))}>
   {notice&&<p role="status">{notice}</p>}
   {mode==='buyer'&&<><h3>販売先から割当</h3><div className="choice-grid" aria-label="販売先種別"><Button secondary={destinationType!=='buyer'} onClick={()=>setDestinationType('buyer')}>個人に請求</Button><Button secondary={destinationType!=='external'} onClick={()=>setDestinationType('external')}>支払い済み</Button></div>{destinationType==='buyer'?<BuyerPicker value={buyerId} onChange={setBuyerId} includeTest={round?.test}/>:<Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field>}</>}
   {(mode==='product'||buyerId||destinationType==='external')&&<>
@@ -95,7 +116,10 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
      {current.stock&&<details><summary>支払い済みの外部販売へ割当</summary><Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field><Qty label={current.name+' 外部販売数量'} value={externalQty} max={current.left} onChange={setExternalQty}/><Button disabled={saving||!externalQty} onClick={()=>commit(true,true)}>支払い済みの割当を保存</Button></details>}
      {current.stock&&<button type="button" className="text-action" onClick={()=>onHistory(current.stock)}>保存済みの割当・履歴</button>}
     </section>}</>:<div className="sales-allocation-list">{shown.map(x=><div className="assignment-product-row" key={x.key}><span>{productDisplayName(x.name)}<small>未割当 {x.left}個 ／ {yen(x.stock?.price??x.other?.unitPrice)}</small></span>
-     <Qty label={x.name+' 割当数量'} min={0} max={x.left} value={buyerDraft[x.key]||0} onChange={q=>setBuyerDraft({...buyerDraft,[x.key]:q})}/></div>)}
+     <Qty label={x.name+' 割当数量'} min={0} max={x.left} value={buyerDraft[x.key]||0} onChange={q=>{
+      if(destinationType==='buyer'&&buyerId&&(x.stock||grids[x.key]))setGrids(v=>({...v,[x.key]:{...v[x.key],[buyerId]:x.other?(x.other.allocations||[]).find(a=>a.buyerId===buyerId)?.qty+q||q:q}}));
+      else setBuyerDrafts(v=>({...v,[buyerKey]:{...v[buyerKey],[x.key]:q}}));
+     }}/></div>)}
      {shown.some(x=>buyerDraft[x.key]>0)&&<Button disabled={saving||destinationType==='external'&&shown.some(x=>x.other&&buyerDraft[x.key]>0)} onClick={()=>commit(false)}>選んだ商品をまとめて保存</Button>}{destinationType==='external'&&shown.some(x=>x.other&&buyerDraft[x.key]>0)&&<p role="alert">その他商品は個人請求先を選んでください。</p>}</div>}
    {error&&<p role="alert" className="notice">{error}。入力済みの数量は保持しています。</p>}
    {!shown.length&&!current&&<p>未割当の商品はありません。</p>}
