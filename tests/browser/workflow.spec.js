@@ -901,6 +901,10 @@ test('11/4レビュー：商品先行のおやつ直接割当を複数家庭へ�
   shared.state.buyers.push(...['小松','あゆみ','秋葉','青木'].map((name,i)=>({id:'snack-family-'+i,name,kana:['こまつ','あゆみ','あきば','あおき'][i],active:true,fixed:[]})));
   const r=newRound(shared.state,'2026-10-16',true);r.status='注文確定';shared.state.rounds.push(r);
   const e={id:'nov4-snack',roundId:r.id,date:r.date,name:'隔離おやつ',test:true,lines:[{id:'white',name:'白パン',qty:8,used:0,cost:90}]};
+  e.snackDraft={label:'',fiscal:[],groups:[],household:[
+    {buyerId:'snack-family-0',lineId:'white',qty:1,unitPrice:110},
+    {buyerId:'snack-family-1',lineId:'white',qty:1,unitPrice:120},
+  ]};
   shared.state.events.push(e);r.eventIds.push(e.id);
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつ使用・財政請求');
   await page.locator('.snack-billing > summary').click();
@@ -915,6 +919,7 @@ test('11/4レビュー：商品先行のおやつ直接割当を複数家庭へ�
   }
   await page.getByRole('button',{name:'この商品の直接割当を途中保存'}).click();
   expect(shared.state.events[0].snackDraft.household.map(x=>x.qty)).toEqual([1,2,1,1]);
+  expect(shared.state.events[0].snackDraft.household.map(x=>x.unitPrice)).toEqual([110,120,90,90]);
   expect(shared.state.events[0].billing).toBeUndefined();
   await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつ使用・財政請求');
   await page.locator('.snack-billing > summary').click();await page.getByRole('button',{name:'商品から',exact:true}).click();

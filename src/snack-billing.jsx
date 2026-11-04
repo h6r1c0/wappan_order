@@ -45,7 +45,7 @@ export function SnackBilling({event}){
   const changeLineGrid=values=>{
     const price=directPrice??lineItems[0]?.unitPrice??suggestedSnackPrice([line.cost]);
     change({...draft,household:[...draft.household.filter(x=>x.groupId||x.lineId!==line.id),
-      ...Object.entries(values).filter(([,qty])=>qty>0).map(([buyerId,qty])=>({buyerId,lineId:line.id,qty,unitPrice:price}))]});
+      ...Object.entries(values).filter(([,qty])=>qty>0).map(([buyerId,qty])=>({buyerId,lineId:line.id,qty,unitPrice:lineItems.find(x=>x.buyerId===buyerId)?.unitPrice??price}))]});
   };
   const changeDirectPrice=unitPrice=>{setDirectPrice(unitPrice);change({...draft,household:draft.household.map(x=>!x.groupId&&x.lineId===selectedLine?{...x,unitPrice}:x)});};
   const unsaved=JSON.stringify(draft)!==JSON.stringify(event.snackDraft||event.billing||emptySnackPlan());
