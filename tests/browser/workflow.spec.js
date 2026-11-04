@@ -939,6 +939,7 @@ test('11/5レビュー：実使用、保存済み財政・家庭請求、余剰�
   await expect(table.locator('tr').filter({hasText:'こしあんぱん'})).toContainText('22');
   for(const width of [320,375,430]){
     await page.setViewportSize({width,height:812});
+    await table.scrollIntoViewIfNeeded();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:`test-results/nov5-snack-table-${width}.png`});
   }
