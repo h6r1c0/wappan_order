@@ -682,7 +682,7 @@ test('共通単価グループを複数家庭へ一括割当し、その他の�
   expect(collections(shared.state,'','',r.id,true).find(x=>x.id==='family0').snack).toBe(150);
   await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'販売先を割り当てる'})}).locator('summary').first().click();
   await page.getByRole('button',{name:'商品から複数人へ割当'}).click();
-  await page.getByRole('button',{name:'その他',exact:true}).click();
+  await page.getByLabel('販売商品を絞り込む').getByRole('button',{name:'その他',exact:true}).click();
   await page.locator('.other-sales > summary').click();
   await page.getByRole('button',{name:'＋ 販売を記録'}).click();
   await page.getByLabel('商品名・内容').fill('花房さん提供のレモン');
@@ -741,7 +741,7 @@ test('その他販売の既存売上を複数購入者の請求へ割り当て�
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
   await openAfter(page,'販売先を割り当てる');
   await page.getByRole('button',{name:'商品から複数人へ割当'}).click();
-  await page.getByRole('button',{name:'その他',exact:true}).click();
+  await page.getByLabel('販売商品を絞り込む').getByRole('button',{name:'その他',exact:true}).click();
   await expect(page.getByLabel('割当先')).toHaveCount(0);
   await page.getByLabel('商品名を検索').fill('該当なし');
   await expect(page.locator('.other-sale-row')).toHaveCount(0);
@@ -756,7 +756,7 @@ test('その他販売の既存売上を複数購入者の請求へ割り当て�
   await page.reload();await page.locator('.round-list-item').click();
   await openAfter(page,'販売先を割り当てる');
   await page.getByRole('button',{name:'商品から複数人へ割当'}).click();
-  await page.getByRole('button',{name:'その他',exact:true}).click();
+  await page.getByLabel('販売商品を絞り込む').getByRole('button',{name:'その他',exact:true}).click();
   await page.locator('.completed-stocks > summary').click();
   await page.locator('.completed-stocks .assignment-product-choice').filter({hasText:'検証果物'}).click();
   await expect(page.locator('.product-buyer-assignment')).toContainText('未割当 0個');
@@ -933,7 +933,7 @@ test('11/4レビュー：レモン1個の既存割当へ7個追加し、原価�
   const st={id:'nov4-jelly-stock',roundId:r.id,date:r.date,name:'隔離甘夏ゼリー',category:'その他',qty:2,price:200,cost:null,test:true};shared.state.stocks.push(st);r.stockIds.push(st.id);
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売先を割り当てる');
   await page.getByRole('button',{name:'商品から複数人へ割当'}).click();
-  await page.getByRole('button',{name:'その他',exact:true}).click();
+  await page.getByLabel('販売商品を絞り込む').getByRole('button',{name:'その他',exact:true}).click();
   await page.getByRole('button',{name:/隔離レモン 未割当 7個/}).click();
   await expect(page.locator('.product-buyer-assignment')).toContainText('割当済み 1個');
   await setQty(page,'隔離レモン 検証Bの数量',3);await setQty(page,'隔離レモン 検証Cの数量',4);
@@ -941,7 +941,7 @@ test('11/4レビュー：レモン1個の既存割当へ7個追加し、原価�
   await page.getByRole('button',{name:'この商品の割当をまとめて保存'}).click();
   expect(shared.state.otherSales[0].allocations.reduce((n,x)=>n+x.qty,0)).toBe(8);
   await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'販売先を割り当てる');
-  await page.getByRole('button',{name:'商品から複数人へ割当'}).click();await page.getByRole('button',{name:'その他',exact:true}).click();
+  await page.getByRole('button',{name:'商品から複数人へ割当'}).click();await page.getByLabel('販売商品を絞り込む').getByRole('button',{name:'その他',exact:true}).click();
   await page.locator('.completed-stocks > summary').click();await page.locator('.completed-stocks .assignment-product-choice').filter({hasText:'隔離レモン'}).click();
   await expect(page.locator('.product-buyer-assignment')).toContainText('未割当 0個');
   await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'おやつ使用・財政請求'})}).locator('summary').first().click();

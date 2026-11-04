@@ -58,15 +58,15 @@ async function scenario(browser,url,engine,width,version,mode){
    await click(work.getByRole('button',{name:'くるみパン 割当数量を増やす'}));
    await click(work.getByRole('button',{name:'黒糖ブレッド 割当数量を増やす'}));
    await capture(page,engine,width,version,'buyer-picked');
-   await click(work.getByRole('button',{name:'選んだ商品をまとめて保存'}));
+   await click(work.getByRole('button',{name:version==='before'?'この2商品の割当を保存':'選んだ商品をまとめて保存'}));
   }else{
    if(version==='after')await click(page.getByRole('button',{name:'商品から複数人へ割当',exact:true}));
    const work=page.locator('.sales-workspace:visible');
    await capture(page,engine,width,version,'product-list');
    if(version==='before'){
-    for(const name of ['くるみパン','黒糖ブレッド']){
-     await click(work.getByLabel(`${name}の割当状況`).getByRole('button',{name:'販売先・数量を入力'}));
-     await click(work.getByRole('button',{name:'検証の購入者A',exact:true}));
+    for(const buyerName of ['検証の購入者A','検証の購入者B']){
+     await click(work.getByLabel('くるみパンの割当状況').getByRole('button',{name:'販売先・数量を入力'}));
+     await click(work.getByRole('button',{name:buyerName,exact:true}));
      await click(work.locator('.inline-assignment').getByRole('button',{name:'保存',exact:true}));
      await closeToast(page);
     }
