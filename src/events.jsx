@@ -4,7 +4,7 @@ import {SnackBilling} from './snack-billing.jsx';
 import {StockEditor} from './sales.jsx';
 import {transferStockToSnack} from './snack-transfer.js';
 import {saveSnackSection,suggestedSnackPrice} from './snack-billing.js';
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   delivery,
   setSnackOrderQuantities,
@@ -341,6 +341,7 @@ function SnackUsage({event:e,onTransfer}) {
  const [costSource,setCostSource]=useState(null);
  const [used,setUsed]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.used])));
  const [costs,setCosts]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.cost])));
+ useEffect(()=>{setCosts(current=>({...current,...Object.fromEntries(e.lines.filter(l=>l.sourceStockId).map(l=>[l.id,l.cost]))}));},[e.lines]);
  const dirty=e.lines.some(l=>used[l.id]!==l.used||costs[l.id]!==l.cost||used[l.id]>0&&!l.usedConfirmed);
  return <section className="snack-usage" data-unsaved={dirty}>
   <h3>{e.name}</h3>

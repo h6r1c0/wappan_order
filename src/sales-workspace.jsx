@@ -85,6 +85,7 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
     {!!items.filter(x=>matches(x)&&!x.left).length&&<details className="completed-stocks"><summary>割当済みの商品</summary>{items.filter(x=>matches(x)&&!x.left).map(x=><button type="button" className="assignment-product-choice" key={x.key} onClick={()=>choose(x.key)}>{x.name}　割当済み</button>)}</details>}</div>
     {current&&<section className="product-buyer-assignment"><h3>{current.name}を購入者へ割当</h3>
      <p>割当済み {current.other?(current.other.qty-current.left):stockAllocation(state,current.stock).assigned}個 ／ 未割当 {current.left}個</p>
+     <p className="muted">{current.other?'各家庭の保存済み数量を表示しています。新しい家庭は0個から追加できます。':'保存済みの割当はそのままです。今回追加する数量を選んでください。'}</p>
      <BuyerQuantityGrid buyers={state.buyers} test={round?.test} value={grid} onChange={v=>{setGrids({...grids,[picked]:v});setNotice('');}} name={current.name} max={current.other?current.other.qty:current.left}/>
      <p>今回の入力 {total}個 ／ 保存後の残り {current.other?current.other.qty-total:current.left-total}個</p>
      {correction&&<Field label="保存済みの割当を訂正・取消する理由"><input value={reason} onChange={e=>setReason(e.target.value)}/></Field>}
