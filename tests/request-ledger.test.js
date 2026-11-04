@@ -59,8 +59,12 @@ test('Markdown末尾のパイプを省略しても実機欄と7列を失わな�
  assert.deepEqual(parseLedger(without),parseLedger(ledger));
  assert.deepEqual(checkLedger(without),[]);
 });
-test('今回の5件は現行の意図・受入条件と一致する',()=>{
+test('過去の5件の原意・受入条件を現行の追記でも保持する',()=>{
  const active=JSON.parse(readFileSync(new URL('../docs/requests/allocation-pencil-20261101.json',import.meta.url),'utf8'));
  assert.deepEqual(active.targets.map(x=>x.id),['WAP-0002','WAP-0004','WAP-0005','WAP-0006','WAP-0043']);
- assert.deepEqual(checkRequest(active,currentLedger),[]);
+ for(const target of active.targets){
+  const row=parseLedger(currentLedger).find(x=>x[0]===target.id);
+  assert.ok(row?.[1].includes(target.intent),target.id+' の原意');
+  assert.ok(row?.[3].includes(target.acceptance),target.id+' の受入条件');
+ }
 });

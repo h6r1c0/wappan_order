@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
 import {useApp,Button,Field,Money,Qty,BuyerPicker} from './ui';
+import {BuyerQuantityGrid} from './buyer-quantity-grid.jsx';
 import {yen} from './domain';
 import {saveSnackSection,confirmSnackPlan,emptySnackPlan,suggestedSnackPrice} from './snack-billing.js';
 import {receivedQuantity} from './shortages.js';
@@ -10,6 +11,7 @@ export function SnackBilling({event}){
   const [draft,setDraft]=useState(()=>structuredClone(event.snackDraft||event.billing||emptySnackPlan()));
   const [buyer,setBuyer]=useState(''),[quantities,setQuantities]=useState({}),[error,setError]=useState(''),[reason,setReason]=useState('');
   const [open,setOpen]=useState(false),[saved,setSaved]=useState('');
+  const [directMode,setDirectMode]=useState('buyer'),[selectedLine,setSelectedLine]=useState(''),[directPrice,setDirectPrice]=useState(null);
   const direct=draft.household.filter(x=>!x.groupId&&x.lineId),groups=draft.groups||[];
   const change=next=>{setDraft(next);setError('');setSaved('');};
   const savePart=async(section,value)=>{
@@ -36,6 +38,16 @@ export function SnackBilling({event}){
     return {line:l,fiscal,specific,common,retail,received,left:received-fiscal-specific-common-retail};
   });
   const commonAssigned=id=>draft.household.filter(x=>x.groupId===id).reduce((n,x)=>n+x.qty,0);
+  const line=event.lines.find(l=>l.id===selectedLine);
+  const lineItems=direct.filter(x=>x.lineId===selectedLine);
+  const directGrid=Object.fromEntries(lineItems.map(x=>[x.buyerId,x.qty]));
+  const lineCapacity=line?Math.max(0,receivedQuantity(line)-amount(draft.fiscal,line.id)-groups.reduce((n,g)=>n+(g.quantities?.[line.id]||0),0)-state.stocks.filter(st=>st.eventLineId===line.id).reduce((n,st)=>n+st.qty,0)):0;
+  const changeLineGrid=values=>{
+    const price=directPrice??lineItems[0]?.unitPrice??suggestedSnackPrice([line.cost]);
+    change({...draft,household:[...draft.household.filter(x=>x.groupId||x.lineId!==line.id),
+      ...Object.entries(values).filter(([,qty])=>qty>0).map(([buyerId,qty])=>({buyerId,lineId:line.id,qty,unitPrice:price}))]});
+  };
+  const changeDirectPrice=unitPrice=>{setDirectPrice(unitPrice);change({...draft,household:draft.household.map(x=>!x.groupId&&x.lineId===selectedLine?{...x,unitPrice}:x)});};
   const unsaved=JSON.stringify(draft)!==JSON.stringify(event.snackDraft||event.billing||emptySnackPlan());
   return <details className="snack-billing" open={open} onToggle={e=>setOpen(e.currentTarget.open)}>
     <summary>おやつの用途と請求{event.billing?'（確定請求あり）':event.snackDraft?'（途中保存あり）':''}</summary>
@@ -48,15 +60,26 @@ export function SnackBilling({event}){
         <Qty label={`${l.name} 財政分`} value={amount(draft.fiscal,l.id)} max={receivedQuantity(l)} onChange={qty=>editFiscal(l.id,qty)}/></div>)}
       <Button secondary onClick={()=>savePart('fiscal',draft.fiscal)}>財政分を途中保存</Button>
       <h4>2 そのまま割り振れる分</h4>
+      <div className="choice-grid" role="group" aria-label="おやつ直接割当の入口"><Button secondary={directMode!=='buyer'} onClick={()=>setDirectMode('buyer')}>購入者から</Button><Button secondary={directMode!=='product'} onClick={()=>setDirectMode('product')}>商品から</Button></div>
+      {directMode==='product'&&<><Field label="割り当てる商品"><select value={selectedLine} onChange={e=>{setSelectedLine(e.target.value);setDirectPrice(null);}}><option value="">商品を選ぶ</option>{event.lines.map(l=><option key={l.id} value={l.id}>{l.name}（実入荷 {receivedQuantity(l)}個）</option>)}</select></Field>
+        {line&&<div className="product-buyer-assignment"><p>{line.name}：割当済み {lineItems.reduce((n,x)=>n+x.qty,0)}個 ／ 直接割当に使用可能 {lineCapacity}個</p>
+          <BuyerQuantityGrid buyers={state.buyers} test={event.test} name={line.name} value={directGrid} onChange={changeLineGrid} max={lineCapacity}/>
+          <Money label={`${line.name}の請求単価`} value={directPrice??lineItems[0]?.unitPrice??suggestedSnackPrice([line.cost])} onChange={changeDirectPrice}/>
+          <p>選んだ数量 {lineItems.reduce((n,x)=>n+x.qty,0)}個 ／ 残り {lineCapacity-lineItems.reduce((n,x)=>n+x.qty,0)}個</p>
+          {lineItems.reduce((n,x)=>n+x.qty,0)>lineCapacity&&<p role="alert">{line.name}の直接割当が{lineItems.reduce((n,x)=>n+x.qty,0)-lineCapacity}個超えています。</p>}
+          <Button secondary disabled={lineItems.reduce((n,x)=>n+x.qty,0)>lineCapacity} onClick={()=>savePart('direct',direct)}>この商品の直接割当を途中保存</Button>
+        </div>}</>}
+      {directMode==='buyer'&&<>
       <BuyerPicker value={buyer} onChange={setBuyer} includeTest={event.test}/>
       {buyer&&event.lines.map(l=><div className="snack-billing-row" key={l.id}><span>{l.name}</span>
         <Qty label={`${l.name} 割当数量`} value={quantities[l.id]?.qty||0} max={receivedQuantity(l)} onChange={qty=>setQuantities({...quantities,[l.id]:{qty,unitPrice:quantities[l.id]?.unitPrice??suggestedSnackPrice([l.cost])}})}/>
         {(quantities[l.id]?.qty||0)>0&&<Money label={`${l.name} 請求単価`} value={quantities[l.id].unitPrice} onChange={unitPrice=>setQuantities({...quantities,[l.id]:{...quantities[l.id],unitPrice}})}/>}</div>)}
       {buyer&&<Button secondary onClick={addBuyer}>この購入者の商品を追加</Button>}
+      </>}
       {direct.map(item=><div className="snack-billing-row" key={`${item.buyerId}:${item.lineId}`}>
         <span>{state.buyers.find(b=>b.id===item.buyerId)?.name}・{event.lines.find(l=>l.id===item.lineId)?.name} {item.qty}個 ／ {yen(item.unitPrice)}</span>
         <button type="button" className="text-action" onClick={()=>change({...draft,household:draft.household.filter(x=>x!==item)})}>外す</button></div>)}
-      <Button secondary onClick={()=>savePart('direct',direct)}>直接割当を途中保存</Button>
+      {directMode==='buyer'&&<Button secondary onClick={()=>savePart('direct',direct)}>直接割当を途中保存</Button>}
       <div className="section-head"><h4>3 共通単価を設定した分</h4><button type="button" className="text-action" onClick={()=>change({...draft,groups:[...groups,{id:crypto.randomUUID(),label:'共通単価',lineIds:[],quantities:{},unitPrice:null}]})}>＋ 共通単価</button></div>
       {groups.map(g=>{
         const target=Object.values(g.quantities||{}).reduce((n,x)=>n+x,0),assigned=commonAssigned(g.id);

@@ -1,6 +1,7 @@
 import {receivedQuantity} from './shortages';
 import {productDisplayName} from './product-names.js';
 import {SnackBilling} from './snack-billing.jsx';
+import {StockEditor} from './sales.jsx';
 import {transferStockToSnack} from './snack-transfer.js';
 import {saveSnackSection,suggestedSnackPrice} from './snack-billing.js';
 import React, { useState } from "react";
@@ -337,6 +338,7 @@ function TransferEditor({ event, line, onClose }) {
 
 function SnackUsage({event:e,onTransfer}) {
  const {state,save}=useApp();
+ const [costSource,setCostSource]=useState(null);
  const [used,setUsed]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.used])));
  const [costs,setCosts]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.cost])));
  const dirty=e.lines.some(l=>used[l.id]!==l.used||costs[l.id]!==l.cost||used[l.id]>0&&!l.usedConfirmed);
@@ -349,6 +351,7 @@ function SnackUsage({event:e,onTransfer}) {
     <details className="snack-cost"><summary>仕入単価 {costs[l.id]==null?(masterCost==null?'未登録':`基準 ${yen(masterCost)}`):yen(costs[l.id])} ・変更</summary>
      {costs[l.id]==null&&masterCost!=null&&!moved&&<button type="button" className="text-action" onClick={()=>setCosts({...costs,[l.id]:masterCost})}>基準単価 {yen(masterCost)}を今回に適用</button>}
      {!moved&&!l.sourceStockId&&<Money label={`${l.name} 今回の仕入単価`} value={costs[l.id]} onChange={n=>setCosts({...costs,[l.id]:n})}/>}
+     {l.sourceStockId&&<button type="button" className="text-action" onClick={()=>setCostSource(l.sourceStockId)}>元の販売用商品の仕入単価を入力・変更 ›</button>}
     </details>
     {remaining>0&&<button type="button" className="text-action" disabled={dirty||l.cost==null} onClick={()=>onTransfer(l)}>余剰を販売用へ振替 ›</button>}
     {state.stocks.filter(st=>st.eventLineId===l.id&&st.qty>0).map(st=><div className="line" key={st.id}><small>振替 {st.qty}個 ／ 販売 {soldQty(state,st.id)}個</small><button type="button" className="text-action" disabled={soldQty(state,st.id)>0} onClick={()=>{if(confirm('振替を戻しますか？'))save(s=>undoTransfer(s,st.id),'余剰振替取消');}}>戻す</button></div>)}
@@ -358,6 +361,7 @@ function SnackUsage({event:e,onTransfer}) {
    <Button disabled={!dirty} onClick={()=>save(s=>{const current=s.events.find(x=>x.id===e.id);for(const l of current.lines){if(l.sourceStockId)continue;l.used=used[l.id]||0;l.usedConfirmed=true;l.cost=costs[l.id];}},'おやつ使用数・今回原価を保存')}>保存</Button></div>
   <StockToSnack event={e}/>
   <SnackBilling event={e}/>
+  {costSource&&state.stocks.some(st=>st.id===costSource)&&<StockEditor stock={state.stocks.find(st=>st.id===costSource)} initialOpenSettings onClose={()=>setCostSource(null)}/>}
  </section>;
 }
 

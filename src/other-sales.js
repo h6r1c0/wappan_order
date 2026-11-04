@@ -45,7 +45,15 @@ export function replaceOtherAllocations(state,id,assignments,reason='購入者�
     !Number.isSafeInteger(x.qty)||x.qty<1)||rows.reduce((n,x)=>n+x.qty,0)>sale.qty)
     throw Error('購入者・数量を確認してください。販売済み数を超える割当はできません');
   if(JSON.stringify(rows)===JSON.stringify(sale.allocations||[]))return sale;
+  const previous=sale.allocations||[];
+  if(previous.some(x=>rows.find(y=>y.buyerId===x.buyerId)?.qty!==x.qty) &&
+    (!String(reason||'').trim()||reason==='購入者への割当を登録'||reason==='購入者へ割当'))
+    throw Error('保存済みの割当を変更・取消する理由を入力してください');
   sale.history.push({at:new Date().toISOString(),reason,previousAllocations:structuredClone(sale.allocations||[])});
   sale.allocations=rows;
   return sale;
+}
+
+export function otherAllocationNeedsReason(sale,rows){
+  return (sale.allocations||[]).some(x=>rows.find(y=>y.buyerId===x.buyerId)?.qty!==x.qty);
 }

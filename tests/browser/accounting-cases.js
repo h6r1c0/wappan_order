@@ -63,11 +63,21 @@ export function registerAccountingTests(browserName){
  test('2個を1個ずつ割当して一覧に戻り、完了後も履歴を保持、購入者入力は即一覧',async({page,context})=>{
   const shared=fixture();setSalesOrderQuantities(shared.state,shared.round.id,{rye:2,donut:2});const st=shared.state.stocks.find(x=>x.productId==='rye');addSale(shared.state,st,{date:shared.round.date,qty:2,destinationType:'unknown',paymentStatus:'unconfirmed'});
   const imported=shared.state.sales.at(-1);imported.note='実資料の完売記録。ウラベ／アベ／こんどう等は推測で割り当てていません';
-  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売先を割り当てる');await page.getByRole('button',{name:'商品別・残数',exact:true}).click();
-  const work=page.locator('.sales-workspace').filter({visible:true});await setQty(work,'ライ麦くるみレーズン 割当数量',1);await work.getByLabel('割当先',{exact:true}).selectOption('buyer:sasaki');await work.getByRole('button',{name:'この1商品の割当を保存',exact:true}).click();await expect(work.locator('.sales-product-list')).toBeVisible();await expect(work.getByLabel('ライ麦くるみレーズンの割当状況')).toContainText('未割当 1個');
-  await expect(work.getByLabel('販売商品の分類')).toHaveValue('ALL');
-  await setQty(work,'ライ麦くるみレーズン 割当数量',1);await work.getByLabel('割当先',{exact:true}).selectOption('buyer:nishio');await closeToast(page);await work.getByRole('button',{name:'この1商品の割当を保存',exact:true}).click();await expect(work.locator('.sales-product-list > .stock-summary').filter({hasText:'ライ麦くるみレーズン'})).toHaveCount(0);await work.locator('.completed-stocks > summary').click();await expect(work.getByLabel('ライ麦くるみレーズンの割当状況')).toContainText('佐々木 1個');await widths(page,`assignment-${browserName}`);
-  await work.getByLabel('ライ麦くるみレーズンの割当状況').locator('.stock-breakdown summary').click();await work.getByLabel('ライ麦くるみレーズンの割当状況').getByRole('button',{name:'割当先・履歴'}).click();await expect(page.locator('.stock-history-first')).not.toContainText(imported.note);expect(shared.state.sales.find(x=>x.id===imported.id)?.note).toBe(imported.note);await page.getByRole('button',{name:'閉じる',exact:true}).last().click();
-  await page.getByRole('button',{name:'購入者からまとめて割当',exact:true}).click();const buyer=page.locator('.sales-workspace').filter({visible:true});await buyer.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();await buyer.getByRole('button',{name:'堀',exact:true}).click();await expect(buyer.locator('.assignment-product-row')).toHaveCount(1);await setQty(buyer,'ツイストドーナツ 割当数量',1);page.once('dialog',d=>d.dismiss());await page.locator('.stage-4 > .stage-trigger').click();await expect(page.locator('.stage-3 > .stage-trigger')).toHaveAttribute('aria-expanded','true');await expect(buyer.getByRole('button',{name:'ツイストドーナツ 割当数量 1、直接入力する'})).toBeVisible();await buyer.getByRole('button',{name:'この1商品の割当を保存'}).click();expect(shared.state.sales.filter(x=>x.stockId===st.id&&x.destinationType==='buyer')).toHaveLength(2);
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売先を割り当てる');await page.getByRole('button',{name:'商品から複数人へ割当',exact:true}).click();
+  const work=page.locator('.sales-workspace').filter({visible:true});
+  await work.getByRole('button',{name:/ライ麦くるみレーズン 未割当 2個/}).click();
+  await setQty(work,'ライ麦くるみレーズン 佐々木の数量',1);
+  await work.getByRole('button',{name:'この商品の割当をまとめて保存'}).click();
+  await expect(work.locator('.product-buyer-assignment')).toContainText('未割当 1個');
+  await setQty(work,'ライ麦くるみレーズン 西尾の数量',1);
+  await closeToast(page);await work.getByRole('button',{name:'この商品の割当をまとめて保存'}).click();
+  await work.locator('.completed-stocks > summary').click();
+  await expect(work.locator('.product-buyer-assignment')).toContainText('割当済み 2個');
+  await widths(page,`assignment-${browserName}`);
+  await work.getByRole('button',{name:'保存済みの割当・履歴'}).click();
+  await expect(page.locator('.stock-history-first')).not.toContainText(imported.note);
+  expect(shared.state.sales.find(x=>x.id===imported.id)?.note).toBe(imported.note);
+  await page.getByRole('button',{name:'閉じる',exact:true}).last().click();
+  await page.getByRole('button',{name:'購入者からまとめて割当',exact:true}).click();const buyer=page.locator('.sales-workspace').filter({visible:true});await buyer.locator('.buyer-index').getByRole('button',{name:'すべて',exact:true}).click();await buyer.getByRole('button',{name:'堀',exact:true}).click();await expect(buyer.locator('.assignment-product-row')).toHaveCount(1);await setQty(buyer,'ツイストドーナツ 割当数量',1);page.once('dialog',d=>d.dismiss());await page.locator('.stage-4 > .stage-trigger').click();await expect(page.locator('.stage-3 > .stage-trigger')).toHaveAttribute('aria-expanded','true');await expect(buyer.getByRole('button',{name:'ツイストドーナツ 割当数量 1、直接入力する'})).toBeVisible();await buyer.getByRole('button',{name:'選んだ商品をまとめて保存'}).click();expect(shared.state.sales.filter(x=>x.stockId===st.id&&x.destinationType==='buyer')).toHaveLength(2);
  });
 }
