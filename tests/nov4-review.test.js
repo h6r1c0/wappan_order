@@ -39,6 +39,7 @@ test('白パンを複数家庭へ1・2個で途中保存し、他の区分と確
  assert.equal(e.billing,undefined);assert.equal(collectionPosition(s,r.id,'qa-1').current,0);
  const reloaded=structuredClone(s);assert.equal(reloaded.events[0].snackDraft.household.reduce((n,x)=>n+x.qty,0),4);
  assert.equal(reloaded.events[0].snackDraft.fiscal[0].qty,1);
+ e.lines[0].used=5; // 本人が用途指定と別に実使用を確認した場合
  confirmSnackPlan(s,e.id);assert.equal(snackBillingPreview(s,e).fiscal,90);
  assert.equal(collectionPosition(s,r.id,'qa-1').current,240);validate(s);
 });

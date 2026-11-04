@@ -187,11 +187,18 @@ export const eventCost = (e) =>
   e.lines.some((l) => !l.sourceStockId && receivedQuantity(l) > 0 && l.cost == null)
     ? null
     : sum(e.lines.filter(l=>!l.sourceStockId).map((l) => receivedQuantity(l) * (l.cost || 0)));
-export const eventClaim = (e) => e.billing
-  ? (e.billing.fiscal||[]).some(x=>x.qty>0&&e.lines.find(l=>l.id===x.lineId)?.cost==null)
-    ? null : sum((e.billing.fiscal||[]).map(x=>x.qty*(e.lines.find(l=>l.id===x.lineId)?.cost||0)))
-  : e.lines.some((l) => l.used > 0 && l.cost == null)
-    ? null : sum(e.lines.map((l) => l.used * (l.cost || 0)));
+// Physical use is not a fiscal claim. Only a saved, confirmed fiscal allocation
+// can establish the amount; a draft can be previewed separately in the UI.
+export const eventClaim = (e) => {
+  if (!e.billing) return null;
+  let amount=0;
+  for (const item of e.billing.fiscal||[]) {
+    const line=e.lines.find(l=>l.id===item.lineId);
+    if (!line || line.cost==null) return null;
+    amount+=item.qty*line.cost;
+  }
+  return amount;
+};
 export function invoiceDeductions(s, r) {
   const events = r.eventIds.map((id) => s.events.find((e) => e.id === id));
   if (events.some((e) => eventCost(e) == null)) return null;

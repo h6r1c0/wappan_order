@@ -3,7 +3,7 @@ import {productDisplayName} from './product-names.js';
 import {SnackBilling} from './snack-billing.jsx';
 import {StockEditor} from './sales.jsx';
 import {transferStockToSnack} from './snack-transfer.js';
-import {saveSnackSection,suggestedSnackPrice} from './snack-billing.js';
+import {saveSnackSection,suggestedSnackPrice,savedFiscalAmount,snackQuantityRows,saveSnackUsage} from './snack-billing.js';
 import React, { useEffect, useState } from "react";
 import {
   delivery,
@@ -341,28 +341,37 @@ function SnackUsage({event:e,onTransfer}) {
  const [costSource,setCostSource]=useState(null);
  const [used,setUsed]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.used])));
  const [costs,setCosts]=useState(()=>Object.fromEntries(e.lines.map(l=>[l.id,l.cost])));
+ const [usageReason,setUsageReason]=useState('');
  useEffect(()=>{setCosts(current=>({...current,...Object.fromEntries(e.lines.filter(l=>l.sourceStockId).map(l=>[l.id,l.cost]))}));},[e.lines]);
- const dirty=e.lines.some(l=>used[l.id]!==l.used||costs[l.id]!==l.cost||used[l.id]>0&&!l.usedConfirmed);
+ const dirty=e.lines.some(l=>!l.sourceStockId&&(used[l.id]!==l.used||costs[l.id]!==l.cost||!l.usedConfirmed));
+ const rows=snackQuantityRows(state,e),draftAmount=savedFiscalAmount(e);
+ const usageCost=e.lines.some(l=>!l.usedConfirmed&&!(l.used>0)|| (used[l.id]||0)>0&&costs[l.id]==null)?null:
+   e.lines.reduce((n,l)=>n+(used[l.id]||0)*(costs[l.id]||0),0);
  return <section className="snack-usage" data-unsaved={dirty}>
   <h3>{e.name}</h3>
   {e.lines.map(l=>{const moved=transferredQty(state,l.id),remaining=receivedQuantity(l)-(used[l.id]||0)-moved;
+   const row=rows.find(x=>x.line.id===l.id);
    const masterCost=state.products.find(p=>p.id===l.productId)?.cost;
-   return <div className="event-line" key={l.id}><div className="product-row"><span className="grow">{l.name}<small>入荷 {receivedQuantity(l)}個 ／ 余剰 {remaining}個{moved?` ／ 振替済 ${moved}個`:''}</small></span>
+   return <div className="event-line" key={l.id}><div className="product-row"><span className="grow">{l.name}<small>発注 {l.qty}個 ／ 実入荷 {receivedQuantity(l)}個 ／ {l.usedConfirmed||l.used>0?'使用後の残り':'実使用未確認の残り'} {remaining}個{moved?` ／ 振替済 ${moved}個`:''}</small></span>
     {l.sourceStockId?<strong>おやつへ振替済み {l.used}個</strong>:<Qty label={`${l.name} おやつ使用数`} max={receivedQuantity(l)-moved} value={used[l.id]||0} onChange={n=>setUsed({...used,[l.id]:n})}/>}</div>
+    {!l.sourceStockId&&row.allocated>0&&row.allocated!==used[l.id]&&<button type="button" className="text-action" onClick={()=>setUsed({...used,[l.id]:row.allocated})}>用途指定 {row.allocated}個を使用数の入力欄へ（実績を確認して保存）</button>}
+    {row.allocated>(used[l.id]||0)&&<p className="notice">用途指定が実使用数より{row.allocated-(used[l.id]||0)}個多い状態です。請求を確定する前に実績を確認してください。</p>}
+    {l.sourceStockId?<button type="button" className="text-action" onClick={()=>setCostSource(l.sourceStockId)}>仕入単価 {yen(costs[l.id])} ・{costs[l.id]==null?'確定・入力':'訂正'} ›</button>:
     <details className="snack-cost"><summary>仕入単価 {costs[l.id]==null?(masterCost==null?'未登録':`基準 ${yen(masterCost)}`):yen(costs[l.id])} ・変更</summary>
      {costs[l.id]==null&&masterCost!=null&&!moved&&<button type="button" className="text-action" onClick={()=>setCosts({...costs,[l.id]:masterCost})}>基準単価 {yen(masterCost)}を今回に適用</button>}
-     {!moved&&!l.sourceStockId&&<Money label={`${l.name} 今回の仕入単価`} value={costs[l.id]} onChange={n=>setCosts({...costs,[l.id]:n})}/>}
-     {l.sourceStockId&&<button type="button" className="text-action" onClick={()=>setCostSource(l.sourceStockId)}>元の販売用商品の仕入単価を入力・変更 ›</button>}
-    </details>
-    {remaining>0&&<button type="button" className="text-action" disabled={dirty||l.cost==null} onClick={()=>onTransfer(l)}>余剰を販売用へ振替 ›</button>}
+     {!moved&&<Money label={`${l.name} 今回の仕入単価`} value={costs[l.id]} onChange={n=>setCosts({...costs,[l.id]:n})}/>}
+    </details>}
+    {remaining>0&&<button type="button" className="text-action" disabled={dirty||!(l.usedConfirmed||l.used>0)||l.cost==null} onClick={()=>onTransfer(l)}>確認済み余剰を販売用へ振替 ›</button>}
     {state.stocks.filter(st=>st.eventLineId===l.id&&st.qty>0).map(st=><div className="line" key={st.id}><small>振替 {st.qty}個 ／ 販売 {soldQty(state,st.id)}個</small><button type="button" className="text-action" disabled={soldQty(state,st.id)>0} onClick={()=>{if(confirm('振替を戻しますか？'))save(s=>undoTransfer(s,st.id),'余剰振替取消');}}>戻す</button></div>)}
    </div>;
   })}
-  <div className="snack-claim"><span>財政請求{e.billing?'（請求先別）':''}</span><strong>{yen(eventClaim({...e,lines:e.lines.map(l=>({...l,used:used[l.id]||0,cost:costs[l.id]}))}))}</strong>
-   <Button disabled={!dirty} onClick={()=>save(s=>{const current=s.events.find(x=>x.id===e.id);for(const l of current.lines){if(l.sourceStockId)continue;l.used=used[l.id]||0;l.usedConfirmed=true;l.cost=costs[l.id];}},'おやつ使用数・今回原価を保存')}>保存</Button></div>
+  <div className="snack-claim"><span>おやつ使用原価（請求額とは別）</span><strong>{yen(usageCost)}</strong></div>
+  <div className="snack-claim"><span>{e.billing?'確定した財政請求':e.snackDraft?'保存済み財政分（請求未確定）':'財政請求（用途未確定）'}</span><strong>{e.billing?yen(eventClaim(e)):e.snackDraft?yen(draftAmount):'未確定'}</strong></div>
+  {e.billing&&dirty&&<Field label="確定済みの使用・原価を訂正する理由"><input value={usageReason} onChange={ev=>setUsageReason(ev.target.value)}/></Field>}
+  <Button disabled={!dirty||!!e.billing&&!usageReason.trim()} onClick={async()=>{if(await save(s=>saveSnackUsage(s,e.id,used,costs,usageReason||'実使用数・原価を記録'),'おやつ実使用数・今回原価を保存'))setUsageReason('');}}>実使用数・原価を保存</Button>
   <StockToSnack event={e}/>
   <SnackBilling event={e}/>
-  {costSource&&state.stocks.some(st=>st.id===costSource)&&<StockEditor stock={state.stocks.find(st=>st.id===costSource)} initialOpenSettings onClose={()=>setCostSource(null)}/>}
+  {costSource&&state.stocks.some(st=>st.id===costSource)&&<StockEditor stock={state.stocks.find(st=>st.id===costSource)} costOnly onClose={()=>setCostSource(null)}/>}
  </section>;
 }
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { reassignSale } from './sale-reassignment.js';
 import { SalesWorkspace } from "./sales-workspace";
-import {confirmSourceStockCost} from './stock-cost.js';
+import {confirmSourceStockCost,correctSourceStockCost} from './stock-cost.js';
 import { OtherSales } from "./other-sales.jsx";
 import { TaskIcon } from "./task-icon";
 import {productDisplayName} from './product-names.js';
@@ -125,7 +125,7 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
       {phase !== 'order' && <section className="work-section sales-step-body">
         <div className="sales-mode-grid assignment-modes" role="group" aria-label="販売先割当の入力方法">
           <button type="button" className={`assignment-mode ${inputMode==='buyer'?'selected':''}`} aria-pressed={inputMode==='buyer'} onClick={()=>setInputMode('buyer')}>購入者からまとめて割当</button>
-          <button type="button" className="text-action" aria-pressed={inputMode==='product'} onClick={()=>setInputMode('product')}>商品から複数人へ割当</button>
+          <button type="button" className={`assignment-mode ${inputMode==='product'?'selected':''}`} aria-pressed={inputMode==='product'} onClick={()=>setInputMode('product')}>商品から複数人へ割当</button>
         </div>
         <SalesWorkspace stocks={stocks} roundId={roundId} mode={inputMode} onHistory={st=>setEdit(st)}/>
       </section>}
@@ -325,9 +325,10 @@ function BatchSaleEditor({stocks,roundId,onClose}) {
     </Modal>
   );
 }
-export function StockEditor({ stock, onClose,roundId=null,marketId=null,initialOpenSettings=false }) {
+export function StockEditor({ stock, onClose,roundId=null,marketId=null,initialOpenSettings=false,costOnly=false }) {
   const { state, save } = useApp();
   const [resolve,setResolve]=useState(null);
+  const [costReason,setCostReason]=useState('');
   const [st, set] = useState(
     stock
       ? structuredClone(stock)
@@ -352,6 +353,22 @@ export function StockEditor({ stock, onClose,roundId=null,marketId=null,initialO
   const put = (k, v) => set({ ...st, [k]: v });
   const sold = stock ? soldQty(state, stock.id) : 0,
     locked = stock && state.sales.some((x) => x.stockId === stock.id);
+  const roundProduct=state.rounds.find(r=>r.id===stock?.roundId)?.products.find(p=>p.id===stock?.productId);
+  const masterProduct=state.products.find(p=>p.id===stock?.productId);
+  const candidate=roundProduct?.cost!=null?{cost:roundProduct.cost,label:'この注文回の商品単価'}:
+    masterProduct?.cost!=null?{cost:masterProduct.cost,label:'現在の商品マスターの参考単価（当時の金額を確認）'}:null;
+  if(costOnly&&stock)return <Modal title={`${stock.name}の仕入単価`} onClose={onClose}>
+    <p>対象：この注文回の販売用商品と、振替先のおやつ・関連販売記録</p>
+    {stock.cost!=null&&<p>確定済みの仕入単価：<strong>{yen(stock.cost)}</strong>。通常処理では再確認不要です。</p>}
+    {stock.cost==null&&candidate&&<Button secondary onClick={()=>set(v=>({...v,cost:candidate.cost}))}>{candidate.label} {yen(candidate.cost)}を入力欄へ反映</Button>}
+    <form onSubmit={async e=>{e.preventDefault();if(stock.cost===st.cost){onClose();return;}
+      if(await save(s=>stock.cost==null?confirmSourceStockCost(s,stock.id,st.cost):correctSourceStockCost(s,stock.id,st.cost,costReason),
+        stock.cost==null?'この注文回の仕入単価を確定':'仕入単価を訂正'))onClose();}}>
+      <Money label="この注文回の仕入単価（直接入力可）" value={st.cost} onChange={v=>put('cost',v)} required/>
+      {stock.cost!=null&&st.cost!==stock.cost&&<Field label="訂正理由"><input value={costReason} onChange={e=>setCostReason(e.target.value)} required/></Field>}
+      <Button type="submit" disabled={st.cost==null||stock.cost!=null&&st.cost!==stock.cost&&!costReason.trim()}>{stock.cost==null?'仕入単価を確定':stock.cost===st.cost?'閉じる':'原価と関連記録を訂正'}</Button>
+    </form>
+  </Modal>;
   return (
     <Modal
       title={stock ? `${stock.name}の数量・販売履歴` : "販売用商品を追加"}
@@ -375,6 +392,10 @@ export function StockEditor({ stock, onClose,roundId=null,marketId=null,initialO
               st.test=s.rounds.find(r=>r.id===st.roundId).test;
               if (stock?.cost == null && st.cost != null) {
                 confirmSourceStockCost(s,st.id,st.cost);
+                st.costHistory=s.stocks.find(x=>x.id===st.id).costHistory;
+              }
+              if(stock?.cost!=null&&st.cost!==stock.cost){
+                correctSourceStockCost(s,st.id,st.cost,costReason);
                 st.costHistory=s.stocks.find(x=>x.id===st.id).costHistory;
               }
               if (stock)
@@ -450,6 +471,7 @@ export function StockEditor({ stock, onClose,roundId=null,marketId=null,initialO
               value={st.cost}
               onChange={(v) => put("cost", v)}
             />
+            {stock?.cost!=null&&st.cost!==stock.cost&&<Field label="仕入単価の訂正理由"><input value={costReason} onChange={e=>setCostReason(e.target.value)} required/></Field>}
           </>
         )}
         {locked ? (
