@@ -758,7 +758,7 @@ test('その他販売の既存売上を複数購入者の請求へ割り当て�
   await page.getByRole('button',{name:'商品から複数人へ割当'}).click();
   await page.getByRole('button',{name:'その他',exact:true}).click();
   await page.locator('.completed-stocks > summary').click();
-  await page.getByRole('button',{name:/検証果物　割当済み/}).click();
+  await page.locator('.completed-stocks .assignment-product-choice').filter({hasText:'検証果物'}).click();
   await expect(page.locator('.product-buyer-assignment')).toContainText('未割当 0個');
   expect(collections(shared.state,'','',r.id,true).find(x=>x.id==='other-buyer-0').onsite).toBe(360);
   await mobileShots(page,'other-buyers-saved');
@@ -907,6 +907,7 @@ test('11/4レビュー：商品先行のおやつ直接割当を複数家庭へ�
   await page.getByRole('button',{name:'商品から',exact:true}).click();
   await page.getByLabel('割り当てる商品').selectOption('white');
   for(const [name,qty] of [['小松',1],['あゆみ',2],['秋葉',1],['青木',1]])await setQty(page,'白パン '+name+'の数量',qty);
+  await closeToast(page);
   for(const width of [320,375,430]){
     await page.setViewportSize({width,height:812});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -941,7 +942,7 @@ test('11/4レビュー：レモン1個の既存割当へ7個追加し、原価�
   expect(shared.state.otherSales[0].allocations.reduce((n,x)=>n+x.qty,0)).toBe(8);
   await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'販売先を割り当てる');
   await page.getByRole('button',{name:'商品から複数人へ割当'}).click();await page.getByRole('button',{name:'その他',exact:true}).click();
-  await page.locator('.completed-stocks > summary').click();await page.getByRole('button',{name:/隔離レモン　割当済み/}).click();
+  await page.locator('.completed-stocks > summary').click();await page.locator('.completed-stocks .assignment-product-choice').filter({hasText:'隔離レモン'}).click();
   await expect(page.locator('.product-buyer-assignment')).toContainText('未割当 0個');
   await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'おやつ使用・財政請求'})}).locator('summary').first().click();
   await page.locator('.stock-to-snack > summary').click();await page.getByLabel('販売用の商品').selectOption(st.id);

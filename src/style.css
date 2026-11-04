@@ -2669,9 +2669,10 @@ header small {
   .buyer-quantity-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:8px 0;}
   .buyer-quantity-cell {min-width:0;padding:5px 3px;background:#fff;border:1px solid #e0e5df;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;}
   .buyer-quantity-cell>span {min-height:1.5em;max-width:100%;overflow-wrap:anywhere;text-align:center;font-size:.83rem;line-height:1.25;}
-  .buyer-quantity-cell .qty {width:100%;justify-content:center;gap:0;}
+  .buyer-quantity-cell .qty {width:100%;justify-content:center;gap:0;flex-wrap:wrap;}
   .buyer-quantity-cell .qty button {min-width:38px;min-height:42px;padding:0 2px;}
   .buyer-quantity-cell .qty-value {flex:1;min-width:26px!important;}
+  .buyer-quantity-cell .qty input {flex:1 0 100%;width:100%;max-width:100%;min-width:0;margin-top:3px;}
   .assignment-product-choice {display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:44px;margin:3px 0;padding:5px 8px;border:1px solid #dce5de;border-radius:6px;background:#fff;color:var(--ink);text-align:left;overflow-wrap:anywhere;}
   .assignment-product-choice.selected {border-color:var(--work-accent);background:var(--work-tint);}
   .assignment-product-choice small {white-space:nowrap;color:var(--work-accent);}
