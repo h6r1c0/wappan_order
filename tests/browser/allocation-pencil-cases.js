@@ -150,7 +150,7 @@ export function registerAllocationTests(engine){
   for(const [status,color] of [['入力中','green'],['注文確定','blue'],['納品済み','orange'],['集金中','red'],['完了','green']]){
    await card.evaluate((el,status)=>{el.className=el.className.replace(/status-\S+/g,'')+` status-${status}`;},status);
    const css=await card.evaluate(el=>({v:getComputedStyle(el,'::before').backgroundImage,h:getComputedStyle(el,'::after').backgroundImage,w:parseFloat(getComputedStyle(el,'::before').width),height:parseFloat(getComputedStyle(el,'::after').height)}));
-   expect(css.v).toContain(color+'-deep');expect(css.h).toContain(color+'-deep');expect(css.w).toBeGreaterThanOrEqual(6);expect(css.height).toBeGreaterThanOrEqual(3);
+   expect(css.v).toContain(color+'-deep');expect(css.h).toContain(color+'-deep');expect(css.w).toBeGreaterThanOrEqual(6);expect(css.height).toBeGreaterThan(2);expect(css.height).toBeLessThan(4);
   }
   await card.click();
   for(const width of [320,375,430]){

@@ -33,6 +33,7 @@ test('10/16の4区分は途中保存・再読込・確定を分け、財政各4�
  saveSnackSection(s,e.id,'direct',[{buyerId:'buyer-a',lineId:'apple',qty:1,unitPrice:160}]);
  assert.equal(s.events[0].snackDraft.groups[0].quantities.bean,2);
  assert.equal(collectionPosition(s,r.id,'buyer-a').current,0);
+ e.lines.find(l=>l.id==='bean').used=6;e.lines.find(l=>l.id==='apple').used=6;
  confirmSnackPlan(s,e.id);
  assert.equal(e.lines.find(l=>l.id==='bean').used,6);
  assert.equal(e.lines.find(l=>l.id==='apple').used,6);
@@ -113,6 +114,7 @@ test('DBは新しい途中保存と確定請求を受け取り、在庫・家庭
  saveSnackSection(s,e.id,'common',{groups:[{id:'group',label:'共通単価',lineIds:['bean','apple'],quantities:{bean:1,apple:1},unitPrice:150}],
   household:[{buyerId:'buyer-b',groupId:'group',lineId:null,qty:2,unitPrice:150}]});
  await db.query('select public.wappan_validate($1)',[s]);
+ e.lines.find(l=>l.id==='bean').used=5;e.lines.find(l=>l.id==='apple').used=5;
  confirmSnackPlan(s,e.id);
  await db.query('select public.wappan_validate($1)',[s]);
  const original=structuredClone(e.billing);

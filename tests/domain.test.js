@@ -78,7 +78,7 @@ test('未使用のおやつ行と入荷0の販売用は原価未入力でも利�
   s.events.push(event);r.eventIds.push(event.id);
   const stock={id:d.uid(),roundId:r.id,productId:'milk',name:'販売用',category:'パン',qty:2,receivedQty:0,cost:null,price:280,date:r.date,test:false};
   s.stocks.push(stock);r.stockIds.push(stock.id);
-  assert.equal(d.eventCost(event),0);assert.equal(d.eventClaim(event),0);
+  assert.equal(d.eventCost(event),0);assert.equal(d.eventClaim(event),null);
   assert.equal(d.roundCost(s,r),1200);
   stock.receivedQty=1;assert.equal(d.roundCost(s,r),null);
   stock.cost=0;assert.equal(d.roundCost(s,r),1200);
@@ -163,7 +163,7 @@ test("行事20→18使用→2振替→個人請求と即時入金、混在納品
   s.events.push(e);
   d.transfer(s, e, e.lines[0], 2, 200, "2026-09-11");
   const stock = s.stocks[0];
-  assert.equal(d.eventClaim(e), 2484);
+  assert.equal(d.eventClaim(e), null); // 使用原価は未確定の財政請求ではない
   assert.equal(d.eventCost(e), 2760);
   assert.equal(stock.qty * stock.cost, 276);
   assert.equal(d.transferredQty(s, "line"), 2);
@@ -315,6 +315,6 @@ test("振替の誤入力を戻し、販売済みの場合は取消後だけ戻�
   s.sales[0].void = true;
   d.undoTransfer(s, st.id);
   assert.equal(d.transferredQty(s, "l"), 0);
-  assert.equal(d.eventClaim(e), 2484);
+  assert.equal(d.eventClaim(e), null);
   d.validate(s);
 });

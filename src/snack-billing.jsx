@@ -2,7 +2,7 @@ import React,{useState} from 'react';
 import {useApp,Button,Field,Money,Qty,BuyerPicker} from './ui';
 import {BuyerQuantityGrid} from './buyer-quantity-grid.jsx';
 import {yen} from './domain';
-import {saveSnackSection,confirmSnackPlan,emptySnackPlan,suggestedSnackPrice} from './snack-billing.js';
+import {saveSnackSection,confirmSnackPlan,emptySnackPlan,suggestedSnackPrice,snackQuantityRows} from './snack-billing.js';
 import {receivedQuantity} from './shortages.js';
 
 const amount=(rows,id)=>rows.filter(x=>x.lineId===id).reduce((n,x)=>n+x.qty,0);
@@ -18,7 +18,7 @@ export function SnackBilling({event}){
     try{
       const probe=structuredClone(state);saveSnackSection(probe,event.id,section,value,reason||'おやつの区分を保存');
       setError('');
-      if(await save(s=>saveSnackSection(s,event.id,section,value,reason||'おやつの区分を保存'),`${section==='fiscal'?'財政':section==='direct'?'直接割当':section==='common'?'共通単価':'おやつ名'}を途中保存`)){
+      if(await save(s=>saveSnackSection(s,event.id,section,value,reason||'おやつの区分を保存'),`${section==='fiscal'?'財政':section==='direct'?'直接割当':section==='common'?'共通単価':'おやつ名'}を保存`)){
         setSaved('この区分を保存しました。請求と集金への反映は「請求を確定」後です。');setReason('');
       }
     }catch(e){setError(e.message);}
@@ -32,11 +32,7 @@ export function SnackBilling({event}){
     if(next.some(x=>!Number.isSafeInteger(x.unitPrice)||x.unitPrice<0)){setError('請求単価を確認してください');return;}
     change({...draft,household:next});setBuyer('');setQuantities({});
   };
-  const status=event.lines.map(l=>{
-    const fiscal=amount(draft.fiscal,l.id),specific=amount(direct,l.id),common=groups.reduce((n,g)=>n+(g.quantities?.[l.id]||0),0);
-    const retail=state.stocks.filter(st=>st.eventLineId===l.id).reduce((n,x)=>n+x.qty,0),received=receivedQuantity(l);
-    return {line:l,fiscal,specific,common,retail,received,left:received-fiscal-specific-common-retail};
-  });
+  const status=snackQuantityRows(state,event,draft);
   const commonAssigned=id=>draft.household.filter(x=>x.groupId===id).reduce((n,x)=>n+x.qty,0);
   const line=event.lines.find(l=>l.id===selectedLine);
   const lineItems=direct.filter(x=>x.lineId===selectedLine);
@@ -58,7 +54,7 @@ export function SnackBilling({event}){
       <h4>1 財政分</h4>
       {event.lines.map(l=><div className="snack-billing-row" key={l.id}><span>{l.name}<small>仕入単価 {yen(l.cost)}</small></span>
         <Qty label={`${l.name} 財政分`} value={amount(draft.fiscal,l.id)} max={receivedQuantity(l)} onChange={qty=>editFiscal(l.id,qty)}/></div>)}
-      <Button secondary onClick={()=>savePart('fiscal',draft.fiscal)}>財政分を途中保存</Button>
+      <Button secondary onClick={()=>savePart('fiscal',draft.fiscal)}>財政分を保存</Button>
       <h4>2 そのまま割り振れる分</h4>
       <div className="choice-grid" role="group" aria-label="おやつ直接割当の入口"><Button secondary={directMode!=='buyer'} onClick={()=>setDirectMode('buyer')}>購入者から</Button><Button secondary={directMode!=='product'} onClick={()=>setDirectMode('product')}>商品から</Button></div>
       {directMode==='product'&&<><Field label="割り当てる商品"><select value={selectedLine} onChange={e=>{setSelectedLine(e.target.value);setDirectPrice(null);}}><option value="">商品を選ぶ</option>{event.lines.map(l=><option key={l.id} value={l.id}>{l.name}（実入荷 {receivedQuantity(l)}個）</option>)}</select></Field>
@@ -67,7 +63,7 @@ export function SnackBilling({event}){
           <Money label={`${line.name}の請求単価`} value={directPrice??lineItems[0]?.unitPrice??suggestedSnackPrice([line.cost])} onChange={changeDirectPrice}/>
           <p>選んだ数量 {lineItems.reduce((n,x)=>n+x.qty,0)}個 ／ 残り {lineCapacity-lineItems.reduce((n,x)=>n+x.qty,0)}個</p>
           {lineItems.reduce((n,x)=>n+x.qty,0)>lineCapacity&&<p role="alert">{line.name}の直接割当が{lineItems.reduce((n,x)=>n+x.qty,0)-lineCapacity}個超えています。</p>}
-          <Button secondary disabled={lineItems.reduce((n,x)=>n+x.qty,0)>lineCapacity} onClick={()=>savePart('direct',direct)}>この商品の直接割当を途中保存</Button>
+          <Button secondary disabled={lineItems.reduce((n,x)=>n+x.qty,0)>lineCapacity} onClick={()=>savePart('direct',direct)}>この商品の直接割当を保存</Button>
         </div>}</>}
       {directMode==='buyer'&&<>
       <BuyerPicker value={buyer} onChange={setBuyer} includeTest={event.test}/>
@@ -79,7 +75,7 @@ export function SnackBilling({event}){
       {direct.map(item=><div className="snack-billing-row" key={`${item.buyerId}:${item.lineId}`}>
         <span>{state.buyers.find(b=>b.id===item.buyerId)?.name}・{event.lines.find(l=>l.id===item.lineId)?.name} {item.qty}個 ／ {yen(item.unitPrice)}</span>
         <button type="button" className="text-action" onClick={()=>change({...draft,household:draft.household.filter(x=>x!==item)})}>外す</button></div>)}
-      {directMode==='buyer'&&<Button secondary onClick={()=>savePart('direct',direct)}>直接割当を途中保存</Button>}
+      {directMode==='buyer'&&<Button secondary onClick={()=>savePart('direct',direct)}>直接割当を保存</Button>}
       <div className="section-head"><h4>3 共通単価を設定した分</h4><button type="button" className="text-action" onClick={()=>change({...draft,groups:[...groups,{id:crypto.randomUUID(),label:'共通単価',lineIds:[],quantities:{},unitPrice:null}]})}>＋ 共通単価</button></div>
       {groups.map(g=>{
         const target=Object.values(g.quantities||{}).reduce((n,x)=>n+x,0),assigned=commonAssigned(g.id);
@@ -97,14 +93,21 @@ export function SnackBilling({event}){
           <button type="button" className="text-action" onClick={()=>change({...draft,groups:groups.filter(x=>x.id!==g.id),household:draft.household.filter(x=>x.groupId!==g.id)})}>この共通単価を外す</button>
         </section>;
       })}
-      <Button secondary onClick={()=>savePart('common',{groups,household:draft.household.filter(x=>x.groupId)})}>共通単価分を途中保存</Button>
+      <Button secondary onClick={()=>savePart('common',{groups,household:draft.household.filter(x=>x.groupId)})}>共通単価分を保存</Button>
       <h4>4 販売に回す分</h4><p>各商品の「おやつ使用数」から、余剰を販売用へ振り替えられます。保存済みの振替は他区分の変更で消えません。</p>
-      <div className="snack-billing-preview">{status.map(x=><p key={x.line.id}>{x.line.name}：発注 {x.line.qty}／実入荷 {x.received}／財政 {x.fiscal}／直接 {x.specific}／共通 {x.common}／販売振替 {x.retail}／未振分 {x.left}</p>)}</div>
-      {status.some(x=>x.left<0)&&<p role="alert" className="notice">{status.filter(x=>x.left<0).map(x=>`${x.line.name}が${-x.left}個超過`).join('、')}。該当商品の数量を直してください。</p>}
+      <div className="snack-billing-preview" role="region" aria-label="おやつ数量照合表" tabIndex={0}><table><thead><tr>{['商品','発注','実入荷','実使用','財政','直接','共通','販売振替','未振分','未振替'].map(h=><th key={h} scope="col">{h}</th>)}</tr></thead>
+        <tbody>{status.map(x=><tr key={x.line.id}><th scope="row">{x.line.name}</th><td>{x.ordered}</td><td>{x.received}</td><td>{x.used??'未確認'}</td><td>{x.fiscal}</td><td>{x.direct}</td><td>{x.common}</td><td>{x.retail}</td><td>{x.unassigned??'未確定'}</td><td>{x.unused??'未確定'}</td></tr>)}</tbody></table></div>
+      {status.map(x=><div className="snack-quantity-state" key={x.line.id}><strong>{x.line.name}</strong>：
+        {x.used==null&&<span>実使用未確認　</span>}{x.unassigned>0&&<span>用途未振分 {x.unassigned}個　</span>}
+        {x.excess>0&&<span role="alert">実入荷を{x.excess}個超過　</span>}
+        {x.unassigned<0&&<span role="alert">実使用より用途指定が{-x.unassigned}個超過　</span>}
+        {x.used>0&&x.line.cost==null&&<span>原価未確定　</span>}
+        {!event.billing&&<span>請求未確定</span>}
+      </div>)}
       {error&&<p role="alert" className="notice">{error}</p>}{saved&&<p role="status">{saved}</p>}
-      {unsaved&&event.snackDraft&&<p className="notice">変更した区分を途中保存してから請求を確定してください。</p>}
+      {unsaved&&event.snackDraft&&<p className="notice">変更した区分を保存してから請求を確定してください。</p>}
       {event.billing&&<Field label="確定請求を変更する理由"><input value={reason} onChange={e=>setReason(e.target.value)}/></Field>}
-      <Button disabled={!event.snackDraft||unsaved||status.some(x=>x.left<0)||!!event.billing&&!reason.trim()} onClick={async()=>{
+      <Button disabled={!event.snackDraft||unsaved||status.some(x=>x.excess>0||x.unassigned<0||x.unused<0)||!!event.billing&&!reason.trim()} onClick={async()=>{
         try{const probe=structuredClone(state);confirmSnackPlan(probe,event.id,reason||'請求先を確定');setError('');
           if(await save(s=>confirmSnackPlan(s,event.id,reason||'請求先を確定'),'おやつ請求を確定')){setSaved('請求先別の内容を確定しました。');setReason('');}}
         catch(e){setError(e.message);}
