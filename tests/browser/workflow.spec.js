@@ -714,7 +714,7 @@ test('販売用残数からおやつへ振り替え、用途と請求先を保�
   shared.state.buyers.push({id:'test-family',name:'検証家庭',kana:'けんしょうかてい',active:true,fixed:[]});
   const r=newRound(shared.state,'2026-10-16',true);r.status='注文確定';shared.state.rounds.push(r);
   const e={id:'snack-transfer-ui',roundId:r.id,date:r.date,name:'検証おやつ',test:true,lines:[
-    {id:'bean-ui',name:'こしあんぱん',qty:4,used:0,cost:130},
+    {id:'bean-ui',name:'こしあんぱん',qty:4,used:0,usedConfirmed:true,cost:130},
   ]};shared.state.events.push(e);r.eventIds.push(e.id);
   const st={id:'test-stock',roundId:r.id,date:r.date,name:'検証ゼリー',category:'その他',qty:3,price:270,cost:90,test:true};
   shared.state.stocks.push(st);r.stockIds.push(st.id);
