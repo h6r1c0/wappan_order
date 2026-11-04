@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { reassignSale } from './sale-reassignment.js';
 import { SalesWorkspace } from "./sales-workspace";
+import {confirmSourceStockCost} from './stock-cost.js';
 import { OtherSales } from "./other-sales.jsx";
 import { TaskIcon } from "./task-icon";
 import {productDisplayName} from './product-names.js';
@@ -124,9 +125,9 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
       {phase !== 'order' && <section className="work-section sales-step-body">
         <div className="sales-mode-grid assignment-modes" role="group" aria-label="販売先割当の入力方法">
           <button type="button" className={`assignment-mode ${inputMode==='buyer'?'selected':''}`} aria-pressed={inputMode==='buyer'} onClick={()=>setInputMode('buyer')}>購入者からまとめて割当</button>
-          <button type="button" className="text-action" aria-pressed={inputMode==='product'} onClick={()=>setInputMode('product')}>商品別・残数</button>
+          <button type="button" className="text-action" aria-pressed={inputMode==='product'} onClick={()=>setInputMode('product')}>商品から複数人へ割当</button>
         </div>
-        {['product','buyer'].map(v=><div hidden={inputMode!==v} key={v}><SalesWorkspace stocks={stocks} roundId={roundId} mode={v} onHistory={st=>setEdit(st)}/></div>)}
+        <SalesWorkspace stocks={stocks} roundId={roundId} mode={inputMode} onHistory={st=>setEdit(st)}/>
       </section>}
     </div>
     {phase !== 'order' && !round && <OtherSales round={round}/>}
@@ -324,7 +325,7 @@ function BatchSaleEditor({stocks,roundId,onClose}) {
     </Modal>
   );
 }
-export function StockEditor({ stock, onClose,roundId=null,marketId=null }) {
+export function StockEditor({ stock, onClose,roundId=null,marketId=null,initialOpenSettings=false }) {
   const { state, save } = useApp();
   const [resolve,setResolve]=useState(null);
   const [st, set] = useState(
@@ -363,7 +364,7 @@ export function StockEditor({ stock, onClose,roundId=null,marketId=null }) {
           onResolve={setResolve}
         />
       )}
-      <details className="stock-settings" open={!stock}>
+      <details className="stock-settings" open={!stock||initialOpenSettings}>
         {stock && <summary>商品情報・数量・仕入単価を編集</summary>}
       <form
         onSubmit={async (e) => {
@@ -373,9 +374,8 @@ export function StockEditor({ stock, onClose,roundId=null,marketId=null }) {
               st.roundId ||= delivery(s,st.date,st.test).id;
               st.test=s.rounds.find(r=>r.id===st.roundId).test;
               if (stock?.cost == null && st.cost != null) {
-                for (const sale of s.sales.filter(x => x.stockId === st.id && x.cost == null)) sale.cost = st.cost;
-                for(const event of s.events)for(const line of event.lines.filter(l=>l.sourceStockId===st.id&&l.cost==null))line.cost=st.cost;
-                st.costHistory=[...(stock.costHistory||[]),{at:new Date().toISOString(),previous:null,updated:st.cost,reason:'未確定の元仕入単価を確認'}];
+                confirmSourceStockCost(s,st.id,st.cost);
+                st.costHistory=s.stocks.find(x=>x.id===st.id).costHistory;
               }
               if (stock)
                 s.stocks[s.stocks.findIndex((x) => x.id === st.id)] = st;

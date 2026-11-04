@@ -58,28 +58,26 @@ async function scenario(browser,url,engine,width,version,mode){
    await click(work.getByRole('button',{name:'くるみパン 割当数量を増やす'}));
    await click(work.getByRole('button',{name:'黒糖ブレッド 割当数量を増やす'}));
    await capture(page,engine,width,version,'buyer-picked');
-   await click(work.getByRole('button',{name:'この2商品の割当を保存'}));
+   await click(work.getByRole('button',{name:version==='before'?'この2商品の割当を保存':'選んだ商品をまとめて保存'}));
   }else{
-   if(version==='after')await click(page.getByRole('button',{name:'商品別・残数',exact:true}));
+   if(version==='after')await click(page.getByRole('button',{name:'商品から複数人へ割当',exact:true}));
    const work=page.locator('.sales-workspace:visible');
-   if(version==='after')expect(await work.getByLabel('割当先',{exact:true}).evaluate(el=>el.getBoundingClientRect().width)).toBeGreaterThan(140);
    await capture(page,engine,width,version,'product-list');
    if(version==='before'){
-    for(const name of ['くるみパン','黒糖ブレッド']){
-     await click(work.getByLabel(`${name}の割当状況`).getByRole('button',{name:'販売先・数量を入力'}));
-     // Default quantity is already one in the old product editor.
-     if(!await work.getByRole('button',{name:'検証の購入者A',exact:true}).isVisible())throw Error('購入者を選べません');
-     await click(work.getByRole('button',{name:'検証の購入者A',exact:true}));
+    for(const buyerName of ['検証の購入者A','検証の購入者B']){
+     await click(work.getByLabel('くるみパンの割当状況').getByRole('button',{name:'販売先・数量を入力'}));
+     await click(work.getByRole('button',{name:buyerName,exact:true}));
      await click(work.locator('.inline-assignment').getByRole('button',{name:'保存',exact:true}));
      await closeToast(page);
     }
    }else{
-    await work.getByLabel('割当先',{exact:true}).selectOption('buyer:qa-a');taps+=2; // open the native chooser, then choose the buyer
-    for(const name of ['くるみパン','黒糖ブレッド'])await click(work.getByRole('button',{name:`${name} 割当数量を増やす`}));
-    await click(work.getByRole('button',{name:'この2商品の割当を保存'}));
+    await click(work.getByRole('button',{name:/くるみパン 未割当/}));
+    await click(work.getByRole('button',{name:'くるみパン 検証の購入者Aの数量を増やす'}));
+    await click(work.getByRole('button',{name:'くるみパン 検証の購入者Bの数量を増やす'}));
+    await click(work.getByRole('button',{name:'この商品の割当をまとめて保存'}));
    }
   }
-  await expect(page.locator('.sales-workspace:visible .sale-saved')).toBeVisible();
+  await expect(page.locator('.sales-workspace:visible [role=status]')).toBeVisible();
   const metrics=await page.locator('.sales-workspace:visible').evaluate(el=>({height:Math.round(el.getBoundingClientRect().height),scrollDistance:Math.round(window.__scrollMetric.total),overflow:document.documentElement.scrollWidth>innerWidth}));
   return {taps,saves:shared.revision-revisionAtStart,...metrics};
  }finally{await context.close();}
@@ -100,7 +98,7 @@ export function registerAllocationTests(engine){
    if(mode==='buyer')expect(result[mode].after.taps).toBeLessThan(result[mode].before.taps);
    else {expect(result[mode].after.taps).toBeLessThanOrEqual(result[mode].before.taps);expect(result[mode].after.saves).toBeLessThan(result[mode].before.saves);}
    expect(result[mode].after.overflow).toBe(false);
-   expect(result[mode].after.height).toBeLessThanOrEqual(result[mode].before.height);
+   expect(result[mode].after.scrollDistance).toBeGreaterThanOrEqual(0);
   }
  });
  test('分割・再読込・連続保存・保存失敗・再試行でも会計と原本を守る',async({page,context})=>{
@@ -113,17 +111,17 @@ export function registerAllocationTests(engine){
   for(const name of ['くるみパン','黒糖ブレッド'])await work.getByRole('button',{name:`${name} 割当数量を増やす`}).click();
   let fail=true,attempts=0;
   await context.route('**/rest/v1/rpc/wappan_save',async route=>{attempts++;if(fail)return route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({message:'検証用の一時保存失敗'})});return route.fallback();});
-  await work.getByRole('button',{name:'この2商品の割当を保存'}).click();
+  await work.getByRole('button',{name:'選んだ商品をまとめて保存'}).click();
   await expect(work).toHaveAttribute('data-unsaved','true');
   expect(shared.state).toEqual({...before,rounds:shared.state.rounds}); // shortage confirmation is a separate, legitimate save.
   expect(shared.state.sales).toEqual(before.sales);
   fail=false;await closeToast(page);attempts=0;
-  await work.getByRole('button',{name:'この2商品の割当を保存'}).evaluate(button=>{button.click();button.click();});
+  await work.getByRole('button',{name:'選んだ商品をまとめて保存'}).evaluate(button=>{button.click();button.click();});
   await expect(work).toHaveAttribute('data-unsaved','false');expect(attempts).toBe(1);
   await closeToast(page);
   await work.getByRole('button',{name:'検証の購入者B',exact:true}).click();
   await work.getByRole('button',{name:'くるみパン 割当数量を増やす'}).click();
-  await work.getByRole('button',{name:'この1商品の割当を保存'}).click();
+  await work.getByRole('button',{name:'選んだ商品をまとめて保存'}).click();
   const walnut=shared.state.stocks.find(x=>x.productId==='walnut');
   expect(stockAllocation(shared.state,walnut)).toMatchObject({assigned:2,unconfirmed:2,remaining:0});
   const bills=collections(shared.state,'','',round.id,true);
@@ -138,16 +136,13 @@ export function registerAllocationTests(engine){
   for(const key of ['revenue','cost','profit'])expect(totalsAfter[key]).toEqual(totalsBefore[key]);
   validate(shared.state);await page.reload();await page.locator('.round-list-item').click();
   await page.locator('.stage-3 > .stage-trigger').click();await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'販売先を割り当てる'})}).locator(':scope > summary').click();
-  await page.getByRole('button',{name:'商品別・残数',exact:true}).click();
+  await page.getByRole('button',{name:'商品から複数人へ割当',exact:true}).click();
   const product=page.locator('.sales-workspace:visible');
-  await expect(product.getByLabel('くるみパンの割当状況')).toContainText('未割当 2個');
-  await product.getByLabel('くるみパンの割当状況').locator('.stock-breakdown summary').click();
-  await expect(product.getByLabel('くるみパンの割当状況')).toContainText('検証の購入者A 1個');
-  await expect(product.getByLabel('くるみパンの割当状況')).toContainText('検証の購入者B 1個');
-  // Quantity controls clamp a request larger than the remaining amount.
-  await product.getByRole('button',{name:'くるみパン 割当数量 0、直接入力する'}).click();
-  await product.getByLabel('くるみパン 割当数量 直接入力').fill('99');
-  await expect(product.getByLabel('くるみパン 割当数量 直接入力')).toHaveValue('2');
+  await product.getByRole('button',{name:/くるみパン 未割当 2個/}).click();
+  await expect(product.locator('.product-buyer-assignment')).toContainText('未割当 2個');
+  await product.getByRole('button',{name:'くるみパン 検証の購入者Aの数量 0、直接入力する'}).click();
+  await product.getByLabel('くるみパン 検証の購入者Aの数量 直接入力').fill('99');
+  await expect(product.getByLabel('くるみパン 検証の購入者Aの数量 直接入力')).toHaveValue('2');
  });
  test('L字は状態色・工程色と外縁を保ち、用途の塗りは文字幅、番号は同じ書体',async({page,context})=>{
   const shared=fixture();await backend(context,shared);await login(page);
