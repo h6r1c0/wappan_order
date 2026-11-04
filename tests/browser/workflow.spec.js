@@ -919,7 +919,7 @@ test('11/4レビュー：商品先行のおやつ直接割当を複数家庭へ�
   }
   await page.getByRole('button',{name:'この商品の直接割当を途中保存'}).click();
   expect(shared.state.events[0].snackDraft.household.map(x=>x.qty)).toEqual([1,2,1,1]);
-  expect(shared.state.events[0].snackDraft.household.map(x=>x.unitPrice)).toEqual([110,120,90,90]);
+  expect(shared.state.events[0].snackDraft.household.map(x=>x.unitPrice)).toEqual([110,120,110,110]);
   expect(shared.state.events[0].billing).toBeUndefined();
   await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつ使用・財政請求');
   await page.locator('.snack-billing > summary').click();await page.getByRole('button',{name:'商品から',exact:true}).click();
