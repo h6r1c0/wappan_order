@@ -109,9 +109,8 @@ export function SnackBilling({event,onTransfer}){
         return <section className="snack-group" key={g.id}>
           <h5>{g.label} {event.snackDraft?.groups.some(x=>x.id===g.id)?'（保存済み）':'（未保存）'}</h5>
           <Field label="請求名"><input value={g.label} onChange={e=>editGroup(g.id,{label:e.target.value})}/></Field>
-          <p>対象商品と数量を選んでください。ほかの用途と販売振替の残りを表示します。</p>
           {event.lines.map(l=>{const taken=status.find(x=>x.line.id===l.id),own=g.quantities?.[l.id]||0,available=Math.max(0,taken.unassigned+own);
-            return <div className="snack-billing-row" key={l.id}><span>{l.name}<small>この区分に使用可能 {available}個</small></span><Qty label={`${l.name} 共通単価の対象数`} value={own} max={available} onChange={qty=>editGroup(g.id,{quantities:{...g.quantities,[l.id]:qty},lineIds:[...new Set([...g.lineIds,l.id])]})}/>
+            return <div className="snack-billing-row" key={l.id}><span>{l.name}{l.sourceStockId&&<small>販売用から振替</small>}<small>この区分に使用可能 {available}個</small></span><Qty label={`${l.name} 共通単価の対象数`} value={own} max={available} onChange={qty=>editGroup(g.id,{quantities:{...g.quantities,[l.id]:qty},lineIds:[...new Set([...g.lineIds,l.id])]})}/>
               {available>0&&own===0&&<button type="button" className="text-action" onClick={()=>editGroup(g.id,{quantities:{...g.quantities,[l.id]:available},lineIds:[...new Set([...g.lineIds,l.id])]})}>残り{available}個を選ぶ</button>}</div>})}
           {target>0&&<>{cost==null?<p role="alert">原価未確定：{selected.filter(l=>l.cost==null).map(l=>l.name).join('、')}。上の仕入単価から登録してください。</p>:
             <p>商品別原価の合計 {yen(cost)} ÷ {target}個。10円単位切り上げの候補 {yen(suggested)}</p>}

@@ -1158,8 +1158,12 @@ test('11/6レビュー：過去回の受取と今回の未受取を分け、氏�
   await expect(row.locator('.collection-context')).toContainText('2026-09-11分の受取');
   await expect(row.locator('.collection-context')).toContainText('受取記録日 2026-10-23');
   await expect(row.locator('.collection-context')).toContainText('今回分は未受取');
+  await page.locator('.collection-completed > summary').click();
   for(const width of [320,375,430]){await page.setViewportSize({width,height:812});
     expect(await row.locator('.collection-buyer-name').evaluate(el=>getComputedStyle(el).textOverflow)).not.toBe('ellipsis');
+    expect(await row.locator('.collection-buyer-name').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
+    const columns=await row.evaluate(el=>{const name=el.querySelector('.collection-buyer-name').getBoundingClientRect(),amount=el.querySelector('.collection-amount').getBoundingClientRect();return {nameRight:name.right,amountLeft:amount.left};});
+    expect(columns.nameRight).toBeLessThanOrEqual(columns.amountLeft);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await row.scrollIntoViewIfNeeded();await page.screenshot({path:`test-results/nov6-collection-origin-${width}.png`});}
   expect(shared.state.collectionEntries).toHaveLength(1);expect(shared.state.collectionEntries[0].roundId).toBe(old.id);
