@@ -274,8 +274,8 @@ test('納品後: 未確認2個を購入者と名称なし外部へ分割', async
   await setQty(work,'くるみパン ホリの数量',1);
   await work.getByRole('button',{name:'この商品の割当をまとめて保存'}).click();
   await expect(work.locator('.product-buyer-assignment')).toContainText('未割当 1個');
-  await work.locator('.product-buyer-assignment details').filter({hasText:'支払い済みの外部販売へ割当'}).locator('summary').click();
-  await setQty(work,'くるみパン 外部販売数量',1);
+  await work.getByRole('button',{name:'支払い済み・外部販売'}).click();
+  await setQty(work,'くるみパン 支払い済み数量',1);
   await work.getByRole('button',{name:'支払い済みの割当を保存'}).click();
   await expect(work.locator('.product-buyer-assignment')).toContainText('未割当 0個');
   expect(shared.state.sales.reduce((n,s)=>n+s.qty,0)).toBe(2);
@@ -353,9 +353,9 @@ test('請求漏れ・過去未収を一度の内訳展開で確認し、対象�
   await hori.locator('.collection-open').click();
   await expect(hori).toContainText('380円');
   await expect(hori.locator('.collection-totals')).toContainText('今回請求');
-  await hori.locator('.collection-totals > details').first().locator('summary').click();
+  await hori.locator('.collection-totals > details').first().locator(':scope > summary').click();
   await expect(hori.locator('.collection-charge-lines').first()).toContainText('黒糖ブレッド');
-  await hori.locator('.collection-totals > details').nth(1).locator('summary').click();
+  await hori.locator('.collection-totals > details').nth(1).locator(':scope > summary').click();
   await expect(hori.locator('.collection-charge-lines').nth(1)).toContainText('380円');
   await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
   await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
@@ -637,7 +637,7 @@ test('おやつの職員分と共通単価の家庭請求を確認後に保存�
   await setQty(page,'りんごデニッシュ 共通単価の対象数',1);
   await expect(page.locator('.snack-group').getByLabel('1個の共通単価')).toHaveValue('150');
   await page.locator('.snack-group summary').click();
-  await setQty(page,'佐藤 共通単価の食数',2);
+  await setQty(page,'共通単価 佐藤の数量',2);
   await page.getByRole('button',{name:'共通単価分を保存'}).click();
   await mobileShots(page,'snack-billing');
   expect(shared.state.events[0].billing).toBeUndefined();
@@ -648,7 +648,7 @@ test('おやつの職員分と共通単価の家庭請求を確認後に保存�
   const entry=page.locator('.collection-entry').filter({hasText:'佐藤'});
   await expect(entry).toContainText('300円');
   await entry.locator('.collection-open').click();
-  await entry.locator('.collection-totals > details').first().locator('summary').click();
+  await entry.locator('.collection-totals > details').first().locator(':scope > summary').click();
   await expect(entry.locator('.collection-charge-lines').first()).toContainText('共通単価');
   await expect(entry.locator('.collection-charge-lines').first()).toContainText('300円');
   await mobileShots(page,'snack-collection');
@@ -674,8 +674,8 @@ test('共通単価グループを複数家庭へ一括割当し、その他の�
   await setQty(page,'りんごデニッシュ 共通単価の対象数',1);
   await expect(group.getByLabel('1個の共通単価')).toHaveValue('150');
   await group.locator('summary').click();
-  await setQty(page,'佐藤 共通単価の食数',1);
-  await setQty(page,'鈴木 共通単価の食数',1);
+  await setQty(page,'共通単価 佐藤の数量',1);
+  await setQty(page,'共通単価 鈴木の数量',1);
   await expect(group).toContainText('合計2個 ／ 家庭割当 2個 ／ 差 0個');
   await page.getByRole('button',{name:'共通単価分を保存'}).click();
   await mobileShots(page,'group-snack');
@@ -718,6 +718,7 @@ test('販売用残数からおやつへ振り替え、用途と請求先を保�
   shared.state.stocks.push(st);r.stockIds.push(st.id);
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
   await openAfter(page,'おやつの請求と余剰');
+  await page.locator('.snack-stock-facts > summary').click();
   await page.locator('.stock-to-snack > summary').click();
   await page.getByLabel('販売用の商品').selectOption(st.id);
   await page.getByLabel('振替先の用途').selectOption('direct');
@@ -1097,7 +1098,7 @@ test('11/5午後レビュー：共通単価の既存購入者を全員から選�
   const e={id:'common-buyers',roundId:r.id,date:r.date,name:'隔離おやつ',test:true,lines:[{id:'bean',name:'こしあんぱん',qty:3,cost:130,used:0}],snackDraft:{label:'',fiscal:[],household:[],groups:[{id:'common',label:'共通単価',lineIds:['bean'],quantities:{bean:3},unitPrice:130,priceMode:'auto'}]}};
   shared.state.events.push(e);r.eventIds.push(e.id);await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの請求と余剰');
   await page.locator('.snack-billing > summary').click();await page.locator('.snack-group details > summary').click();
-  for(const name of ['森本','花房','西尾'])await expect(page.getByLabel(`共通単価 ${name}の数量`)).toBeVisible();
+  for(const name of ['森本','花房','西尾'])await expect(page.getByRole('button',{name:new RegExp(`^共通単価 ${name}の数量 0、直接入力する$`)})).toBeVisible();
   for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await page.locator('.snack-group .buyer-quantity-grid').scrollIntoViewIfNeeded();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/nov5-common-buyers-${width}.png`});}
   for(const name of ['森本','花房','西尾'])await setQty(page,`共通単価 ${name}の数量`,1);
   await expect(page.locator('.snack-group')).toContainText('未割当 0個');await page.getByRole('button',{name:'共通単価分を保存'}).click();
@@ -1108,7 +1109,7 @@ test('11/5午後レビュー：共通単価の既存購入者を全員から選�
 
 test('11/5午後レビュー：集金一覧の1行操作、金額直下の全商品内訳、直前の誤受取取消',async({page,context})=>{
   const shared={state:preparedState(),revision:0};
-  const r=newRound(shared.state,'2026-10-16',true);r.status='納品済み';r.shortageConfirmation='none';shared.state.rounds.push(r);
+  const r=newRound(shared.state,'2026-10-16',true);r.status='納品済み';r.shortageConfirmation='none';r.collectionLive=true;shared.state.rounds.push(r);
   r.orders.hori={name:'堀',quantities:{brown:1}};r.orders.asano={name:'浅野',quantities:{brown:1}};
   shared.state.receivableItems.push({id:'past-due',kind:'opening',buyerId:'hori',date:'2026-09-11',amount:380,reason:'未受取',note:'前回の注文'});
   shared.state.otherSales.push({id:'lemon',name:'無農薬青レモン',date:r.date,qty:1,unitPrice:100,unitCost:0,paymentStatus:'unpaid',test:true,allocations:[{buyerId:'hori',qty:1,chargeRoundId:r.id}]});
@@ -1118,10 +1119,10 @@ test('11/5午後レビュー：集金一覧の1行操作、金額直下の全商
   for(const width of [320,375,430]){await page.setViewportSize({width,height:812});
     const dimensions=await page.evaluate(()=>['hori','asano'].map(id=>{const row=document.querySelector(`[data-buyer="${id}"]`),overview=row.querySelector('.collection-overview'),amount=row.querySelector('.collection-amount'),buttons=[...row.querySelectorAll('.collection-pay')];return {height:overview.getBoundingClientRect().height,amountX:amount.getBoundingClientRect().x,buttons:buttons.map(b=>b.getBoundingClientRect().y)};}));
     expect(dimensions.every(x=>x.height<=52&&new Set(x.buttons).size===1)).toBe(true);expect(Math.abs(dimensions[0].amountX-dimensions[1].amountX)).toBeLessThan(3);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/nov5-collections-${width}.png`});}
-  await hori.locator('.collection-open').click();await hori.locator('.collection-totals details').first().locator('summary').click();
+  await hori.locator('.collection-open').click();await hori.locator('.collection-totals > details').first().locator(':scope > summary').click();
   await expect(hori.locator('.collection-charge-lines').first()).toContainText('黒糖ブレッド');await expect(hori.locator('.collection-charge-lines').first()).toContainText('無農薬青レモン');
   await expect(hori.locator('.collection-charge-lines').first()).toContainText('商品明細合計');
-  await hori.locator('.collection-totals details').nth(1).locator('summary').click();await expect(hori.locator('.collection-charge-lines').nth(1)).toContainText('2026-09-11');
+  await hori.locator('.collection-totals > details').nth(1).locator(':scope > summary').click();await expect(hori.locator('.collection-charge-lines').nth(1)).toContainText('2026-09-11');
   const before=collections(shared.state,'','',r.id,true).find(x=>x.id==='hori').total;
   await hori.getByRole('button',{name:'今回分受取'}).click();await expect(page.locator('.collection-undo')).toBeVisible();
   await page.locator('.collection-undo button').click();expect(shared.state.collectionEntries).toHaveLength(1);expect(shared.state.collectionCorrections[0].reason).toBe('操作ミス（現金の受取なし）');
