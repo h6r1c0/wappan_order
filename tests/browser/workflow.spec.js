@@ -920,6 +920,9 @@ test('11/5レビュー：実使用、保存済み財政・家庭請求、余剰�
   const group={id:'common',label:'共通単価',unitPrice:150,lineIds:['bean','apple'],quantities:{bean:16,apple:10}};
   saveSnackSection(shared.state,e.id,'common',{groups:[group],household:[{buyerId:'hori',groupId:'common',lineId:null,qty:26,unitPrice:150}]});
   await backend(context,shared);await login(page);
+  expect(await page.getByRole('button',{name:'注文回を作成'}).evaluate(el=>getComputedStyle(el).borderWidth)).toBe('0px');
+  expect(await page.locator('.round-list-item .tag-テスト').evaluate(el=>parseFloat(getComputedStyle(el).borderRadius))).toBeGreaterThan(15);
+  await mobileShots(page,'nov5-round-design');
   expect(await page.locator('.round-list-item').first().evaluate(el=>parseFloat(getComputedStyle(el,'::after').height))).toBeGreaterThan(1);
   expect(await page.locator('.round-list-item').first().evaluate(el=>parseFloat(getComputedStyle(el,'::after').height))).toBeLessThan(4);
   await page.locator('.round-list-item').click();
