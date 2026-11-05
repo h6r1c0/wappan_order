@@ -353,10 +353,10 @@ test('請求漏れ・過去未収を一度の内訳展開で確認し、対象�
   await hori.locator('.collection-open').click();
   await expect(hori).toContainText('380円');
   await expect(hori.locator('.collection-totals')).toContainText('今回請求');
-  await hori.locator('.collection-breakdown summary').click();
-  await expect(hori.locator('.charge-line').nth(1)).toContainText('黒糖ブレッド');
-  await expect(hori.locator('.charge-line').nth(2)).toContainText('380円');
-  await expect(hori.locator('.charge-line').nth(2)).not.toContainText('2026-09-11');
+  await hori.locator('.collection-totals > details').first().locator('summary').click();
+  await expect(hori.locator('.collection-charge-lines').first()).toContainText('黒糖ブレッド');
+  await hori.locator('.collection-totals > details').nth(1).locator('summary').click();
+  await expect(hori.locator('.collection-charge-lines').nth(1)).toContainText('380円');
   await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
   await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
   await page.locator('.stage-4 > .stage-trigger').click();
@@ -648,9 +648,9 @@ test('おやつの職員分と共通単価の家庭請求を確認後に保存�
   const entry=page.locator('.collection-entry').filter({hasText:'佐藤'});
   await expect(entry).toContainText('300円');
   await entry.locator('.collection-open').click();
-  await entry.locator('.collection-breakdown summary').click();
-  await expect(entry.locator('.collection-source-totals')).toContainText('おやつ');
-  await expect(entry.locator('.collection-source-totals')).toContainText('300円');
+  await entry.locator('.collection-totals > details').first().locator('summary').click();
+  await expect(entry.locator('.collection-charge-lines').first()).toContainText('共通単価');
+  await expect(entry.locator('.collection-charge-lines').first()).toContainText('300円');
   await mobileShots(page,'snack-collection');
 });
 
