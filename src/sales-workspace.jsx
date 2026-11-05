@@ -52,7 +52,7 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
  const rows=current?.other?Object.entries(grid).filter(([,qty])=>qty>0).map(([buyerId,qty])=>({buyerId,qty})):null;
  const correction=current?.other&&otherAllocationNeedsReason(current.other,rows);
  const otherChanged=current?.other&&(rows.length!==(current.other.allocations||[]).length||rows.some(x=>(current.other.allocations||[]).find(a=>a.buyerId===x.buyerId)?.qty!==x.qty));
- const choose=key=>{setPicked(key);setError('');setNotice('');const x=items.find(item=>item.key===key);
+ const choose=key=>{setPicked(key===picked?'':key);setError('');setNotice('');const x=items.find(item=>item.key===key);
   if(x?.other&&!grids[key])setGrids(prev=>({...prev,[key]:Object.fromEntries([
    ...(x.other.allocations||[]).map(a=>[a.buyerId,a.qty]),
    ...Object.entries(buyerDrafts).filter(([id,v])=>id!=='external'&&v[key]>0).map(([id,v])=>[id,(x.other.allocations||[]).find(a=>a.buyerId===id)?.qty+v[key]||v[key]])
@@ -96,17 +96,8 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
    setReason('');setNotice('割当を保存しました。');
   }}catch(e){setError(e.message);}finally{busy.current=false;setSaving(false);}
  };
- return <section className={'sales-workspace sales-workspace-'+mode} data-unsaved={Object.values(buyerDrafts).some(d=>Object.values(d).some(Boolean))||Object.entries(grids).some(([key,v])=>key.startsWith('other:')?(()=>{const sale=others.find(x=>'other:'+x.id===key);return sale&&Object.entries(v).some(([id,qty])=>qty!==((sale.allocations||[]).find(a=>a.buyerId===id)?.qty||0))})():Object.values(v).some(Boolean))}>
-  {notice&&<p role="status">{notice}</p>}
-  {mode==='buyer'&&<><h3>販売先から割当</h3><div className="choice-grid" aria-label="販売先種別"><Button secondary={destinationType!=='buyer'} onClick={()=>setDestinationType('buyer')}>個人に請求</Button><Button secondary={destinationType!=='external'} onClick={()=>setDestinationType('external')}>支払い済み</Button></div>{destinationType==='buyer'?<BuyerPicker value={buyerId} onChange={setBuyerId} includeTest={round?.test}/>:<Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field>}</>}
-  {(mode==='product'||buyerId||destinationType==='external')&&<>
-   <div className="tabs category-tabs" aria-label="販売商品を絞り込む">{[['ALL','すべて'],['パン','パン'],['焼き菓子','焼き菓子'],['その他','その他']].map(([v,label])=><Button key={v} secondary={category!==v} onClick={()=>setCategory(v)}>{label}</Button>)}</div>
-   <Field label="商品名を検索" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>
-   {mode==='product'?<><div className="sales-product-list">{shown.map(x=><button type="button" className={'assignment-product-choice '+(picked===x.key?'selected':'')} key={x.key} onClick={()=>choose(x.key)}>{productDisplayName(x.name)} <small>未割当 {x.left}個</small></button>)}
-    {!!items.filter(x=>matches(x)&&!x.left).length&&<details className="completed-stocks"><summary>割当済みの商品</summary>{items.filter(x=>matches(x)&&!x.left).map(x=><button type="button" className="assignment-product-choice" key={x.key} onClick={()=>choose(x.key)}>{x.name}　割当済み</button>)}</details>}</div>
-    {current&&<section className="product-buyer-assignment"><h3>{current.name}を購入者へ割当</h3>
+ const productEditor=current&&<section className="product-buyer-assignment">
      <p>割当済み {current.other?(current.other.qty-current.left):stockAllocation(state,current.stock).assigned}個 ／ 未割当 {current.left}個</p>
-     <p className="muted">{current.other?'各家庭の保存済み数量を表示しています。新しい家庭は0個から追加できます。':'保存済みの割当はそのままです。今回追加する数量を選んでください。'}</p>
      <BuyerQuantityGrid buyers={state.buyers} test={round?.test} value={grid} onChange={v=>{setGrids({...grids,[picked]:v});setNotice('');}} name={current.name} max={current.other?current.other.qty:current.left}/>
      <p>今回の入力 {total}個 ／ 保存後の残り {current.other?current.other.qty-total:current.left-total}個</p>
      {correction&&<Field label="保存済みの割当を訂正・取消する理由"><input value={reason} onChange={e=>setReason(e.target.value)}/></Field>}
@@ -115,7 +106,16 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
      <Button disabled={saving||current.stock&&!total||current.other&&!otherChanged||current.stock&&total>current.left||current.other&&total>current.other.qty||correction&&!reason.trim()} onClick={()=>commit(true)}>この商品の割当をまとめて保存</Button>
      {current.stock&&<details><summary>支払い済みの外部販売へ割当</summary><Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field><Qty label={current.name+' 外部販売数量'} value={externalQty} max={current.left} onChange={setExternalQty}/><Button disabled={saving||!externalQty} onClick={()=>commit(true,true)}>支払い済みの割当を保存</Button></details>}
      {current.stock&&<button type="button" className="text-action" onClick={()=>onHistory(current.stock)}>保存済みの割当・履歴</button>}
-    </section>}</>:<div className="sales-allocation-list">{shown.map(x=><div className="assignment-product-row" key={x.key}><span>{productDisplayName(x.name)}<small>未割当 {x.left}個 ／ {yen(x.stock?.price??x.other?.unitPrice)}</small></span>
+    </section>;
+ return <section className={'sales-workspace sales-workspace-'+mode} data-unsaved={Object.values(buyerDrafts).some(d=>Object.values(d).some(Boolean))||Object.entries(grids).some(([key,v])=>key.startsWith('other:')?(()=>{const sale=others.find(x=>'other:'+x.id===key);return sale&&Object.entries(v).some(([id,qty])=>qty!==((sale.allocations||[]).find(a=>a.buyerId===id)?.qty||0))})():Object.values(v).some(Boolean))}>
+  {notice&&<p role="status">{notice}</p>}
+  {mode==='buyer'&&<><h3>販売先から割当</h3><div className="choice-grid" aria-label="販売先種別"><Button secondary={destinationType!=='buyer'} onClick={()=>setDestinationType('buyer')}>個人に請求</Button><Button secondary={destinationType!=='external'} onClick={()=>setDestinationType('external')}>支払い済み</Button></div>{destinationType==='buyer'?<BuyerPicker value={buyerId} onChange={setBuyerId} includeTest={round?.test}/>:<Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field>}</>}
+  {(mode==='product'||buyerId||destinationType==='external')&&<>
+   <div className="tabs category-tabs" aria-label="販売商品を絞り込む">{[['ALL','すべて'],['パン','パン'],['焼き菓子','焼き菓子'],['その他','その他']].map(([v,label])=><Button key={v} secondary={category!==v} onClick={()=>setCategory(v)}>{label}</Button>)}</div>
+   <Field label="商品名を検索" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>
+   {mode==='product'?<><div className="sales-product-list">{shown.map(x=><React.Fragment key={x.key}><button type="button" className={'assignment-product-choice '+(picked===x.key?'selected':'')} key={x.key} onClick={()=>choose(x.key)}>{productDisplayName(x.name)} <small>未割当 {x.left}個</small></button>{picked===x.key&&productEditor}</React.Fragment>)}
+    {!!items.filter(x=>matches(x)&&!x.left).length&&<details className="completed-stocks"><summary>割当済みの商品</summary>{items.filter(x=>matches(x)&&!x.left).map(x=><React.Fragment key={x.key}><button type="button" className="assignment-product-choice" key={x.key} onClick={()=>choose(x.key)}>{x.name}　割当済み</button>{picked===x.key&&productEditor}</React.Fragment>)}</details>}</div>
+    </>:<div className="sales-allocation-list">{shown.map(x=><div className="assignment-product-row" key={x.key}><span>{productDisplayName(x.name)}<small>未割当 {x.left}個 ／ {yen(x.stock?.price??x.other?.unitPrice)}</small></span>
      <Qty label={x.name+' 割当数量'} min={0} max={x.left} value={buyerDraft[x.key]||0} onChange={q=>{
       if(destinationType==='buyer'&&buyerId&&(x.stock||grids[x.key]))setGrids(v=>({...v,[x.key]:{...v[x.key],[buyerId]:x.other?(x.other.allocations||[]).find(a=>a.buyerId===buyerId)?.qty+q||q:q}}));
       else setBuyerDrafts(v=>({...v,[buyerKey]:{...v[buyerKey],[x.key]:q}}));

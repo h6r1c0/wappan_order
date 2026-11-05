@@ -27,10 +27,39 @@ export function saveSnackUsage(state,eventId,quantities,costs,reason='実使用�
     }
   }
 }
+export function saveSnackCost(state,eventId,lineId,cost,reason='仕入単価を確認'){
+  const event=state.events.find(e=>e.id===eventId),line=event?.lines.find(l=>l.id===lineId);
+  if(!line||line.sourceStockId||!Number.isSafeInteger(cost)||cost<0)throw Error('今回の仕入単価を確認してください');
+  if(line.cost===cost)return;
+  if(line.cost!=null&&!String(reason||'').trim())throw Error('仕入単価の訂正理由を入力してください');
+  if((state.stocks||[]).some(st=>st.eventLineId===lineId))throw Error('販売へ振替済みの商品の原価は、販売履歴と合わせて確認してください');
+  line.costHistory=[...(line.costHistory||[]),{at:new Date().toISOString(),previous:line.cost,updated:cost,reason}];
+  line.cost=cost;
+}
 
 const sum = values => values.reduce((n,v)=>n+v,0);
 export const suggestedSnackPrice = costs => costs.length && costs.every(Number.isSafeInteger)
   ? Math.ceil((sum(costs)/costs.length)/10)*10 : null;
+
+export function snackPurposeQuantity(event,lineId,plan=event.snackDraft||event.billing){
+  return sum((plan?.fiscal||[]).filter(x=>x.lineId===lineId).map(x=>x.qty))+
+    sum((plan?.household||[]).filter(x=>x.lineId===lineId).map(x=>x.qty))+
+    sum((plan?.groups||[]).map(g=>g.quantities?.[lineId]||0));
+}
+export function snackAvailable(state,event,line,plan=event.snackDraft||event.billing){
+  const transferred=sum((state.stocks||[]).filter(st=>st.eventLineId===line.id&&!st.cancelled).map(st=>st.qty));
+  // Old physical-use entries remain audit evidence, not a second allocation.
+  return receivedQuantity(line)-transferred-snackPurposeQuantity(event,line.id,plan);
+}
+export function suggestedGroupPrice(event,group){
+  let count=0,cost=0;
+  for(const line of event.lines){const qty=group.quantities?.[line.id]||0;
+    if(!qty)continue;
+    if(line.cost==null)return null;
+    count+=qty;cost+=qty*line.cost;
+  }
+  return count?Math.ceil(cost/count/10)*10:null;
+}
 
 export function snackQuantityRows(state,event,plan=event.snackDraft||event.billing){
   return event.lines.map(line=>{
@@ -38,10 +67,9 @@ export function snackQuantityRows(state,event,plan=event.snackDraft||event.billi
     const direct=sum((plan?.household||[]).filter(x=>x.lineId===line.id).map(x=>x.qty));
     const common=sum((plan?.groups||[]).map(g=>g.quantities?.[line.id]||0));
     const retail=sum((state.stocks||[]).filter(st=>st.eventLineId===line.id&&!st.cancelled).map(st=>st.qty));
-    const received=receivedQuantity(line),used=line.usedConfirmed||line.used>0?line.used:null;
-    const allocated=fiscal+direct+common;
+    const received=receivedQuantity(line),allocated=fiscal+direct+common,used=allocated;
     return {line,ordered:line.qty,received,used,retail,fiscal,direct,common,allocated,
-      unassigned:used==null?null:used-allocated,unused:used==null?null:received-used-retail,
+      unassigned:received-used-retail,unused:received-used-retail,
       excess:Math.max(0,allocated+retail-received)};
   });
 }
@@ -130,20 +158,30 @@ export function snackBillingPreview(state,event,billing=event.billing){
     const common=sum(groups.map(g=>g.quantities?.[line.id]||0));
     const transferred=sum((state.stocks||[]).filter(st=>st.eventLineId===line.id).map(st=>st.qty));
     if(used+specified+common>receivedQuantity(line)-transferred)throw Error(`${line.name}の4区分の合計が振替後の実入荷数を超えています（差 ${used+specified+common-(receivedQuantity(line)-transferred)}個）`);
-    // A zero in an older event is not evidence that nothing was eaten.
-    if(line.usedConfirmed||line.used>0)remainder.push({line,qty:line.used-used-specified});
+    remainder.push({line,qty:receivedQuantity(line)-transferred-used-specified-common});
   }
   const unknownQty=sum(unknown.map(x=>x.qty));
   const identified=sum([...perLine.values()])+sum([...known.values()])+unknownQty+sum(groupSummaries.map(x=>x.assigned));
   const available=sum(event.lines.map(l=>receivedQuantity(l)))-sum((state.stocks||[]).filter(st=>st.eventId===event.id).map(st=>st.qty));
   if(identified>available)throw Error('請求対象数が販売振替後のおやつ入荷数を超えています');
-  const legacyComplete=event.lines.every(l=>l.usedConfirmed||l.used>0) && remainder.every(x=>x.qty>=0) && sum(remainder.map(x=>x.qty))===unknownQty;
-  const complete=groups.length ? remainder.every(x=>x.qty>=0) && groupSummaries.every(x=>x.target!=null&&x.difference===0&&x.cost!=null) &&
-    event.lines.every(l=>groupLines.has(l.id)||(l.usedConfirmed||l.used>0)&&
-      (l.used-(perLine.get(l.id)||0)-(known.get(l.id)||0)===0)) && unknownQty===0 : legacyComplete;
-  const cost=complete && event.lines.every(l=>l.used===0||l.cost!=null)
-    ? sum(event.lines.map(l=>(l.used-(perLine.get(l.id)||0))*(l.cost||0))) : null;
-  const discrepancy=complete?0:identified-sum(event.lines.map(l=>l.used||0));
+  const legacy=!event.snackDraft&&(unknownQty>0||groups.some(g=>!g.quantities)||
+    billing===event.billing&&event.lines.some(l=>l.used>0));
+  if(legacy&&groups.length&&event.lines.some(l=>l.used<(perLine.get(l.id)||0)+(known.get(l.id)||0)))
+    throw Error('商品別の実使用数を超える割当数です');
+  const legacyComplete=event.lines.every(l=>l.usedConfirmed||l.used>0) &&
+    event.lines.every(l=>l.used>=((perLine.get(l.id)||0)+(known.get(l.id)||0))) &&
+    sum(event.lines.map(l=>l.used-(perLine.get(l.id)||0)-(known.get(l.id)||0)))===unknownQty;
+  const legacyGroupComplete=groups.length ? remainder.every(x=>x.qty>=0)&&
+    groupSummaries.every(x=>x.target!=null&&x.difference===0&&x.cost!=null)&&
+    event.lines.every(l=>groupLines.has(l.id)||
+      ((l.usedConfirmed||l.used>0)&&l.used-(perLine.get(l.id)||0)-(known.get(l.id)||0)===0))&&unknownQty===0 : legacyComplete;
+  const complete=legacy?legacyGroupComplete:
+    remainder.every(x=>x.qty>=0) && groupSummaries.every(x=>x.target!=null&&x.difference===0&&x.cost!=null);
+  const cost=complete && event.lines.every(l=>{
+    const qty=legacy?l.used-(perLine.get(l.id)||0):(known.get(l.id)||0)+sum(groups.map(g=>g.quantities?.[l.id]||0));
+    return !qty||l.cost!=null;
+  }) ? sum(event.lines.map(l=>(legacy?l.used-(perLine.get(l.id)||0):(known.get(l.id)||0)+sum(groups.map(g=>g.quantities?.[l.id]||0)))*(l.cost||0))) : null;
+  const discrepancy=complete?0:sum(remainder.map(x=>x.qty));
   return {fiscal,household,cost,profit:cost==null?null:household-cost,discrepancy,complete,groups:groupSummaries};
 }
 
@@ -151,7 +189,7 @@ export function replaceSnackBilling(state,eventId,billing,reason='請求先を�
   const event=state.events.find(e=>e.id===eventId);
   if(!event)throw Error('おやつが見つかりません');
   snackBillingPreview(state,event,billing);
-  if(billing?.groups?.length && !snackBillingPreview(state,event,billing).complete)throw Error('共通単価の対象数と家庭への割当数を揃え、実使用数を確認してください');
+  if(billing?.groups?.length && !snackBillingPreview(state,event,billing).complete)throw Error('共通単価の対象数と家庭への割当数、用途未振分を確認してください');
   if(event.billing&&!String(reason||'').trim())throw Error('請求修正・取消の理由を入力してください');
   if(event.billing){
     event.billingHistory??=[];
@@ -184,10 +222,10 @@ export function saveSnackSection(state,eventId,section,value,reason='区分を�
     plan.household=[...plan.household.filter(x=>!x.groupId),...value.household];
     for(const group of plan.groups){
       snackGroupTarget(state,event,plan,group);
-      if(!Number.isSafeInteger(group.unitPrice)||group.unitPrice<0)throw Error('共通単価を確認してください');
+      if(group.unitPrice!=null&&(!Number.isSafeInteger(group.unitPrice)||group.unitPrice<0))throw Error('共通単価を確認してください');
     }
     if(plan.household.some(x=>x.groupId&&(!state.buyers.some(b=>b.id===x.buyerId)||
-      !plan.groups.some(g=>g.id===x.groupId&&g.unitPrice===x.unitPrice)||!Number.isSafeInteger(x.qty)||x.qty<1)))
+      !plan.groups.some(g=>g.id===x.groupId&&g.unitPrice===x.unitPrice)||!Number.isSafeInteger(x.qty)||x.qty<1||!Number.isSafeInteger(x.unitPrice))))
       throw Error('共通単価の購入者・数量を確認してください');
   }
   // A partial save is allowed; overlap is surfaced when the allocation is confirmed.
@@ -210,9 +248,6 @@ export function confirmSnackPlan(state,eventId,reason='請求を確定'){
     const common=plan.groups.reduce((n,g)=>n+(g.quantities?.[line.id]||0),0);
     const allocated=fiscal+direct+common;
     const moved=state.stocks.filter(st=>st.eventLineId===line.id).reduce((n,st)=>n+st.qty,0);
-    if(!line.usedConfirmed&&!(line.used>0))throw Error(`${line.name}：実際のおやつ使用数を確認して保存してください`);
-    if(allocated<line.used)throw Error(`${line.name}：記録済み使用 ${line.used}個に対し用途指定 ${allocated}個。差 ${line.used-allocated}個の用途を選んでください`);
-    if(allocated>line.used)throw Error(`${line.name}：記録済み使用 ${line.used}個より用途指定が${allocated-line.used}個多くなっています。実使用数と請求先を別々に確認してください`);
     if(allocated>receivedQuantity(line)-moved)throw Error(`${line.name}：実入荷から販売振替を引いた残数を${allocated-(receivedQuantity(line)-moved)}個超えています`);
   }
   const preview=snackBillingPreview(state,copy,plan);

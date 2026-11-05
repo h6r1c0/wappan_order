@@ -11,7 +11,7 @@ export function shortageRecipients(state, round, productId) {
   for (const stock of state.stocks.filter(s => s.roundId === round.id && s.productId === productId && !s.eventId && !s.sourceStockId && s.qty > 0))
     rows.push({key:`stock:${stock.id}`, stockId:stock.id, name:`販売用${stock.cut ? '（カット）' : ''}`, qty:stock.qty, kind:'stock'});
   for (const event of state.events.filter(e => e.roundId === round.id))
-    for (const line of event.lines.filter(l => l.productId === productId && l.qty > 0))
+    for (const line of event.lines.filter(l => l.productId === productId && !l.sourceStockId && l.qty > 0))
       rows.push({key:`snack:${line.id}`, eventId:event.id, lineId:line.id, name:'おやつ用', qty:line.qty, kind:'snack'});
   return rows;
 }
@@ -56,7 +56,11 @@ export function applyShortage(state, roundId, productId, received, allocations, 
     if (row.kind==='snack') {
       const l=state.events.find(e=>e.id===row.eventId).lines.find(l=>l.id===row.lineId);
       const moved=state.stocks.filter(s=>s.eventLineId===l.id).reduce((a,s)=>a+s.qty,0);
-      if (n < l.used+moved) throw Error('おやつ使用・振替済みの数量より少なくできません');
+      const plan=state.events.find(e=>e.id===row.eventId).snackDraft||state.events.find(e=>e.id===row.eventId).billing;
+      const allocated=plan?(plan.fiscal||[]).filter(x=>x.lineId===l.id).reduce((n,x)=>n+x.qty,0)+
+        (plan.household||[]).filter(x=>x.lineId===l.id).reduce((n,x)=>n+x.qty,0)+
+        (plan.groups||[]).reduce((n,g)=>n+(g.quantities?.[l.id]||0),0):l.used;
+      if (n < allocated+moved) throw Error('おやつ用途・振替済みの数量より少なくできません');
     }
   }
   if (total !== received) throw Error('配分合計を実入荷数に合わせてください');

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,newRound,eventClaim,transfer,report,validate,stockRemaining,addSale} from '../src/domain.js';
-import {saveSnackSection,confirmSnackPlan,saveSnackUsage,snackQuantityRows,savedFiscalAmount} from '../src/snack-billing.js';
+import {saveSnackSection,confirmSnackPlan,snackQuantityRows,savedFiscalAmount,suggestedGroupPrice} from '../src/snack-billing.js';
+import {snackOrderQuantities,setSnackOrderQuantities} from '../src/commerce.js';
 import {transferStockToSnack} from '../src/snack-transfer.js';
 import {confirmSourceStockCost,correctSourceStockCost} from '../src/stock-cost.js';
 
@@ -17,7 +18,7 @@ function scenario(){
 
 test('実使用は財政請求ではない。26/22/4、19/16/3、16/11/5を4区分で保存して再読込する',()=>{
  const {s,r,e}=scenario();
- saveSnackUsage(s,e.id,{bean:22,apple:16,white:11},{bean:130,apple:151,white:95});
+ e.lines[0].used=4;e.lines[1].used=4; // 旧画面の記録を監査原本として保持
  assert.equal(eventClaim(e),null);
  saveSnackSection(s,e.id,'fiscal',[{lineId:'bean',qty:4},{lineId:'apple',qty:4}]);
  assert.equal(eventClaim(e),null);
@@ -36,22 +37,55 @@ test('実使用は財政請求ではない。26/22/4、19/16/3、16/11/5を4区�
  assert.equal(eventClaim(fresh),null);
  confirmSnackPlan(saved,fresh.id);
  assert.equal(eventClaim(fresh),1124);
- assert.deepEqual(fresh.lines.map(x=>x.used),[22,16,11]);
+ assert.deepEqual(fresh.lines.map(x=>x.used),[4,4,0]);
  assert.equal(report(saved,r.date,r.date,2026,{includeTest:true}).rows.find(x=>x.id==='snack:snack-test').revenue,6150);
  assert.equal(validate(saved),saved);
 });
 
-test('用途指定が実使用を超えたら請求だけ拒否し、保存済み区分・余剰振替を保持する',()=>{
+test('用途指定と販売振替が実入荷を超えたら請求だけ拒否し、保存済み区分・余剰振替を保持する',()=>{
  const {s,r,e}=scenario();
- saveSnackSection(s,e.id,'fiscal',[{lineId:'bean',qty:4}]);
- saveSnackSection(s,e.id,'direct',[{buyerId:'household-test',lineId:'bean',qty:18,unitPrice:150}]);
- saveSnackUsage(s,e.id,{bean:20,apple:0,white:0},{bean:130,apple:151,white:95});
  transfer(s,e,e.lines[0],4,200,r.date);
+ saveSnackSection(s,e.id,'fiscal',[{lineId:'bean',qty:4}]);
+ saveSnackSection(s,e.id,'direct',[{buyerId:'household-test',lineId:'bean',qty:19,unitPrice:150}]);
  const copy=structuredClone(s);
- assert.throws(()=>confirmSnackPlan(s,e.id),/記録済み使用.*多く/);
+ assert.throws(()=>confirmSnackPlan(s,e.id),/残数を1個超え/);
  assert.deepEqual(s,copy);
  assert.equal(s.stocks.find(st=>st.eventLineId==='bean').qty,4);
- assert.equal(e.snackDraft.household[0].qty,18);
+ assert.equal(e.snackDraft.household[0].qty,19);
+});
+
+test('用途別数量から実使用を導き、残り2個を勝手に共通単価へ割り当てない',()=>{
+ const {s,r,e}=scenario();
+ for(const [id,qty] of [['bean',4],['apple',3],['white',5]])transfer(s,e,e.lines.find(l=>l.id===id),qty,200,r.date);
+ saveSnackSection(s,e.id,'fiscal',[{lineId:'bean',qty:4},{lineId:'apple',qty:4}]);
+ saveSnackSection(s,e.id,'direct',[
+  {buyerId:'household-test',lineId:'bean',qty:7,unitPrice:130},
+  {buyerId:'household-test',lineId:'white',qty:9,unitPrice:95},
+ ]);
+ const group={id:'common',label:'共通',lineIds:['bean','apple'],quantities:{bean:11,apple:12},unitPrice:150,priceMode:'auto'};
+ assert.equal(suggestedGroupPrice(e,group),150);
+ assert.equal(11*130+12*151,3242);
+ saveSnackSection(s,e.id,'common',{groups:[group],household:[{buyerId:'household-test',groupId:'common',qty:23,unitPrice:150}]});
+ assert.deepEqual(snackQuantityRows(s,e).map(x=>[x.used,x.retail,x.unassigned]),[[22,4,0],[16,3,0],[9,5,2]]);
+ assert.deepEqual(e.lines.map(x=>x.used),[0,0,0]);
+ group.unitPrice=160;group.priceMode='manual';
+ saveSnackSection(s,e.id,'common',{groups:[group],household:[{buyerId:'household-test',groupId:'common',qty:23,unitPrice:160}]});
+ assert.equal(e.snackDraft.groups[0].unitPrice,160);
+ assert.equal(snackQuantityRows(s,e)[2].unassigned,2);
+});
+
+test('注文時の用途に納品後の販売用からの振替を混ぜず、注文数量の編集で振替行を保護',()=>{
+ const {s,r,e}=scenario();
+ const productId=r.products[0].id;e.lines[0].productId=productId;
+ const stock={id:'source',roundId:r.id,productId,name:'甘夏ゼリー',qty:2,price:220,cost:130,date:r.date,test:e.test};
+ s.stocks.push(stock);r.stockIds.push(stock.id);
+ const moved=transferStockToSnack(s,stock.id,e.id,1);
+ assert.equal(moved.sourceStockId,stock.id);
+ assert.equal(snackOrderQuantities(s,r.id)[productId],26);
+ const snapshot=structuredClone(moved);
+ setSnackOrderQuantities(s,r.id,{[productId]:26});
+ assert.deepEqual(e.lines.find(x=>x.id===moved.id),snapshot);
+ assert.equal(snackOrderQuantities(s,r.id)[productId],26);
 });
 
 test('元の原価は未確定から一度だけ確認し、訂正理由と履歴を残して振替先・販売原価へ連動',()=>{
@@ -69,7 +103,6 @@ test('元の原価は未確定から一度だけ確認し、訂正理由と履�
  assert.equal(st.costHistory.length,2);assert.equal(st.costHistory.at(-1).previous,70);
  assert.equal(s.sales.find(x=>x.stockId===st.id).cost,80);assert.equal(line.cost,80);
  assert.equal(savedFiscalAmount(e),80);assert.equal(stockRemaining(s,st),before-1);
- saveSnackUsage(s,e.id,{bean:0,apple:0,white:0},{bean:130,apple:151,white:95});
  confirmSnackPlan(s,e.id);assert.equal(eventClaim(e),80);
  assert.equal(validate(s),s);
 });
