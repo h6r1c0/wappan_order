@@ -1028,6 +1028,7 @@ test('11/4レビュー：レモン1個の既存割当へ7個追加し、原価�
   await page.locator('.completed-stocks > summary').click();await page.locator('.completed-stocks .assignment-product-choice').filter({hasText:'隔離レモン'}).click();
   await expect(page.locator('.product-buyer-assignment')).toContainText('未割当 0個');
   await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'おやつの請求と余剰'})}).locator('summary').first().click();
+  await page.locator('.snack-stock-facts > summary').click();
   await page.locator('.stock-to-snack > summary').click();await page.getByLabel('販売用の商品').selectOption(st.id);
   await page.getByRole('button',{name:'おやつへ振替して保存'}).click();
   await page.getByRole('button',{name:/仕入単価 未確定.*確定・入力/}).click();
