@@ -2743,7 +2743,14 @@ header small {
 .snack-stock-facts > summary { padding:10px 0; cursor:pointer; }
 .snack-billing-preview { position:relative; }
 .snack-billing-preview:after { content:'›'; position:sticky; right:2px; align-self:center; margin-left:-13px; color:#516c5d; pointer-events:none; }
-.optional-market { font-size:.84rem; }
+.stage-content .optional-market { margin:7px 0 10px; padding:0 4px; border:0; background:none; font-size:.82rem; }
+.stage-content .optional-market > summary { display:inline-flex; align-items:center; min-height:42px; cursor:pointer; color:var(--work-accent); font-weight:500; }
+.stage-content .optional-market[open] > :not(summary) { margin:6px 0; }
+.profit-card { margin:13px 0; padding:10px 5px; border-top:1px solid var(--line); background:#f7f8f3; }
+.profit-card-value { display:flex; align-items:baseline; justify-content:space-between; gap:8px; font-size:.87rem; }
+.profit-card-value strong { font-size:1.05rem; font-variant-numeric:tabular-nums; }
+.profit-details > summary { width:fit-content; min-height:42px; display:flex; align-items:center; cursor:pointer; color:var(--work-accent); font-size:.78rem; }
+.profit-details > :not(summary) { margin:6px 1px; }
 .invoice-form h3 { margin:3px 0 8px; font-size:.95rem; }
 .invoice-input-row { display:flex; align-items:end; gap:8px; }
 .invoice-input-row .field { flex:1; min-width:0; }

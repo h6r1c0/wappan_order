@@ -448,22 +448,23 @@ function Round({ round: r, initialTab = null, back }) {
       {tab === "納品・精算" && (
         <>
           <PrintPrep state={state} round={r}/>
+          <SetPreparation roundId={r.id}/>
           <Shortage round={r}/>
           {r.shortageConfirmation && <>
           <Invoice key={`${r.id}-${r.invoice}`} round={r} />
-          <SetPreparation roundId={r.id}/>
 
           <details className="after-work" id="sales-after-work"><summary>販売先を割り当てる</summary>
             <Sales roundId={r.id} phase="after"/>
           </details>
-          <details className="after-work optional-market"><summary>販売場所を記録（任意）</summary><Markets roundId={r.id} section="places"/></details>
           <details className="after-work" id="snack-after-work"><summary>おやつの請求と余剰</summary>
             <Events roundId={r.id} phase="after"/>
           </details>
-          <details className="after-work round-profit"><summary>商品利益 {yen(finances.profit)}{finances.profit==null?'（原価の確認が必要）':''}</summary>
+          <details className="optional-market"><summary>販売場所を記録（任意）</summary><Markets roundId={r.id} section="places"/></details>
+          <section className="profit-card" aria-label="商品利益"><div className="profit-card-value"><span>商品利益</span><strong>{yen(finances.profit)}</strong></div>
+          <details className="profit-details"><summary>利益の内訳を見る</summary>
             <div className="grid2"><Summary label="売上合計" value={yen(finances.revenue)} />
               <Summary label="納品書の仕入額" value={yen(r.invoice)} /></div>
-            {finances.profit!=null&&<p className="profit-result">商品利益 {yen(finances.profit)}{finances.method==='invoice'&&<small>納品書総額から計算。商品別の原価内訳は未確定のままです。</small>}</p>}
+            {finances.profit!=null&&finances.method==='invoice'&&<p className="profit-result">納品書総額から計算。商品別の原価内訳は未確定のままです。</p>}
             <details className="profit-breakdown"><summary>売上の内訳</summary>
               <div className="line"><span>個人注文</span><strong>{yen(finances.personal)}</strong></div>
               <div className="line"><span>販売用を購入者へ請求</span><strong>{yen(buyerSales)}</strong></div>
@@ -477,7 +478,7 @@ function Round({ round: r, initialTab = null, back }) {
               {stockCostIssues.length>0&&<button type="button" className="text-action" onClick={()=>{const el=document.getElementById('sales-after-work');el.open=true;requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));}}>販売用の仕入単価を確認 ›</button>}
               {eventCostIssues.length>0&&<button type="button" className="text-action" onClick={()=>{const el=document.getElementById('snack-after-work');el.open=true;requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));}}>おやつ用の仕入単価を確認 ›</button>}
               <small>金額がまだ分からなくても、ほかの作業は続けられます。</small></div>}
-          </details>
+          </details></section>
           {r.planned && r.products.some((p) => Object.values(r.planned).some(o=>Object.hasOwn(o.quantities||{},p.id)) && (productTotals(r, r.planned).find((x) => x.id === p.id)?.qty||0)!==(productTotals(r).find((x) => x.id === p.id)?.qty||0)) && (
             <details>
               <summary>発注記録と現在の数量を照合</summary>
