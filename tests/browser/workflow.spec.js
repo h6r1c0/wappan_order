@@ -355,8 +355,7 @@ test('請求漏れ・過去未収を一度の内訳展開で確認し、対象�
   await expect(hori.locator('.collection-totals')).toContainText('今回請求');
   await hori.locator('.collection-totals > details').first().locator(':scope > summary').click();
   await expect(hori.locator('.collection-charge-lines').first()).toContainText('黒糖ブレッド');
-  await hori.locator('.collection-totals > details').nth(1).locator(':scope > summary').click();
-  await expect(hori.locator('.collection-charge-lines').nth(1)).toContainText('380円');
+  await expect(hori.locator('.collection-charge-lines').first()).toContainText('380円');
   await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
   await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
   await page.locator('.stage-4 > .stage-trigger').click();
@@ -676,7 +675,7 @@ test('共通単価グループを複数家庭へ一括割当し、その他の�
   await group.locator('summary').click();
   await setQty(page,'共通単価 佐藤の数量',1);
   await setQty(page,'共通単価 鈴木の数量',1);
-  await expect(group).toContainText('合計2個 ／ 家庭割当 2個 ／ 差 0個');
+  await expect(group).toContainText('対象 2個　割当 2個　未割当 0個');
   await page.getByRole('button',{name:'共通単価分を保存'}).click();
   await mobileShots(page,'group-snack');
   expect(shared.state.events[0].billing).toBeUndefined();
@@ -1112,7 +1111,7 @@ test('11/5午後レビュー：集金一覧の1行操作、金額直下の全商
   const r=newRound(shared.state,'2026-10-16',true);r.status='納品済み';r.shortageConfirmation='none';r.collectionLive=true;shared.state.rounds.push(r);
   r.orders.hori={name:'堀',quantities:{brown:1}};r.orders.asano={name:'浅野',quantities:{brown:1}};
   shared.state.receivableItems.push({id:'past-due',kind:'opening',buyerId:'hori',date:'2026-09-11',amount:380,reason:'未受取',note:'前回の注文'});
-  shared.state.otherSales.push({id:'lemon',name:'無農薬青レモン',date:r.date,qty:1,unitPrice:100,unitCost:0,paymentStatus:'unpaid',test:true,allocations:[{buyerId:'hori',qty:1,chargeRoundId:r.id}]});
+  shared.state.otherSales.push({id:'lemon',name:'無農薬青レモン',date:r.date,qty:1,unitPrice:100,unitCost:0,paymentStatus:'unpaid',test:true,void:false,history:[],allocations:[{buyerId:'hori',qty:1,chargeRoundId:r.id}]});
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await page.locator('.stage-4 > .stage-trigger').click();
   const hori=page.locator('.collection-entry[data-buyer="hori"]'),asano=page.locator('.collection-entry[data-buyer="asano"]');
   await expect(hori.locator('.collection-pay')).toHaveCount(2);await expect(asano.locator('.collection-pay')).toHaveCount(1);
