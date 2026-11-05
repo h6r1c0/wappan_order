@@ -45,7 +45,7 @@ async function scenario(browser,url,engine,width,version,mode){
   await capture(page,engine,width,version,`${mode}-home`);
   await page.locator('.round-list-item').click();await page.locator('.stage-1 > .stage-trigger').click();
   await capture(page,engine,width,version,`${mode}-stage`);
-  await openAfter(page,'販売用の仕分け');await closeToast(page);
+  await openAfter(page,version==='before'?'販売先を割り当てる':'販売用の仕分け');await closeToast(page);
   let taps=0;const revisionAtStart=shared.revision;
   await page.locator('.sales-step-body').evaluate(el=>scrollTo(0,Math.max(0,el.getBoundingClientRect().top+scrollY-12)));
   await page.waitForTimeout(100);

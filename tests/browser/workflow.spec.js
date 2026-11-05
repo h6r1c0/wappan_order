@@ -675,7 +675,7 @@ test('共通単価グループを複数家庭へ一括割当し、その他の�
   await group.locator('summary').click();
   await setQty(page,'共通単価 佐藤の数量',1);
   await setQty(page,'共通単価 鈴木の数量',1);
-  await expect(group).toContainText('対象 2個　割当 2個　未割当 0個');
+  await expect(group).toContainText('対象 2個　割当済み 2個　未割当 0個');
   await page.getByRole('button',{name:'共通単価分を保存'}).click();
   await mobileShots(page,'group-snack');
   expect(shared.state.events[0].billing).toBeUndefined();
