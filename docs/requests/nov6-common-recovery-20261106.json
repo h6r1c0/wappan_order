@@ -1,0 +1,118 @@
+{
+  "source": "11月6日実機不合格の総合指示と差額訂正方針の追記。詳細な受入条件の正本は docs/REQUEST_LEDGER.md の各ID。",
+  "purpose": "既存共通単価への追加、過去受取の由来、仕分けと集金の操作を改善し、訂正は既存履歴を再利用する。",
+  "targets": [
+    {
+      "id": "WAP-0004",
+      "ledgerRef": "WAP-0004",
+      "ledgerDigest": "71421c5f68193e4ff423897c93b215ac0340af30710fee1b9be07f2c115c19a5"
+    },
+    {
+      "id": "WAP-0006",
+      "ledgerRef": "WAP-0006",
+      "ledgerDigest": "f96fed501debb9d70476211f045909678610d513f220d2337d9509f12d491eef"
+    },
+    {
+      "id": "WAP-0031",
+      "ledgerRef": "WAP-0031",
+      "ledgerDigest": "e354f942684bebafa971516b29f94ea88a736a75451854c6d0924a94b0603ef1"
+    },
+    {
+      "id": "WAP-0032",
+      "ledgerRef": "WAP-0032",
+      "ledgerDigest": "be0f3bb1fd2523cf92654abbf0b995f4b4f7e4f18dd1b2d4d87df0ececf7f9e9"
+    },
+    {
+      "id": "WAP-0034",
+      "ledgerRef": "WAP-0034",
+      "ledgerDigest": "5d978361b79cf517a5a7304e07fac5bcaf267a561304848d0ea0f5c4680552d8"
+    },
+    {
+      "id": "WAP-0035",
+      "ledgerRef": "WAP-0035",
+      "ledgerDigest": "dcca3ac9e79eea58d4e232db4f2d79d65c42f3bb20fc2a1b53e21eeb95f76059"
+    },
+    {
+      "id": "WAP-0048",
+      "ledgerRef": "WAP-0048",
+      "ledgerDigest": "b148bb05cab62d31057ac951a433d3296009ca15ffdca5a68aa57c0d37ada269"
+    },
+    {
+      "id": "WAP-0060",
+      "ledgerRef": "WAP-0060",
+      "ledgerDigest": "598d41a30a71a12f9bea9fe42e4b07b262a2ca9fa5f15f37ae8cfa44cecc4aed"
+    },
+    {
+      "id": "WAP-0061",
+      "ledgerRef": "WAP-0061",
+      "ledgerDigest": "5a492bef550f53c0a74c4d8f26a59a730aa33aed291e436eee07937f257bc42b"
+    },
+    {
+      "id": "WAP-0068",
+      "ledgerRef": "WAP-0068",
+      "ledgerDigest": "b00bba5a457108a110e04e24c078b88ff989e41c5e2e6aeb0f0cdb38b9cc8e43"
+    },
+    {
+      "id": "WAP-0069",
+      "ledgerRef": "WAP-0069",
+      "ledgerDigest": "b873682ad64bd4d3b8ef0d065c922521e8562e84508779cd73b75700c4f936ca"
+    },
+    {
+      "id": "WAP-0070",
+      "ledgerRef": "WAP-0070",
+      "ledgerDigest": "e6e4acf2f1151eae2295ac22e35f16579185a5d297a7a8c80d2131987e9713a8"
+    },
+    {
+      "id": "WAP-0071",
+      "ledgerRef": "WAP-0071",
+      "ledgerDigest": "acc9a59ee1d612362e39302d58c20801e1b71c5f0b3312a7c9edeb2f5484e6f0"
+    },
+    {
+      "id": "WAP-0072",
+      "ledgerRef": "WAP-0072",
+      "ledgerDigest": "284625df7e17723e079c2d3f846a98f4a480a105da68b03af802ec5f2257222f"
+    },
+    {
+      "id": "WAP-0073",
+      "ledgerRef": "WAP-0073",
+      "ledgerDigest": "250f404954b95f9f5d190e839bd1385bd21f6955e6d3a8ba9d3b3ec95f83ffd7"
+    }
+  ],
+  "deferred": [
+    {
+      "id": "WAP-0002",
+      "reason": "今回の画面経路で再発を確認できない、または本人の新たな実機判断が必要。既存実装と原意を保持し、未解決・判断待ち状態を変えない。",
+      "next": "該当IDの台帳と次回の実機評価で継続。今回の回帰対象には含む。"
+    },
+    {
+      "id": "WAP-0041",
+      "reason": "今回の画面経路で再発を確認できない、または本人の新たな実機判断が必要。既存実装と原意を保持し、未解決・判断待ち状態を変えない。",
+      "next": "該当IDの台帳と次回の実機評価で継続。今回の回帰対象には含む。"
+    },
+    {
+      "id": "WAP-0042",
+      "reason": "今回の画面経路で再発を確認できない、または本人の新たな実機判断が必要。既存実装と原意を保持し、未解決・判断待ち状態を変えない。",
+      "next": "該当IDの台帳と次回の実機評価で継続。今回の回帰対象には含む。"
+    },
+    {
+      "id": "WAP-0043",
+      "reason": "今回の画面経路で再発を確認できない、または本人の新たな実機判断が必要。既存実装と原意を保持し、未解決・判断待ち状態を変えない。",
+      "next": "該当IDの台帳と次回の実機評価で継続。今回の回帰対象には含む。"
+    },
+    {
+      "id": "WAP-0044",
+      "reason": "今回の画面経路で再発を確認できない、または本人の新たな実機判断が必要。既存実装と原意を保持し、未解決・判断待ち状態を変えない。",
+      "next": "該当IDの台帳と次回の実機評価で継続。今回の回帰対象には含む。"
+    },
+    {
+      "id": "WAP-0054",
+      "reason": "今回の画面経路で再発を確認できない、または本人の新たな実機判断が必要。既存実装と原意を保持し、未解決・判断待ち状態を変えない。",
+      "next": "該当IDの台帳と次回の実機評価で継続。今回の回帰対象には含む。"
+    },
+    {
+      "id": "WAP-0064",
+      "reason": "今回の画面経路で再発を確認できない、または本人の新たな実機判断が必要。既存実装と原意を保持し、未解決・判断待ち状態を変えない。",
+      "next": "該当IDの台帳と次回の実機評価で継続。今回の回帰対象には含む。"
+    }
+  ]
+}

@@ -12,6 +12,14 @@ function setup() {
   s.rounds.push(r);
   return { s, r };
 }
+test('おやつの仕分けが保存済みでも請求未確定なら精算完了にしない',()=>{
+ const {s,r}=setup();r.status='納品済み';r.shortageConfirmation='none';r.invoice=0;
+ const event={id:'pending-snack',roundId:r.id,date:r.date,name:'おやつ用',test:false,lines:[],snackDraft:{label:'',fiscal:[],household:[],groups:[]}};
+ s.events.push(event);r.eventIds.push(event.id);
+ assert.equal(d.roundSettlementStatus(s,r),'納品済み');
+ event.billing=structuredClone(event.snackDraft);
+ assert.equal(d.roundSettlementStatus(s,r),'精算済み');
+});
 test('検証用年度集計はテスト回を含めても正式実績・保存区分を変えず、期間と目標の計算元を揃える',()=>{
  const {s,r}=setup();r.test=true;r.invoice=22971;r.status='納品済み';r.shortageConfirmation='none';
  r.products=[{id:'bread',name:'注文商品',price:22490,cost:null}];r.orders.hori={name:'堀',quantities:{bread:1}};

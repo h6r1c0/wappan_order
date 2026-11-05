@@ -35,6 +35,8 @@ jobs:
       - run: npx playwright test --browser webkit tests/browser/workflow.spec.js -g '11/4レビュー'
       - run: npx playwright test --browser chromium tests/browser/workflow.spec.js -g '11/5レビュー'
       - run: npx playwright test --browser webkit tests/browser/workflow.spec.js -g '11/5レビュー'
+      - run: npx playwright test --browser chromium tests/browser/workflow.spec.js -g '11/6レビュー'
+      - run: npx playwright test --browser webkit tests/browser/workflow.spec.js -g '11/6レビュー'
       - run: npx playwright test
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3

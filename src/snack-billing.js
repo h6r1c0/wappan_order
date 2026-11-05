@@ -61,6 +61,40 @@ export function suggestedGroupPrice(event,group){
   return count?Math.ceil(cost/count/10)*10:null;
 }
 
+export function addLineToSnackGroup(state,eventId,groupId,lineId,qty){
+  const event=state.events.find(e=>e.id===eventId);
+  const plan=event?.snackDraft||event?.billing||emptySnackPlan();
+  const group=plan.groups.find(g=>g.id===groupId);
+  const line=event?.lines.find(l=>l.id===lineId);
+  if(!group||!line||!Number.isSafeInteger(qty)||qty<1||
+    plan.groups.some(g=>g.id!==groupId&&g.lineIds?.includes(lineId)))
+    throw Error('追加先の共通単価と商品を確認してください');
+  const updated={...group,lineIds:[...new Set([...(group.lineIds||[]),lineId])],
+    quantities:{...group.quantities,[lineId]:(group.quantities?.[lineId]||0)+qty}};
+  if(updated.priceMode==='auto')updated.unitPrice=suggestedGroupPrice(event,updated);
+  const household=plan.household.map(item=>item.groupId===groupId&&updated.priceMode==='auto'
+    ? {...item,unitPrice:updated.unitPrice}:item);
+  saveSnackSection(state,eventId,'common',{groups:plan.groups.map(g=>g.id===groupId?updated:g),
+    household:household.filter(item=>item.groupId)},'既存の共通単価へ商品を追加');
+  return updated;
+}
+
+export function mergeSnackGroups(state,eventId,sourceId,targetId){
+  const event=state.events.find(e=>e.id===eventId),plan=event?.snackDraft||event?.billing;
+  const source=plan?.groups?.find(g=>g.id===sourceId),target=plan?.groups?.find(g=>g.id===targetId);
+  if(!source||!target||sourceId===targetId)throw Error('統合する共通単価を選んでください');
+  if(plan.household.some(x=>x.groupId===sourceId))throw Error('元グループに家庭への割当があります。請求を確認してから訂正してください');
+  if(source.lineIds.some(id=>target.lineIds.includes(id)))throw Error('同じ商品が両方にあります。数量の訂正を先に確認してください');
+  let merged={...target,lineIds:[...target.lineIds,...source.lineIds],
+    quantities:{...target.quantities,...source.quantities}};
+  if(merged.priceMode==='auto')merged={...merged,unitPrice:suggestedGroupPrice(event,merged)};
+  const household=plan.household.map(x=>x.groupId===targetId&&merged.priceMode==='auto'
+    ? {...x,unitPrice:merged.unitPrice}:x);
+  saveSnackSection(state,eventId,'common',{groups:plan.groups.filter(g=>g.id!==sourceId).map(g=>g.id===targetId?merged:g),
+    household:household.filter(x=>x.groupId)},`共通単価グループを統合（${sourceId} → ${targetId}）`);
+  return merged;
+}
+
 export function snackQuantityRows(state,event,plan=event.snackDraft||event.billing){
   return event.lines.map(line=>{
     const fiscal=sum((plan?.fiscal||[]).filter(x=>x.lineId===line.id).map(x=>x.qty));
@@ -83,6 +117,29 @@ export function savedFiscalAmount(event,plan=event.snackDraft||event.billing){
     amount+=item.qty*line.cost;
   }
   return amount;
+}
+
+// Fiscal cash is a received fact, independent of the invoice and its later
+// correction. Keep the original entry even if its receipt is corrected.
+export function effectiveFiscalReceipts(event){
+  const corrected=new Set((event.fiscalReceiptCorrections||[]).map(x=>x.targetId));
+  return (event.fiscalReceipts||[]).filter(x=>!corrected.has(x.id));
+}
+export function recordFiscalReceipt(state,eventId,{id,amount,date}){
+  const event=state.events.find(e=>e.id===eventId);
+  if(!event||!String(id||'').trim()||!Number.isSafeInteger(amount)||amount<=0||
+    !/^\d{4}-\d{2}-\d{2}$/.test(date||''))throw Error('財政から実際に受け取った日と金額を確認してください');
+  event.fiscalReceipts??=[];
+  if(event.fiscalReceipts.some(x=>x.id===id))throw Error('この受領記録は保存済みです');
+  event.fiscalReceipts.push({id,amount,date,at:new Date().toISOString()});
+}
+export function correctFiscalReceipt(state,eventId,targetId,reason){
+  const event=state.events.find(e=>e.id===eventId);
+  if(!event?.fiscalReceipts?.some(x=>x.id===targetId)||!String(reason||'').trim())
+    throw Error('訂正する財政の受領記録と理由を確認してください');
+  event.fiscalReceiptCorrections??=[];
+  if(event.fiscalReceiptCorrections.some(x=>x.targetId===targetId))throw Error('この受領記録は訂正済みです');
+  event.fiscalReceiptCorrections.push({targetId,reason,at:new Date().toISOString()});
 }
 
 export function snackGroupTarget(state,event,billing,group){

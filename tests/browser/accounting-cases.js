@@ -63,7 +63,7 @@ export function registerAccountingTests(browserName){
  test('2個を1個ずつ割当して一覧に戻り、完了後も履歴を保持、購入者入力は即一覧',async({page,context})=>{
   const shared=fixture();setSalesOrderQuantities(shared.state,shared.round.id,{rye:2,donut:2});const st=shared.state.stocks.find(x=>x.productId==='rye');addSale(shared.state,st,{date:shared.round.date,qty:2,destinationType:'unknown',paymentStatus:'unconfirmed'});
   const imported=shared.state.sales.at(-1);imported.note='実資料の完売記録。ウラベ／アベ／こんどう等は推測で割り当てていません';
-  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売先を割り当てる');await page.getByRole('button',{name:'商品から複数人へ割当',exact:true}).click();
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売用の仕分け');await page.getByRole('button',{name:'商品から複数人へ割当',exact:true}).click();
   const work=page.locator('.sales-workspace').filter({visible:true});
   await work.getByRole('button',{name:/ライ麦くるみレーズン 未割当 2個/}).click();
   await setQty(work,'ライ麦くるみレーズン 佐々木の数量',1);

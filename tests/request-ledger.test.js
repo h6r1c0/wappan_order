@@ -24,6 +24,14 @@ test('PRからIDと対応行が同時に消えても元の依頼から欠落を�
 test('元の意図・受入条件が依頼から消えたら失敗する',()=>{
  for(const field of ['intent','acceptance']){const r=copy();delete r.targets[0][field];assert.match(checkRequest(r,ledger).join('\n'),/受入条件の欠落/);}
 });
+test('台帳への固定参照は全文複写なしで受入条件を検証し、変更や欠落を検出する',()=>{
+ const pinned=JSON.parse(readFileSync(new URL('../docs/requests/nov6-common-recovery-20261106.json',import.meta.url),'utf8'));
+ assert.deepEqual(checkRequest(pinned,currentLedger),[]);
+ const missing=structuredClone(pinned);delete missing.targets[0].ledgerDigest;
+ assert.match(checkRequest(missing,currentLedger).join('\n'),/受入条件の欠落/);
+ const row=parseLedger(currentLedger).find(x=>x[0]===pinned.targets[0].id);
+ assert.match(checkRequest(pinned,currentLedger.replace(row[3],row[3]+'追記')).join('\n'),/受入条件の欠落/);
+});
 test('未知ID・重複ID・結果欠落・対象外行を検出する',()=>{
  assert.match(checkHandoff(report.replace('対象ID: WAP-0001,','対象ID: WAP-9999,'),request,ledger).join('\n'),/元の依頼にない対象ID/);
  assert.match(checkHandoff(report.replace('対象ID: WAP-0001,','対象ID: WAP-0001, WAP-0001,'),request,ledger).join('\n'),/重複/);

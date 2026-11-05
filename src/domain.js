@@ -260,9 +260,12 @@ export function roundAccounting(s, r) {
 }
 export function roundSettlementStatus(s,r){
   if(!['納品済み','精算済み'].includes(r.status))return r.status;
+  const pendingSnack=r.eventIds.some(id=>{const event=s.events.find(e=>e.id===id);return event?.snackDraft&&!event.billing;});
+  const pendingSale=s.sales.some(x=>!x.void&&r.stockIds.includes(x.stockId)&&
+    (x.destinationType==='unknown'||x.paymentStatus==='unconfirmed'));
   const complete=r.invoice!=null&&
     (r.shortageConfirmation==='none'||r.shortageConfirmation==='yes'&&r.shortageReviewComplete)&&
-    roundAccounting(s,r).profit!=null;
+    roundAccounting(s,r).profit!=null&&!pendingSnack&&!pendingSale;
   return complete?'精算済み':'納品済み';
 }
 export function transfer(s, event, line, qty, sellingPrice, date) {
@@ -845,6 +848,12 @@ export function validate(s) {
       throw Error("行事名と注文商品を入力してください");
     date(e.date);
     unique(e.lines);
+    const fiscalReceipts=e.fiscalReceipts||[],fiscalCorrections=e.fiscalReceiptCorrections||[];
+    if(new Set(fiscalReceipts.map(x=>x.id)).size!==fiscalReceipts.length||
+      new Set(fiscalCorrections.map(x=>x.targetId)).size!==fiscalCorrections.length)
+      throw Error('財政の受領・訂正履歴が重複しています');
+    for(const receipt of fiscalReceipts){if(!String(receipt.id||'').trim()||!Number.isSafeInteger(receipt.amount)||receipt.amount<=0)throw Error('財政の受領額を確認してください');date(receipt.date);}
+    for(const correction of fiscalCorrections)if(!fiscalReceipts.some(x=>x.id===correction.targetId)||!String(correction.reason||'').trim())throw Error('財政の受領訂正の理由を確認してください');
     for (const l of e.lines) {
       if (!l.name.trim()) throw Error("行事の商品名を入力してください");
       integer(l.qty, "行事注文数");

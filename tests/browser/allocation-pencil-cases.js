@@ -19,7 +19,7 @@ function fixture(){
  for(const stock of state.stocks){stock.cost=100;addSale(state,stock,{qty:stock.qty,date:round.date,price:stock.price,destinationType:'unknown',paymentStatus:'unconfirmed'});}
  upgrade(state);validate(state);if(state.stocks.length!==2)throw Error('検証データは価格確定した2商品が必要です');return {state,revision:0};
 }
-async function openWorkspace(page,context,shared){await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売先を割り当てる');}
+async function openWorkspace(page,context,shared){await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売用の仕分け');}
 async function freePort(){const server=net.createServer();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const port=server.address().port;await new Promise(resolve=>server.close(resolve));return port;}
 async function startBefore(){
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'wappan-before-'));
@@ -45,7 +45,7 @@ async function scenario(browser,url,engine,width,version,mode){
   await capture(page,engine,width,version,`${mode}-home`);
   await page.locator('.round-list-item').click();await page.locator('.stage-1 > .stage-trigger').click();
   await capture(page,engine,width,version,`${mode}-stage`);
-  await openAfter(page,'販売先を割り当てる');await closeToast(page);
+  await openAfter(page,version==='before'?'販売先を割り当てる':'販売用の仕分け');await closeToast(page);
   let taps=0;const revisionAtStart=shared.revision;
   await page.locator('.sales-step-body').evaluate(el=>scrollTo(0,Math.max(0,el.getBoundingClientRect().top+scrollY-12)));
   await page.waitForTimeout(100);
@@ -135,7 +135,7 @@ export function registerAllocationTests(engine){
   expect(totalsBefore.revenue).toBeGreaterThan(0);expect(totalsBefore.cost).toBeGreaterThan(0);
   for(const key of ['revenue','cost','profit'])expect(totalsAfter[key]).toEqual(totalsBefore[key]);
   validate(shared.state);await page.reload();await page.locator('.round-list-item').click();
-  await page.locator('.stage-3 > .stage-trigger').click();await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'販売先を割り当てる'})}).locator(':scope > summary').click();
+  await page.locator('.stage-3 > .stage-trigger').click();await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'販売用の仕分け'})}).locator(':scope > summary').click();
   await page.getByRole('button',{name:'商品から複数人へ割当',exact:true}).click();
   const product=page.locator('.sales-workspace:visible');
   await product.getByRole('button',{name:/くるみパン 未割当 2個/}).click();
