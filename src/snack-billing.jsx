@@ -82,7 +82,8 @@ export function SnackBilling({event}){
           return <details className="snack-direct-buyer" key={id}><summary><strong>{state.buyers.find(b=>b.id===id)?.name}</strong><span>{items.reduce((n,x)=>n+x.qty,0)}個　請求合計 {yen(total)}</span></summary>
             <table><thead><tr><th>商品</th><th>数量</th><th>単価</th><th>小計</th><th>操作</th></tr></thead><tbody>{items.map(item=><tr key={item.lineId}>
               <th>{event.lines.find(l=>l.id===item.lineId)?.name}</th><td>{item.qty}個</td><td>{yen(item.unitPrice)}</td><td>{yen(item.qty*item.unitPrice)}</td>
-              <td><button type="button" className="text-action" onClick={()=>change({...draft,household:draft.household.filter(x=>x!==item)})}>外す</button></td>
+              <td><button type="button" className="text-action" onClick={()=>{setDirectMode('product');setSelectedLine(item.lineId);setDirectPrice(null);requestAnimationFrame(()=>document.querySelector('.snack-billing .product-buyer-assignment')?.scrollIntoView({block:'start'}));}}>編集</button>
+                <button type="button" className="text-action" onClick={()=>change({...draft,household:draft.household.filter(x=>x!==item)})}>外す</button></td>
             </tr>)}</tbody></table></details>})}</div>}
       {directMode==='buyer'&&<Button secondary onClick={()=>savePart('direct',direct)}>直接割当を保存</Button>}
       <div className="section-head"><h4>3 共通単価を設定した分</h4><button type="button" className="text-action" onClick={()=>change({...draft,groups:[...groups,{id:crypto.randomUUID(),label:'共通単価',lineIds:[],quantities:{},unitPrice:null,priceMode:'auto'}]})}>＋ 共通単価</button></div>

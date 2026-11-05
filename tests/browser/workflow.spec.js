@@ -942,6 +942,8 @@ test('11/5レビュー：実使用、保存済み財政・家庭請求、余剰�
   await buyerDetail.locator('summary').click();
   await expect(buyerDetail.locator('tr').filter({hasText:'こしあんぱん'})).toContainText('300円');
   await expect(buyerDetail.locator('thead')).toContainText('単価');
+  await buyerDetail.locator('tr').filter({hasText:'こしあんぱん'}).getByRole('button',{name:'編集'}).click();
+  await expect(page.getByLabel('割り当てる商品')).toHaveValue('bean');
   const table=page.getByRole('region',{name:'おやつ数量照合表'});
   await expect(table).toContainText('未振分');
   await expect(table.locator('tr').filter({hasText:'こしあんぱん'})).toContainText('22');
