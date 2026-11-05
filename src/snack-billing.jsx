@@ -114,13 +114,12 @@ export function SnackBilling({event}){
       <p className="snack-scroll-hint">数量表は横に続きます →</p>
       <div className="snack-billing-preview" role="region" aria-label="おやつ数量照合表" tabIndex={0}><table><thead><tr>{['商品','未振分','販売振替済','実入荷','発注','用途計','財政','直接','共通'].map(h=><th key={h} scope="col">{h}</th>)}</tr></thead>
         <tbody>{status.map(x=><tr key={x.line.id}><th scope="row">{x.line.name}</th><td>{x.unassigned}</td><td>{x.retail}</td><td>{x.received}</td><td>{x.ordered}</td><td>{x.used}</td><td>{x.fiscal}</td><td>{x.direct}</td><td>{x.common}</td></tr>)}</tbody></table></div>
-      {status.map(x=><div className="snack-quantity-state" key={x.line.id}><strong>{x.line.name}</strong>：
-        {x.unassigned>0&&<span>用途未振分 {x.unassigned}個　</span>}
+      {status.filter(x=>x.excess>0||x.unassigned<0||x.used>0&&x.line.cost==null).map(x=><div className="snack-quantity-state" key={x.line.id}><strong>{x.line.name}</strong>：
         {x.excess>0&&<span role="alert">実入荷を{x.excess}個超過　</span>}
         {x.unassigned<0&&<span role="alert">実入荷より用途指定が{-x.unassigned}個超過　</span>}
         {x.used>0&&x.line.cost==null&&<span>原価未確定　</span>}
-        {!event.billing&&<span>請求未確定</span>}
       </div>)}
+      {!event.billing&&<p className="snack-quantity-state">請求未確定{status.some(x=>x.unassigned>0)?'：表の未振分を確認してください':''}</p>}
       {error&&<p role="alert" className="notice">{error}</p>}{saved&&<p role="status">{saved}</p>}
       {unsaved&&event.snackDraft&&<p className="notice">変更した区分を保存してから請求を確定してください。</p>}
       {event.billing&&<Field label="確定請求を変更する理由"><input value={reason} onChange={e=>setReason(e.target.value)}/></Field>}
