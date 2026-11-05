@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,newRound,validate,collections,collectionPosition,eventClaim,report,transfer} from '../src/domain.js';
-import {replaceSnackBilling,snackBillingPreview,suggestedSnackPrice} from '../src/snack-billing.js';
+import {replaceSnackBilling,snackBillingPreview,suggestedSnackPrice,saveSnackSection,addLineToSnackGroup,mergeSnackGroups,recordFiscalReceipt,correctFiscalReceipt,effectiveFiscalReceipts} from '../src/snack-billing.js';
+import {transferStockToSnack} from '../src/snack-transfer.js';
 
 const setup=()=>{
   const s=initialState();
@@ -143,4 +144,64 @@ test('同じ家庭を異なる共通単価グループへ割当でき、単価�
   const negative=structuredClone(billing);negative.groups=[{...billing.groups[0],lineIds:e.lines.map(l=>l.id)}];
   negative.fiscal=[{lineId:'beanline',qty:3}];negative.household=[{...billing.household[0],qty:1}];
   assert.throws(()=>replaceSnackBilling(s,e.id,negative,'実使用数超過'),/割当数/);
+});
+
+test('販売用の1個を既存共通単価へ追加して23個・24食の不一致を解消し、再読込後も家庭を保つ',()=>{
+  const {s,r,e}=setup();e.lines[0].qty=26;e.lines[1].qty=19;
+  s.stocks.push({id:'apple-stock',roundId:r.id,date:r.date,test:false,name:'りんごデニッシュ',productId:'apple',qty:5,cost:151,price:190});
+  s.buyers.push({id:'hanabusa',name:'花房',active:true,fixed:[]});
+  const group={id:'existing',label:'家庭のおやつ',lineIds:['beanline','appleline'],quantities:{beanline:11,appleline:12},unitPrice:150,priceMode:'auto'};
+  saveSnackSection(s,e.id,'fiscal',[{lineId:'beanline',qty:4},{lineId:'appleline',qty:4}]);
+  saveSnackSection(s,e.id,'common',{groups:[group],household:[
+    {buyerId:'sato',groupId:group.id,lineId:null,qty:22,unitPrice:150},
+    {buyerId:'hanabusa',groupId:group.id,lineId:null,qty:2,unitPrice:150},
+  ]});
+  assert.equal(snackBillingPreview(s,e,e.snackDraft).groups[0].difference,-1);
+  assert.equal(s.collectionEntries.length,0);
+  const line=transferStockToSnack(s,'apple-stock',e.id,1);
+  addLineToSnackGroup(s,e.id,group.id,line.id,1);
+  const reloaded=structuredClone(s);
+  assert.equal(reloaded.events[0].snackDraft.groups.length,1);
+  assert.equal(reloaded.events[0].snackDraft.groups[0].quantities[line.id],1);
+  assert.equal(reloaded.events[0].snackDraft.household.reduce((n,x)=>n+x.qty,0),24);
+  assert.equal(reloaded.events[0].snackDraft.groups[0].unitPrice,150);
+  assert.equal(snackBillingPreview(reloaded,reloaded.events[0],reloaded.events[0].snackDraft).groups[0].difference,0);
+  assert.equal(reloaded.events[0].stockTransferHistory.length,1);
+  assert.equal(reloaded.collectionEntries.length,0);
+  assert.equal(reloaded.events[0].snackDraftHistory.at(-1).section,'common');
+});
+
+test('手動単価を保ち、誤って別枠に保存された1個は明示的にだけ既存枠へ統合する',()=>{
+  const {s,r,e}=setup();s.stocks.push({id:'apple-stock',roundId:r.id,date:r.date,test:false,name:'りんごデニッシュ',qty:2,cost:151,price:190});
+  e.lines[0].qty=11;e.lines[1].qty=12;
+  const line=transferStockToSnack(s,'apple-stock',e.id,1);
+  saveSnackSection(s,e.id,'common',{groups:[
+    {id:'old',label:'既存',lineIds:['beanline','appleline'],quantities:{beanline:11,appleline:12},unitPrice:170,priceMode:'manual'},
+    {id:'extra',label:'別枠',lineIds:[line.id],quantities:{[line.id]:1},unitPrice:170}],
+    household:[{buyerId:'sato',groupId:'old',lineId:null,qty:24,unitPrice:170}]});
+  assert.equal(e.snackDraft.groups.length,2);
+  const before=structuredClone(e.snackDraft);
+  assert.throws(()=>mergeSnackGroups(s,e.id,'old','extra'),/家庭への割当/);
+  assert.deepEqual(e.snackDraft,before);
+  mergeSnackGroups(s,e.id,'extra','old');
+  assert.equal(e.snackDraft.groups.length,1);
+  assert.equal(e.snackDraft.groups[0].unitPrice,170);
+  assert.equal(e.snackDraft.household[0].qty,24);
+  assert.equal(e.snackDraftHistory.at(-1).previous.groups.length,2);
+  assert.equal(snackBillingPreview(s,e,e.snackDraft).groups[0].difference,0);
+});
+
+test('財政請求を訂正しても実際の受領原本を維持し、訂正は理由付きで現在額から除く',()=>{
+  const {s,r,e}=setup();e.lines[0].used=2;e.lines[0].usedConfirmed=true;
+  replaceSnackBilling(s,e.id,{label:'財政',fiscal:[{lineId:'beanline',qty:2}],household:[]});
+  recordFiscalReceipt(s,e.id,{id:'cash-1',amount:260,date:r.date});
+  assert.throws(()=>recordFiscalReceipt(s,e.id,{id:'cash-1',amount:260,date:r.date}),/保存済み/);
+  replaceSnackBilling(s,e.id,{...e.billing,fiscal:[{lineId:'beanline',qty:1}]},'数量の訂正');
+  assert.equal(eventClaim(e),130);assert.equal(effectiveFiscalReceipts(e).reduce((n,x)=>n+x.amount,0),260);
+  assert.equal(e.billingHistory[0].billing.fiscal[0].qty,2);
+  assert.throws(()=>correctFiscalReceipt(s,e.id,'cash-1',''),/理由/);
+  correctFiscalReceipt(s,e.id,'cash-1','受取額の誤記を訂正');
+  assert.equal(e.fiscalReceipts[0].amount,260);assert.equal(effectiveFiscalReceipts(e).length,0);
+  assert.equal(e.fiscalReceiptCorrections[0].reason,'受取額の誤記を訂正');
+  assert.doesNotThrow(()=>validate(s));
 });

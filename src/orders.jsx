@@ -193,6 +193,8 @@ function Round({ round: r, initialTab = null, back }) {
     ...(eventCostIssues.length?[`おやつ・行事${eventCostIssues.length}件の原価が未登録です。`]:[]),
     ...(finances.profit==null&&r.invoice!=null&&!stockCostIssues.length&&!eventCostIssues.length?['販売日が異なる商品や振替の原価内訳を確認してください']:[]),
   ];
+  const profitPending=r.eventIds.some(id=>{const event=state.events.find(e=>e.id===id);return event?.snackDraft&&!event.billing;})||
+    sales.some(x=>x.destinationType==='unknown'||x.paymentStatus==='unconfirmed');
   const needsMonthlyProducts = r.productImportPending && !monthProductsImported(state, r.date);
   const monthLabel = `${Number(r.date.slice(5, 7))}月`;
   const activeStage = PURPOSES.includes(tab) ? "注文" : tab;
@@ -374,7 +376,7 @@ function Round({ round: r, initialTab = null, back }) {
             onSource={(kind,id)=>{
               setCollectionReturn(id);
               if(kind==='order'){setTab('個人注文');setPersonalClosed(false);choose(id);}
-              else{setTab('納品・精算');requestAnimationFrame(()=>{for(const d of document.querySelectorAll('.after-work'))if(d.querySelector('summary')?.textContent==='販売先を割り当てる')d.open=true;});}
+              else{setTab('納品・精算');requestAnimationFrame(()=>{document.getElementById('sales-after-work')?.setAttribute('open','');});}
             }}/>
           {progress.status==='集金中'&&progress.due.total>0&&<div className="round-carry-action"><span>今回分の未収 {progress.due.people.length}人・{yen(progress.due.total)}</span><button type="button" className="text-action" onClick={()=>setClosing(true)}>未収を残して今回分を終了 ›</button></div>}
           <button type="button" className="text-action"
@@ -453,14 +455,14 @@ function Round({ round: r, initialTab = null, back }) {
           {r.shortageConfirmation && <>
           <Invoice key={`${r.id}-${r.invoice}`} round={r} />
 
-          <details className="after-work" id="sales-after-work"><summary>販売先を割り当てる</summary>
+          <details className="after-work" id="sales-after-work"><summary>販売用の仕分け</summary>
             <Sales roundId={r.id} phase="after"/>
+            <details className="optional-market"><summary>販売場所を記録（任意）</summary><Markets roundId={r.id} section="places"/></details>
           </details>
-          <details className="after-work" id="snack-after-work"><summary>おやつの請求と余剰</summary>
+          <details className="after-work" id="snack-after-work"><summary>おやつの仕分け</summary>
             <Events roundId={r.id} phase="after"/>
           </details>
-          <details className="optional-market"><summary>販売場所を記録（任意）</summary><Markets roundId={r.id} section="places"/></details>
-          <section className="profit-card" aria-label="商品利益"><div className="profit-card-value"><span>商品利益</span><strong>{yen(finances.profit)}</strong></div>
+          <section className="profit-card" aria-label="商品利益"><div className="profit-card-value"><span>商品利益{finances.profit!=null&&profitPending?'（仕分け・請求確認中）':''}</span><strong>{yen(finances.profit)}</strong></div>
           <details className="profit-details"><summary>利益の内訳を見る</summary>
             <div className="grid2"><Summary label="売上合計" value={yen(finances.revenue)} />
               <Summary label="納品書の仕入額" value={yen(r.invoice)} /></div>
