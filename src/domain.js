@@ -2,7 +2,7 @@ import {validateCollectionWorkflow} from './collection-validation.js';
 import { deliveredQuantity, receivedQuantity, validateFulfillment } from './shortages.js';
 import { permanentProduct } from "./excel.js";
 import { bundleUsed, movedOut, bundleCost, validateCommerce } from "./commerce.js";
-import {snackBillingPreview} from './snack-billing.js';
+import {snackBillingPreview,snackPurposeQuantity} from './snack-billing.js';
 export const uid = () => crypto.randomUUID();
 export const monthKey = (date) => String(date || "").slice(0, 7);
 export const monthProductsImported = (state, date) => {
@@ -270,7 +270,7 @@ export function transfer(s, event, line, qty, sellingPrice, date) {
   integer(sellingPrice, "販売価格");
   if (!qty) throw Error("振替数は1以上にしてください");
   if (line.cost == null) throw Error("仕入単価を確認して入力してください");
-  if (qty > receivedQuantity(line) - line.used - transferredQty(s, line.id))
+  if (qty > receivedQuantity(line) - (event.snackDraft?snackPurposeQuantity(event,line.id):line.used) - transferredQty(s, line.id))
     throw Error("余剰数を超えています");
   s.stocks.push({
     id: uid(),
@@ -850,7 +850,7 @@ export function validate(s) {
       integer(l.qty, "行事注文数");
       integer(l.used, "行事使用数");
       if (l.cost != null) integer(l.cost, "仕入単価");
-      if (l.used + transferredQty(s, l.id) > receivedQuantity(l))
+      if ((e.snackDraft||e.billing?snackPurposeQuantity(e,l.id):l.used) + transferredQty(s, l.id) > receivedQuantity(l))
         throw Error("行事使用数と振替数が注文数を超えています");
     }
     if(e.billing){

@@ -1,4 +1,5 @@
 import {receivedQuantity} from './shortages.js';
+import {snackPurposeQuantity} from './snack-billing.js';
 // Shared delivery identity; transfers retain origin, never purchase twice.
 const sum = xs => xs.reduce((a,b)=>a+b,0);
 const requireInt = (v,label,positive=false) => { if(!Number.isSafeInteger(v)||v<(positive?1:0)||v>100000000) throw Error(`${label}を確認してください`); };
@@ -192,7 +193,7 @@ export function snackOrderQuantities(s, roundId) {
   if (!event) return {};
   const quantities = {};
   for (const line of event.lines) {
-    if (line.productId)
+    if (line.productId && !line.sourceStockId)
       quantities[line.productId] =
         (quantities[line.productId] || 0) + line.qty;
   }
@@ -223,13 +224,13 @@ export function setSnackOrderQuantities(s, roundId, quantities) {
   for (const product of round.products) {
     const target = Number(quantities[product.id] || 0);
     requireInt(target, `${product.name}の数量`);
-    const lines = event.lines.filter((line) => line.productId === product.id);
+    const lines = event.lines.filter((line) => line.productId === product.id && !line.sourceStockId);
     const current = sum(lines.map((line) => line.qty));
     if (round.shortages?.length && target !== current) throw Error('欠品配分後は元の発注数を変更できません');
     const committed = sum(
       lines.map(
         (line) =>
-          line.used +
+          (event.snackDraft||event.billing?snackPurposeQuantity(event,line.id):line.used) +
           sum(s.stocks.filter((stock) => stock.eventLineId === line.id).map((stock) => stock.qty)),
       ),
     );
@@ -259,7 +260,7 @@ export function setSnackOrderQuantities(s, roundId, quantities) {
             .filter((stock) => stock.eventLineId === line.id)
             .map((stock) => stock.qty),
         );
-        const reducible = line.qty - line.used - moved;
+        const reducible = line.qty - (event.snackDraft||event.billing?snackPurposeQuantity(event,line.id):line.used) - moved;
         const amount = Math.min(remove, reducible);
         line.qty -= amount;
         remove -= amount;
