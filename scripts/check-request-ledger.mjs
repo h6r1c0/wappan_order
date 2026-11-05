@@ -2,12 +2,14 @@ import {readFileSync,existsSync} from 'node:fs';
 import {resolve,relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 
 const root=resolve(fileURLToPath(new URL('..',import.meta.url)));
 const statuses=['未依頼','Workに依頼済み','実装報告あり','未解決','判断待ち','明示的に撤回'];
 // Markdown permits an omitted final pipe; preserve the last (device) column.
 const cells=line=>line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(x=>x.trim());
 export function parseLedger(body){return body.split('\n').filter(x=>/^\| WAP-\d{4} \|/.test(x)).map(cells);}
+export const ledgerDigest=row=>createHash('sha256').update(JSON.stringify([row[1],row[3]])).digest('hex');
 export function checkLedger(body,previous=''){
  const errors=[],rows=parseLedger(body),ids=new Set();
  for(const row of rows){
@@ -36,7 +38,11 @@ export function checkRequest(request,ledger){
   if(ids.has(target.id))errors.push(`${target.id}: 依頼対象が重複`);ids.add(target.id);
   const row=rows.find(x=>x[0]===target.id);
   if(!row){errors.push(`${target.id}: 台帳にないID`);continue;}
-  if(target.intent!==row[1]||target.acceptance!==row[3])errors.push(`${target.id}: 元の意図・受入条件の欠落または不一致`);
+  const inline=target.intent===row[1]&&target.acceptance===row[3];
+  // A pinned ledger reference avoids copying sensitive descriptions into an
+  // additional public request file while detecting a missing or changed rule.
+  const referenced=target.ledgerRef===target.id&&target.ledgerDigest===ledgerDigest(row);
+  if(!inline&&!referenced)errors.push(`${target.id}: 元の意図・受入条件の欠落または不一致`);
  }
  if(!Array.isArray(request.deferred))errors.push('依頼記録: 対象外IDと理由・継続先のリストが必要です');
  for(const item of request.deferred||[])if(!rows.some(x=>x[0]===item.id)||ids.has(item.id)||!item.reason||!item.next)errors.push(`${item.id}: 対象外の理由・継続先が不正`);

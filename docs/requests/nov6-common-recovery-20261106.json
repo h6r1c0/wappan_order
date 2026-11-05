@@ -4,78 +4,78 @@
   "targets": [
     {
       "id": "WAP-0004",
-      "intent": "商品起点の販売割当を維持する",
-      "acceptance": "商品直下の複数購入者割当と、個人請求・支払済みの同一導線を回帰確認する。"
+      "ledgerRef": "WAP-0004",
+      "ledgerDigest": "71421c5f68193e4ff423897c93b215ac0340af30710fee1b9be07f2c115c19a5"
     },
     {
       "id": "WAP-0006",
-      "intent": "購入者起点と商品起点の割当を維持する",
-      "acceptance": "購入者の再選択を避け、一括保存と数量整合を保つ。"
+      "ledgerRef": "WAP-0006",
+      "ledgerDigest": "f96fed501debb9d70476211f045909678610d513f220d2337d9509f12d491eef"
     },
     {
       "id": "WAP-0031",
-      "intent": "集金一覧の氏名全文と受取操作を改善する",
-      "acceptance": "氏名を省略せず、一行配置、過去→今回の順、赤の濃淡、追加タップなし。過去受取の由来を明記する。"
+      "ledgerRef": "WAP-0031",
+      "ledgerDigest": "e354f942684bebafa971516b29f94ea88a736a75451854c6d0924a94b0603ef1"
     },
     {
       "id": "WAP-0032",
-      "intent": "受取原本と履歴付き訂正を維持する",
-      "acceptance": "過去受取の未充当状態を今回受取と混同せず、推測で現金記録を訂正しない。"
+      "ledgerRef": "WAP-0032",
+      "ledgerDigest": "be0f3bb1fd2523cf92654abbf0b995f4b4f7e4f18dd1b2d4d87df0ececf7f9e9"
     },
     {
       "id": "WAP-0034",
-      "intent": "請求金額直下の正式な内訳を維持する",
-      "acceptance": "請求源の明細と受取・過去未収を区別し、二重計上を防ぐ。"
+      "ledgerRef": "WAP-0034",
+      "ledgerDigest": "5d978361b79cf517a5a7304e07fac5bcaf267a561304848d0ea0f5c4680552d8"
     },
     {
       "id": "WAP-0035",
-      "intent": "利益を結果として読みやすく表示する",
-      "acceptance": "請求未確定や販売先未確認の間は利益を確定扱いしない。"
+      "ledgerRef": "WAP-0035",
+      "ledgerDigest": "dcca3ac9e79eea58d4e232db4f2d79d65c42f3bb20fc2a1b53e21eeb95f76059"
     },
     {
       "id": "WAP-0048",
-      "intent": "おやつの仕分けと既存共通単価グループへの追加を改善する",
-      "acceptance": "既存グループの購入者食数・単価を保持し、明示的な追加・統合と超過表示、履歴、余剰振替を安全に扱う。"
+      "ledgerRef": "WAP-0048",
+      "ledgerDigest": "b148bb05cab62d31057ac951a433d3296009ca15ffdca5a68aa57c0d37ada269"
     },
     {
       "id": "WAP-0060",
-      "intent": "支払済み・外部販売の割当を維持する",
-      "acceptance": "商品起点の個人請求と同じ導線で扱い、二重売上を防ぐ。"
+      "ledgerRef": "WAP-0060",
+      "ledgerDigest": "598d41a30a71a12f9bea9fe42e4b07b262a2ca9fa5f15f37ae8cfa44cecc4aed"
     },
     {
       "id": "WAP-0061",
-      "intent": "販売場所を任意のまま維持する",
-      "acceptance": "未入力で精算可能とし、販売用の仕分け内に補助入口を置く。"
+      "ledgerRef": "WAP-0061",
+      "ledgerDigest": "5a492bef550f53c0a74c4d8f26a59a730aa33aed291e436eee07937f257bc42b"
     },
     {
       "id": "WAP-0068",
-      "intent": "その他販売の割当を維持する",
-      "acceptance": "保存済み割当を保ち、追加と訂正を区別する。"
+      "ledgerRef": "WAP-0068",
+      "ledgerDigest": "b00bba5a457108a110e04e24c078b88ff989e41c5e2e6aeb0f0cdb38b9cc8e43"
     },
     {
       "id": "WAP-0069",
-      "intent": "販売用からおやつへの振替先を改善する",
-      "acceptance": "既存の共通単価グループを選んで追加し、新規枠は明示的な選択時だけ作成する。"
+      "ledgerRef": "WAP-0069",
+      "ledgerDigest": "b873682ad64bd4d3b8ef0d065c922521e8562e84508779cd73b75700c4f936ca"
     },
     {
       "id": "WAP-0070",
-      "intent": "納品前印刷・セット販売・欠品・納品書入力の配置を整える",
-      "acceptance": "既存の操作順を維持し、隣接する区切り線と余白を確認する。"
+      "ledgerRef": "WAP-0070",
+      "ledgerDigest": "e6e4acf2f1151eae2295ac22e35f16579185a5d297a7a8c80d2131987e9713a8"
     },
     {
       "id": "WAP-0071",
-      "intent": "任意の販売場所の位置を改善する",
-      "acceptance": "販売用の仕分けの内部から必要時だけ開き、既存値を維持する。"
+      "ledgerRef": "WAP-0071",
+      "ledgerDigest": "acc9a59ee1d612362e39302d58c20801e1b71c5f0b3312a7c9edeb2f5484e6f0"
     },
     {
       "id": "WAP-0072",
-      "intent": "登録済み原価を維持する",
-      "acceptance": "前回の仕入原価登録を重複実行せず、今回の本番書込みを行わない。"
+      "ledgerRef": "WAP-0072",
+      "ledgerDigest": "284625df7e17723e079c2d3f846a98f4a480a105da68b03af802ec5f2257222f"
     },
     {
       "id": "WAP-0073",
-      "intent": "差額は既存の訂正履歴を用い、理由と原本を保持する",
-      "acceptance": "確定した数量・用途・請求だけを訂正し、受領事実を残す。差額と短いメモは必要時だけ扱い、未確認数を推測しない。"
+      "ledgerRef": "WAP-0073",
+      "ledgerDigest": "250f404954b95f9f5d190e839bd1385bd21f6955e6d3a8ba9d3b3ec95f83ffd7"
     }
   ],
   "deferred": [
