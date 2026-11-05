@@ -824,7 +824,7 @@ test('場所なしセット、既知のおやつ単価・使用数、税込合�
   await mobileShots(page,'snack');
 });
 
-test('11/5再指摘：仕分け時のセット、任意販売場所、利益の結果表示を別の階層にする',async({page,context})=>{
+test('11/5レビュー：再指摘のセット、任意販売場所、利益の結果表示を別の階層にする',async({page,context})=>{
   const shared={state:preparedState(),revision:0},r=newRound(shared.state,'2026-10-16',true);
   r.status='注文確定';r.invoice=1000;shared.state.rounds.push(r);
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await page.locator('.stage-3 > .stage-trigger').click();
