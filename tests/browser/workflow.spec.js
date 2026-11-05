@@ -823,6 +823,22 @@ test('場所なしセット、既知のおやつ単価・使用数、税込合�
   expect(shared.state.events[0].lines[0].used).toBe(0);expect(shared.state.events[0].lines[0].cost).toBe(138);
   await mobileShots(page,'snack');
 });
+
+test('11/5レビュー：再指摘のセット、任意販売場所、利益の結果表示を別の階層にする',async({page,context})=>{
+  const shared={state:preparedState(),revision:0},r=newRound(shared.state,'2026-10-16',true);
+  r.status='注文確定';r.invoice=1000;shared.state.rounds.push(r);
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await page.locator('.stage-3 > .stage-trigger').click();
+  const order=await page.locator('.stage-3 .stage-content').evaluate(el=>[...el.children].filter(x=>x.matches('.print-prep-actions,.set-preparation,.shortage-check')).map(x=>x.className));
+  expect(order).toEqual(['print-prep-actions','set-preparation','shortage-check']);
+  await page.locator('.set-preparation > summary').click();await expect(page.getByRole('button',{name:'＋ セットを作る'})).toBeVisible();
+  await page.getByRole('button',{name:'欠品なしを確認'}).click();
+  await expect(page.locator('.invoice-form')).toContainText('納品書の税込合計');
+  await expect(page.locator('.optional-market')).toHaveCount(1);await expect(page.locator('.optional-market.after-work')).toHaveCount(0);
+  await expect(page.locator('.profit-card')).toHaveCount(1);await expect(page.locator('.round-profit')).toHaveCount(0);
+  await page.locator('.profit-details > summary').click();await expect(page.locator('.profit-details')).toContainText('売上合計');
+  for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await page.locator('.optional-market').scrollIntoViewIfNeeded();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/nov5-layout-${width}.png`});}
+});
 test('発注前の販売数を一覧上で調整し、工程移動で見出しへ自動スクロールする',async({page,context})=>{
   const shared={state:preparedState(),revision:0};const r=newRound(shared.state,'2026-09-11',true);r.orders.hori={name:'ホリ',quantities:{walnut:2}};shared.state.rounds.push(r);
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await page.locator('.stage-2 > .stage-trigger').click();
