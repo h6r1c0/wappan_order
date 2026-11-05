@@ -3,6 +3,28 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {initialState,newRound,transfer} from '../src/domain.js';
+import {confirmSnackPlan} from '../src/snack-billing.js';
+
+test('DBは旧使用数の原本を維持し、用途別17個と振替9個を保存・超過を拒否する',async()=>{
+  const db=new PGlite();
+  await db.exec("create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key,email text unique); create function auth.uid() returns uuid language sql stable as $$select null::uuid$$;");
+  for(const name of (await fs.readdir(new URL('../supabase/migrations/',import.meta.url))).filter(x=>x.endsWith('.sql')).sort())
+    await db.exec(await fs.readFile(new URL('../supabase/migrations/'+name,import.meta.url),'utf8'));
+  const s=initialState(),r=newRound(s,'2026-10-16');s.rounds.push(r);
+  const line={id:'old-record',name:'こしあんぱん',qty:26,used:0,cost:130};
+  const event={id:'purpose-qa',roundId:r.id,date:r.date,name:'おやつ',test:false,lines:[line]};
+  s.events.push(event);r.eventIds.push(event.id);
+  transfer(s,event,line,9,180,r.date);
+  line.used=22;line.usedConfirmed=true;
+  event.snackDraft={label:'',fiscal:[{lineId:line.id,qty:17}],household:[],groups:[]};
+  await db.query('select public.wappan_validate($1)',[s]);
+  assert.equal(line.used,22);
+  confirmSnackPlan(s,event.id);
+  await db.query('select public.wappan_validate($1)',[s]);
+  assert.equal(line.used,22);
+  event.snackDraft.fiscal[0].qty=18;
+  await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Snack draft exceeds|Event overallocated/);
+});
 
 test('DB は旧注文を保ち、おやつ請求の二重割当・振替後数量超過・無効購入者を拒否する',async()=>{
   const db=new PGlite();

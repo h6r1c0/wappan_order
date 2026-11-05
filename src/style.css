@@ -2677,6 +2677,7 @@ header small {
   .assignment-product-choice.selected {border-color:var(--work-accent);background:var(--work-tint);}
   .assignment-product-choice small {white-space:nowrap;color:var(--work-accent);}
   .product-buyer-assignment {margin:10px 0;padding:8px 5px;background:var(--work-tint);border-radius:8px;}
+  .sales-workspace-product .sales-product-list:has(.product-buyer-assignment) {max-height:none;overflow:visible;}
   .product-buyer-assignment h3 {margin:2px 0;font-size:1rem;}
   .product-buyer-assignment p {margin:5px 0;font-size:.85rem;}
   .sales-mode-grid.assignment-modes {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:6px;margin:0 0 8px;}
