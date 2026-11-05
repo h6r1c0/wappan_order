@@ -2728,9 +2728,9 @@ header small {
 .collection-quick-actions { display:flex; justify-content:flex-end; gap:3px; white-space:nowrap; }
 .collection-quick-actions .collection-pay { min-width:0; min-height:42px; padding:5px 4px; font-size:.66rem; }
 @media(min-width:375px){.collection-overview{grid-template-columns:minmax(0,1fr) 160px}.collection-open{grid-template-columns:105px minmax(0,1fr)}.collection-quick-actions .collection-pay{font-size:.72rem;padding:5px 6px}}
-.stage-content .collection-quick-actions .collection-pay.pay-past {background:#fce6ea;color:#85374c;border-color:#d9a8b2;}
-.stage-content .collection-quick-actions .collection-pay.pay-current {background:#edb0bf;color:#642239;border-color:#b75c77;}
-.stage-content .collection-quick-actions .collection-pay.pay-full {background:#a44865;color:white;border-color:#81334e;}
+.stage-content .collection-overview .collection-quick-actions .collection-pay.pay-past:not(.secondary):not(.danger) {background-color:#fce6ea;background-image:url('./assets/pencil/red-light.png');color:#713148;border-color:#d9a8b2;}
+.stage-content .collection-overview .collection-quick-actions .collection-pay.pay-current:not(.secondary):not(.danger) {background-color:#edb0bf;background-image:url('./assets/pencil/red-light.png');color:#552037;border-color:#b75c77;}
+.stage-content .collection-overview .collection-quick-actions .collection-pay.pay-full:not(.secondary):not(.danger) {background-color:#a44865;background-image:url('./assets/pencil/red-deep.png');color:white;border-color:#81334e;}
 .stage-content .collection-quick-actions .collection-pay:focus-visible {outline:2px solid #632639;outline-offset:2px;}
 .collection-totals { display:flex; flex-wrap:wrap; gap:7px; align-items:flex-start; }
 .collection-totals details { border:1px solid #e2e9df; border-radius:6px; padding:5px; flex:1 1 135px; min-width:0; }
