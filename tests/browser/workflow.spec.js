@@ -1090,7 +1090,7 @@ test('11/5レビュー：保存済みの商品別数量から共通候補を出�
   await mobileShots(page,'nov5-weighted-price');
 });
 
-test('11/5午後レビュー：共通単価の既存購入者を全員から選び、保存後も食数を維持',async({page,context})=>{
+test('11/5レビュー：午後の共通単価の既存購入者を全員から選び、保存後も食数を維持',async({page,context})=>{
   const shared={state:preparedState(),revision:0};
   for(const [i,name] of ['森本','花房','西尾'].entries())shared.state.buyers.push({id:'family-'+i,name,kana:['もりもと','はなふさ','にしお'][i],active:false,testOnly:true,fixed:[]});
   const r=newRound(shared.state,'2026-10-16',true);r.status='注文確定';shared.state.rounds.push(r);
@@ -1106,7 +1106,7 @@ test('11/5午後レビュー：共通単価の既存購入者を全員から選�
   for(const name of ['森本','花房','西尾'])await expect(page.getByRole('button',{name:new RegExp(`共通単価 ${name}の数量 1`)})).toBeVisible();
 });
 
-test('11/5午後レビュー：集金一覧の1行操作、金額直下の全商品内訳、直前の誤受取取消',async({page,context})=>{
+test('11/5レビュー：午後の集金一覧の1行操作、金額直下の全商品内訳、直前の誤受取取消',async({page,context})=>{
   const shared={state:preparedState(),revision:0};
   const r=newRound(shared.state,'2026-10-16',true);r.status='納品済み';r.shortageConfirmation='none';r.collectionLive=true;shared.state.rounds.push(r);
   r.orders.hori={name:'堀',quantities:{brown:1}};r.orders.asano={name:'浅野',quantities:{brown:1}};
