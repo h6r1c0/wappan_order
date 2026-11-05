@@ -8,7 +8,12 @@ import {receivedQuantity} from './shortages.js';
 const amount=(rows,id)=>rows.filter(x=>x.lineId===id).reduce((n,x)=>n+x.qty,0);
 export function SnackBilling({event}){
   const {state,save}=useApp();
-  const [draft,setDraft]=useState(()=>structuredClone(event.snackDraft||event.billing||emptySnackPlan()));
+  const [draft,setDraft]=useState(()=>{
+    const saved=structuredClone(event.snackDraft||event.billing||emptySnackPlan());
+    saved.groups=(saved.groups||[]).map(g=>g.unitPrice==null&&g.priceMode!=='manual'
+      ? {...g,priceMode:'auto',unitPrice:suggestedGroupPrice(event,g)}:g);
+    return saved;
+  });
   const [buyer,setBuyer]=useState(''),[quantities,setQuantities]=useState({}),[error,setError]=useState(''),[reason,setReason]=useState('');
   const [open,setOpen]=useState(false),[saved,setSaved]=useState('');
   const [directMode,setDirectMode]=useState('buyer'),[selectedLine,setSelectedLine]=useState(''),[directPrice,setDirectPrice]=useState(null);
@@ -26,7 +31,9 @@ export function SnackBilling({event}){
   const editFiscal=(lineId,qty)=>change({...draft,fiscal:[...draft.fiscal.filter(x=>x.lineId!==lineId),{lineId,qty}]});
   const editGroup=(id,patch)=>{
     const old=groups.find(g=>g.id===id),next={...old,...patch};
-    if(patch.quantities&&old.priceMode==='auto')next.unitPrice=suggestedGroupPrice(event,next);
+    if(patch.quantities&&(old.priceMode==='auto'||old.priceMode==null&&old.unitPrice==null)){
+      next.priceMode='auto';next.unitPrice=suggestedGroupPrice(event,next);
+    }
     const priceChanged=next.unitPrice!==old.unitPrice;
     change({...draft,groups:groups.map(g=>g.id===id?next:g),
       household:priceChanged?draft.household.map(x=>x.groupId===id?{...x,unitPrice:next.unitPrice}:x):draft.household});

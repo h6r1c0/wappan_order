@@ -1060,3 +1060,29 @@ test('11/4レビュー：購入者から商品へ切替えても同じ入力を�
   expect(shared.state.sales.filter(x=>x.stockId===st.id).map(x=>x.qty).sort()).toEqual([1,2]);
   expect(collections(shared.state,'','',r.id,true).find(x=>x.id==='switch-1').onsite).toBe(280);
 });
+
+test('11/5レビュー：保存済みの商品別数量から共通候補を出し、手動単価を守る',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  const r=newRound(shared.state,'2026-10-16',true);r.status='注文確定';shared.state.rounds.push(r);
+  const e={id:'weighted-price',roundId:r.id,date:r.date,name:'隔離おやつ',test:true,lines:[
+    {id:'bean-weight',name:'こしあんぱん',qty:11,used:0,cost:130},
+    {id:'apple-weight',name:'りんごデニッシュ',qty:12,used:0,cost:151},
+  ],snackDraft:{label:'',fiscal:[],household:[],groups:[{id:'price',label:'共通',lineIds:['bean-weight','apple-weight'],quantities:{'bean-weight':11,'apple-weight':12},unitPrice:null}]}};
+  shared.state.events.push(e);r.eventIds.push(e.id);
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつ使用・財政請求');
+  await page.locator('.snack-billing > summary').click();
+  const group=page.locator('.snack-group');
+  await expect(group.getByLabel('1個の共通単価')).toHaveValue('150');
+  await expect(group).toContainText('商品別原価の合計 3,242円');
+  await setQty(page,'こしあんぱん 共通単価の対象数',0);
+  await expect(group.getByLabel('1個の共通単価')).toHaveValue('160');
+  await group.getByLabel('1個の共通単価').fill('170');
+  await setQty(page,'こしあんぱん 共通単価の対象数',1);
+  await expect(group.getByLabel('1個の共通単価')).toHaveValue('170');
+  await page.getByRole('button',{name:'共通単価分を保存'}).click();
+  expect(shared.state.events[0].snackDraft.groups[0].unitPrice).toBe(170);
+  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつ使用・財政請求');
+  await page.locator('.snack-billing > summary').click();
+  await expect(page.locator('.snack-group').getByLabel('1個の共通単価')).toHaveValue('170');
+  await mobileShots(page,'nov5-weighted-price');
+});
