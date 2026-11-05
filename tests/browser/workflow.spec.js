@@ -625,7 +625,7 @@ test('おやつの職員分と共通単価の家庭請求を確認後に保存�
     {id:'apple-qa',productId:'apple',name:'りんごデニッシュ',qty:4,used:0,cost:151},
   ]};shared.state.events.push(e);r.eventIds.push(e.id);
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
-  await openAfter(page,'おやつ使用・財政請求');
+  await openAfter(page,'おやつの請求と余剰');
   await expect(page.locator('.snack-claim').filter({hasText:'財政請求'})).toContainText('未確定');
   await page.locator('.snack-billing > summary').click();
   await setQty(page,'こしあんぱん 財政分',3);
@@ -663,7 +663,7 @@ test('共通単価グループを複数家庭へ一括割当し、その他の�
     {id:'apple-g',productId:'apple',name:'りんごデニッシュ',qty:3,used:3,usedConfirmed:true,cost:151},
   ]};shared.state.events.push(e);r.eventIds.push(e.id);
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
-  await openAfter(page,'おやつ使用・財政請求');
+  await openAfter(page,'おやつの請求と余剰');
   await page.locator('.snack-billing > summary').click();
   await setQty(page,'こしあんぱん 財政分',2);
   await setQty(page,'りんごデニッシュ 財政分',2);
@@ -717,7 +717,7 @@ test('販売用残数からおやつへ振り替え、用途と請求先を保�
   const st={id:'test-stock',roundId:r.id,date:r.date,name:'検証ゼリー',category:'その他',qty:3,price:270,cost:90,test:true};
   shared.state.stocks.push(st);r.stockIds.push(st.id);
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
-  await openAfter(page,'おやつ使用・財政請求');
+  await openAfter(page,'おやつの請求と余剰');
   await page.locator('.stock-to-snack > summary').click();
   await page.getByLabel('販売用の商品').selectOption(st.id);
   await page.getByLabel('振替先の用途').selectOption('direct');
@@ -729,7 +729,7 @@ test('販売用残数からおやつへ振り替え、用途と請求先を保�
   expect(stockRemaining(shared.state,st)).toBe(2);
   expect(shared.state.events[0].billing).toBeUndefined();
   await page.reload();await page.locator('.round-list-item').click();
-  await openAfter(page,'おやつ使用・財政請求');
+  await openAfter(page,'おやつの請求と余剰');
   await page.locator('.snack-billing > summary').click();
   await expect(page.locator('.snack-billing')).toContainText('検証家庭');
   await expect(page.locator('.snack-billing')).toContainText('検証ゼリー');
@@ -816,7 +816,7 @@ test('場所なしセット、既知のおやつ単価・使用数、税込合�
   expect(shared.state.bundleSales[0].marketId).toBe(null);expect(shared.state.bundleSales[0].qty).toBe(1);
   await page.getByLabel('税込合計').fill('1000');await page.locator('.invoice-input-row').getByRole('button',{name:'保存',exact:true}).click();expect(shared.state.rounds[0].invoice).toBe(1000);
   await mobileShots(page,'delivery');
-  await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'おやつ使用・財政請求'})}).locator('summary').first().click();
+  await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'おやつの請求と余剰'})}).locator('summary').first().click();
   await page.locator('.snack-billing > summary').click();
   await setQty(page,'くるみパン 財政分',2);await page.getByRole('button',{name:'財政分を保存'}).click();
   expect(shared.state.events[0].snackDraft.fiscal[0].qty).toBe(2);
@@ -926,9 +926,10 @@ test('11/5レビュー：実使用、保存済み財政・家庭請求、余剰�
   expect(await page.locator('.round-list-item').first().evaluate(el=>parseFloat(getComputedStyle(el,'::after').height))).toBeGreaterThan(1);
   expect(await page.locator('.round-list-item').first().evaluate(el=>parseFloat(getComputedStyle(el,'::after').height))).toBeLessThan(4);
   await page.locator('.round-list-item').click();
-  await openAfter(page,'おやつ使用・財政請求');
+  await openAfter(page,'おやつの請求と余剰');
   await expect(page.locator('.snack-claim').filter({hasText:'保存済み財政分'})).toContainText('請求未確定');
   await expect(page.locator('.snack-claim').filter({hasText:'保存済み財政分'})).toContainText('1,194円');
+  await page.locator('.snack-stock-facts > summary').click();
   await page.getByRole('button',{name:/仕入単価 70円.*訂正/}).click();
   await expect(page.getByText('確定済みの仕入単価：')).toContainText('70円');
   await page.getByRole('button',{name:'閉じる',exact:true}).first().click();
@@ -938,7 +939,7 @@ test('11/5レビュー：実使用、保存済み財政・家庭請求、余剰�
   await page.locator('.snack-billing > summary').click();
   await expect(page.getByRole('button',{name:'財政分を保存'})).toBeVisible();
   const buyerDetail=page.locator('.snack-direct-buyer').filter({hasText:'ホリ'});
-  await expect(buyerDetail.locator('summary')).toContainText('請求合計 2,250円');
+  await expect(buyerDetail.locator('summary')).toContainText('こしあんぱん ×2');await expect(buyerDetail.locator('summary')).toContainText('2,250円');
   await buyerDetail.locator('summary').click();
   await expect(buyerDetail.locator('tr').filter({hasText:'こしあんぱん'})).toContainText('300円');
   await expect(buyerDetail.locator('thead')).toContainText('単価');
@@ -963,7 +964,7 @@ test('11/5レビュー：実使用、保存済み財政・家庭請求、余剰�
   await page.getByRole('button',{name:'保存済みの区分で請求を確定'}).click();
   expect(shared.state.events[0].billing.fiscal).toHaveLength(3);
   expect(shared.state.events[0].lines.map(l=>l.used)).toEqual([4,4,0,1]);
-  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつ使用・財政請求');
+  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの請求と余剰');
   await expect(page.locator('.snack-claim').filter({hasText:'確定した財政請求'})).toContainText('1,194円');
 });
 
@@ -977,7 +978,7 @@ test('11/4レビュー：商品先行のおやつ直接割当を複数家庭へ�
     {buyerId:'snack-family-1',lineId:'white',qty:1,unitPrice:120},
   ]};
   shared.state.events.push(e);r.eventIds.push(e.id);
-  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつ使用・財政請求');
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの請求と余剰');
   await page.locator('.snack-billing > summary').click();
   await page.getByRole('button',{name:'商品から',exact:true}).click();
   await page.getByLabel('割り当てる商品').selectOption('white');
@@ -992,7 +993,7 @@ test('11/4レビュー：商品先行のおやつ直接割当を複数家庭へ�
   expect(shared.state.events[0].snackDraft.household.map(x=>x.qty)).toEqual([1,2,1,1]);
   expect(shared.state.events[0].snackDraft.household.map(x=>x.unitPrice)).toEqual([110,120,110,110]);
   expect(shared.state.events[0].billing).toBeUndefined();
-  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつ使用・財政請求');
+  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの請求と余剰');
   await page.locator('.snack-billing > summary').click();await page.getByRole('button',{name:'商品から',exact:true}).click();
   await page.getByLabel('割り当てる商品').selectOption('white');
   await expect(page.locator('.product-buyer-assignment')).toContainText('選んだ数量 5個');
@@ -1026,7 +1027,7 @@ test('11/4レビュー：レモン1個の既存割当へ7個追加し、原価�
   await page.getByRole('button',{name:'商品から複数人へ割当'}).click();await page.getByLabel('販売商品を絞り込む').getByRole('button',{name:'その他',exact:true}).click();
   await page.locator('.completed-stocks > summary').click();await page.locator('.completed-stocks .assignment-product-choice').filter({hasText:'隔離レモン'}).click();
   await expect(page.locator('.product-buyer-assignment')).toContainText('未割当 0個');
-  await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'おやつ使用・財政請求'})}).locator('summary').first().click();
+  await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'おやつの請求と余剰'})}).locator('summary').first().click();
   await page.locator('.stock-to-snack > summary').click();await page.getByLabel('販売用の商品').selectOption(st.id);
   await page.getByRole('button',{name:'おやつへ振替して保存'}).click();
   await page.getByRole('button',{name:/仕入単価 未確定.*確定・入力/}).click();
@@ -1069,7 +1070,7 @@ test('11/5レビュー：保存済みの商品別数量から共通候補を出�
     {id:'apple-weight',name:'りんごデニッシュ',qty:12,used:0,cost:151},
   ],snackDraft:{label:'',fiscal:[],household:[],groups:[{id:'price',label:'共通',lineIds:['bean-weight','apple-weight'],quantities:{'bean-weight':11,'apple-weight':12},unitPrice:null}]}};
   shared.state.events.push(e);r.eventIds.push(e.id);
-  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつ使用・財政請求');
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの請求と余剰');
   await page.locator('.snack-billing > summary').click();
   const group=page.locator('.snack-group');
   await expect(group.getByLabel('1個の共通単価')).toHaveValue('150');
@@ -1081,8 +1082,46 @@ test('11/5レビュー：保存済みの商品別数量から共通候補を出�
   await expect(group.getByLabel('1個の共通単価')).toHaveValue('170');
   await page.getByRole('button',{name:'共通単価分を保存'}).click();
   expect(shared.state.events[0].snackDraft.groups[0].unitPrice).toBe(170);
-  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつ使用・財政請求');
+  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの請求と余剰');
   await page.locator('.snack-billing > summary').click();
   await expect(page.locator('.snack-group').getByLabel('1個の共通単価')).toHaveValue('170');
   await mobileShots(page,'nov5-weighted-price');
+});
+
+test('11/5午後レビュー：共通単価の既存購入者を全員から選び、保存後も食数を維持',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  for(const [i,name] of ['森本','花房','西尾'].entries())shared.state.buyers.push({id:'family-'+i,name,kana:['もりもと','はなふさ','にしお'][i],active:false,testOnly:true,fixed:[]});
+  const r=newRound(shared.state,'2026-10-16',true);r.status='注文確定';shared.state.rounds.push(r);
+  const e={id:'common-buyers',roundId:r.id,date:r.date,name:'隔離おやつ',test:true,lines:[{id:'bean',name:'こしあんぱん',qty:3,cost:130,used:0}],snackDraft:{label:'',fiscal:[],household:[],groups:[{id:'common',label:'共通単価',lineIds:['bean'],quantities:{bean:3},unitPrice:130,priceMode:'auto'}]}};
+  shared.state.events.push(e);r.eventIds.push(e.id);await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの請求と余剰');
+  await page.locator('.snack-billing > summary').click();await page.locator('.snack-group details > summary').click();
+  for(const name of ['森本','花房','西尾'])await expect(page.getByLabel(`共通単価 ${name}の数量`)).toBeVisible();
+  for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await page.locator('.snack-group .buyer-quantity-grid').scrollIntoViewIfNeeded();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/nov5-common-buyers-${width}.png`});}
+  for(const name of ['森本','花房','西尾'])await setQty(page,`共通単価 ${name}の数量`,1);
+  await expect(page.locator('.snack-group')).toContainText('未割当 0個');await page.getByRole('button',{name:'共通単価分を保存'}).click();
+  expect(shared.state.events[0].snackDraft.household.map(x=>x.qty)).toEqual([1,1,1]);
+  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの請求と余剰');await page.locator('.snack-billing > summary').click();await page.locator('.snack-group details > summary').click();
+  for(const name of ['森本','花房','西尾'])await expect(page.getByRole('button',{name:new RegExp(`共通単価 ${name}の数量 1`)})).toBeVisible();
+});
+
+test('11/5午後レビュー：集金一覧の1行操作、金額直下の全商品内訳、直前の誤受取取消',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  const r=newRound(shared.state,'2026-10-16',true);r.status='納品済み';r.shortageConfirmation='none';shared.state.rounds.push(r);
+  r.orders.hori={name:'堀',quantities:{brown:1}};r.orders.asano={name:'浅野',quantities:{brown:1}};
+  shared.state.receivableItems.push({id:'past-due',kind:'opening',buyerId:'hori',date:'2026-09-11',amount:380,reason:'未受取',note:'前回の注文'});
+  shared.state.otherSales.push({id:'lemon',name:'無農薬青レモン',date:r.date,qty:1,unitPrice:100,unitCost:0,paymentStatus:'unpaid',test:true,allocations:[{buyerId:'hori',qty:1,chargeRoundId:r.id}]});
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await page.locator('.stage-4 > .stage-trigger').click();
+  const hori=page.locator('.collection-entry[data-buyer="hori"]'),asano=page.locator('.collection-entry[data-buyer="asano"]');
+  await expect(hori.locator('.collection-pay')).toHaveCount(2);await expect(asano.locator('.collection-pay')).toHaveCount(1);
+  for(const width of [320,375,430]){await page.setViewportSize({width,height:812});
+    const dimensions=await page.evaluate(()=>['hori','asano'].map(id=>{const row=document.querySelector(`[data-buyer="${id}"]`),overview=row.querySelector('.collection-overview'),amount=row.querySelector('.collection-amount'),buttons=[...row.querySelectorAll('.collection-pay')];return {height:overview.getBoundingClientRect().height,amountX:amount.getBoundingClientRect().x,buttons:buttons.map(b=>b.getBoundingClientRect().y)};}));
+    expect(dimensions.every(x=>x.height<=52&&new Set(x.buttons).size===1)).toBe(true);expect(Math.abs(dimensions[0].amountX-dimensions[1].amountX)).toBeLessThan(3);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/nov5-collections-${width}.png`});}
+  await hori.locator('.collection-open').click();await hori.locator('.collection-totals details').first().locator('summary').click();
+  await expect(hori.locator('.collection-charge-lines').first()).toContainText('黒糖ブレッド');await expect(hori.locator('.collection-charge-lines').first()).toContainText('無農薬青レモン');
+  await expect(hori.locator('.collection-charge-lines').first()).toContainText('商品明細合計');
+  await hori.locator('.collection-totals details').nth(1).locator('summary').click();await expect(hori.locator('.collection-charge-lines').nth(1)).toContainText('2026-09-11');
+  const before=collections(shared.state,'','',r.id,true).find(x=>x.id==='hori').total;
+  await hori.getByRole('button',{name:'今回分受取'}).click();await expect(page.locator('.collection-undo')).toBeVisible();
+  await page.locator('.collection-undo button').click();expect(shared.state.collectionEntries).toHaveLength(1);expect(shared.state.collectionCorrections[0].reason).toBe('操作ミス（現金の受取なし）');
+  expect(collections(shared.state,'','',r.id,true).find(x=>x.id==='hori').total).toBe(before);
 });

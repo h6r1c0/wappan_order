@@ -2,7 +2,7 @@ import {collections,collectionPosition,collectionDueItems,price,snapshot,integer
 import {deliveredQuantity} from './shortages.js';
 
 export const collectionReasons=['前回の不足分をまとめて受け取った','前回の預かり金を今回使った','今回の請求から商品が漏れている','一部しか受け取っていない','多く受け取ったので次回へ預かる','返金がある','原因が分からないので調べたい'];
-export const correctionReasons=['支払済みの確認が誤っていた','受取金額を間違えた','重複して登録した','対象の人・注文回を間違えた'];
+export const correctionReasons=['操作ミス（現金の受取なし）','支払済みの確認が誤っていた','受取金額を間違えた','重複して登録した','対象の人・注文回を間違えた'];
 export function effective(state,kind){
   const voids=new Set((state.collectionCorrections||[]).filter(x=>x.kind===kind).map(x=>x.targetId));
   return (state[kind]||[]).filter(x=>!voids.has(x.id));

@@ -342,6 +342,8 @@ function SnackUsage({event:e,onTransfer}) {
  const usageCost=rows.some(x=>x.used>0&&x.line.cost==null)?null:rows.reduce((n,x)=>n+x.used*(x.line.cost||0),0);
  return <section className="snack-usage">
   <h3>{e.name}</h3>
+  <SnackBilling event={e}/>
+  <details className="snack-stock-facts"><summary>商品別の入荷・原価・余剰を確認</summary>
   {e.lines.map(l=>{const moved=transferredQty(state,l.id);
    const row=rows.find(x=>x.line.id===l.id);
    const masterCost=state.products.find(p=>p.id===l.productId)?.cost;
@@ -360,7 +362,7 @@ function SnackUsage({event:e,onTransfer}) {
   <div className="snack-claim"><span>おやつ使用原価（請求額とは別）</span><strong>{yen(usageCost)}</strong></div>
   <div className="snack-claim"><span>{e.billing?'確定した財政請求':e.snackDraft?'保存済み財政分（請求未確定）':'財政請求（用途未確定）'}</span><strong>{e.billing?yen(eventClaim(e)):e.snackDraft?yen(draftAmount):'未確定'}</strong></div>
   <StockToSnack event={e}/>
-  <SnackBilling event={e}/>
+  </details>
   {costSource&&state.stocks.some(st=>st.id===costSource)&&<StockEditor stock={state.stocks.find(st=>st.id===costSource)} costOnly onClose={()=>setCostSource(null)}/>}
  </section>;
 }
