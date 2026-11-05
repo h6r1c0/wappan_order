@@ -5,6 +5,22 @@ import {reassignSale} from '../src/sale-reassignment.js';
 import {setSalesOrderQuantities,upgrade} from '../src/commerce.js';
 import {addSale} from '../src/domain.js';
 function setup(){const s=initialState(),r=newRound(s,'2026-09-11');s.rounds.push(r);r.products=[{id:'base',name:'注文済み商品',price:2130,category:'パン',cost:1800},{id:'donut',name:'ツイストドーナツ',price:190,category:'パン',cost:156}];r.orders.hori={name:'堀',quantities:{base:1,donut:2}};return {s,r};}
+test('今回請求の明細は注文・販売・その他・おやつ・セットを漏らさず合計に一致し、誤受取は原本を残して取消',()=>{
+ const s=initialState(),r=newRound(s,'2026-10-16',true);s.rounds.push(r);r.orders.hori={name:'堀',quantities:{brown:1}};
+ s.stocks.push({id:'stock-detail',roundId:r.id,name:'焼き菓子',qty:2,price:200,cost:120,date:r.date,test:true});r.stockIds.push('stock-detail');
+ s.sales.push({id:'sale-detail',stockId:'stock-detail',buyerId:'hori',destinationType:'buyer',chargeRoundId:r.id,qty:1,price:200,cost:120,date:r.date});
+ s.otherSales.push({id:'lemon-detail',name:'無農薬青レモン',date:r.date,qty:1,unitPrice:100,unitCost:0,paymentStatus:'unpaid',test:true,allocations:[{buyerId:'hori',qty:1,chargeRoundId:r.id}]});
+ s.bundleSales.push({id:'bundle-detail',name:'セット商品',date:r.date,qty:1,price:300,buyerId:'hori',destinationType:'buyer',chargeRoundId:r.id});
+ s.events.push({id:'snack-detail',roundId:r.id,date:r.date,test:true,lines:[{id:'bean',name:'こしあんぱん',qty:2,cost:130}],billing:{label:'おやつ',fiscal:[],groups:[{id:'group',label:'共通単価'}],household:[{buyerId:'hori',lineId:'bean',qty:1,unitPrice:130},{buyerId:'hori',groupId:'group',lineId:null,qty:1,unitPrice:150}]}});r.eventIds.push('snack-detail');
+ const row=collections(s,'','',r.id,true).find(x=>x.id==='hori');
+ for(const name of ['黒糖ブレッド','焼き菓子','無農薬青レモン','こしあんぱん','共通単価','セット商品'])assert.ok(row.lines.some(x=>x.description.includes(name)),name);
+ assert.equal(row.lines.reduce((n,x)=>n+x.amount,0),row.total);
+ const receipt=receiveCollection(s,{roundId:r.id,buyerId:'hori',received:row.total});
+ const original=structuredClone(receipt);correctCollectionRecord(s,'collectionEntries',receipt.id,'操作ミス（現金の受取なし）');
+ assert.deepEqual(s.collectionEntries.find(x=>x.id===receipt.id),original);
+ assert.equal(collectionPosition(s,r.id,'hori').balance,row.total);
+ assert.equal(s.collectionCorrections.at(-1).reason,'操作ミス（現金の受取なし）');
+});
 test('堀：請求前に注文・数量・単価と袋額を照合し、2個×190円の漏れを選択で修復する',()=>{
  const {s,r}=setup();confirmBilling(s,r.id,'hori',2130,{exceptionReason:'請求内容を照合中'});
  const a=billingAudit(s,r.id).buyers[0];assert.equal(a.expected,2510);assert.equal(a.issues.find(x=>x.type==='bag').difference,380);

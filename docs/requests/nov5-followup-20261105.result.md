@@ -1,0 +1,15 @@
+対象ID: WAP-0004、WAP-0031、WAP-0032、WAP-0034、WAP-0035、WAP-0048、WAP-0060、WAP-0061、WAP-0070、WAP-0071、WAP-0072
+
+| ID | 結果 | 証拠と残作業 | 実機 |
+| --- | --- | --- | --- |
+| WAP-0004 | 実装済み | src/sales-workspace.jsx：商品直下で個人請求と支払済み外部販売を選択。 自動テスト結果はPRのCIを参照。 | 未確認・本人のiPhone実機確認待ち |
+| WAP-0031 | 実装済み | src/collections.jsx と src/style.css：1行ボタンと直後の取消。 自動テスト結果はPRのCIを参照。 | 未確認・本人のiPhone実機確認待ち |
+| WAP-0032 | 実装済み | src/collection-workflow.js：操作ミス理由で原本を残して訂正。 自動テスト結果はPRのCIを参照。 | 未確認・本人のiPhone実機確認待ち |
+| WAP-0034 | 実装済み | src/collections.jsx：金額直下の請求・過去分明細。src/domain.js の請求行を使用。 自動テスト結果はPRのCIを参照。 | 未確認・本人のiPhone実機確認待ち |
+| WAP-0035 | 実装済み | src/orders.jsx：利益未確定理由を簡潔に示し、原価明細は展開。 自動テスト結果はPRのCIを参照。 | 未確認・本人のiPhone実機確認待ち |
+| WAP-0048 | 実装済み | src/snack-billing.jsx、src/events.jsx、src/buyer-quantity-grid.jsx：購入者欠落・用途順序・直接明細・数量表。 自動テスト結果はPRのCIを参照。 | 未確認・本人のiPhone実機確認待ち |
+| WAP-0060 | 実装済み | src/sales-workspace.jsx：個人請求と支払済みを同一の商品起点画面で選ぶ。 自動テスト結果はPRのCIを参照。 | 未確認・本人のiPhone実機確認待ち |
+| WAP-0061 | 実装済み | src/orders.jsx：販売場所を任意操作へ。 自動テスト結果はPRのCIを参照。 | 未確認・本人のiPhone実機確認待ち |
+| WAP-0070 | 実装済み | src/orders.jsx：納品書税込合計を欠品確認の直後へ。 自動テスト結果はPRのCIを参照。 | 未確認・本人のiPhone実機確認待ち |
+| WAP-0071 | 実装済み | src/orders.jsx：販売場所を控えめな任意項目へ。 自動テスト結果はPRのCIを参照。 | 未確認・本人のiPhone実機確認待ち |
+| WAP-0072 | 実装済み | 10月16日分の対象29商品を既存ロット・当回スナップショットと照合。原価のみの本番履歴は非公開のDBに保持。 自動テスト結果はPRのCIを参照。 | 未確認・本人のiPhone実機確認待ち |

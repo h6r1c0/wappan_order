@@ -2718,6 +2718,37 @@ header small {
   .snack-direct-buyer table {width:100%;border-collapse:collapse;font-size:.8rem;font-variant-numeric:tabular-nums;}
   .snack-direct-buyer th,.snack-direct-buyer td {border-bottom:1px solid #e3e9e3;padding:5px 3px;text-align:right;}
   .snack-direct-buyer th:first-child {text-align:left;overflow-wrap:anywhere;min-width:75px;}
+
+/* The current task and its amount stay on one row; history opens separately. */
+.collection-overview { grid-template-columns:132px minmax(0,1fr); gap:4px; }
+.collection-open { grid-template-columns:52px minmax(0,1fr); gap:3px; }
+.collection-chevron { display:none; }
+.collection-buyer-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:.86rem; }
+.collection-amount strong { font-size:.88rem; }
+.collection-quick-actions { display:flex; justify-content:flex-end; gap:3px; white-space:nowrap; }
+.collection-quick-actions .collection-pay { min-width:0; min-height:42px; padding:5px 6px; font-size:.72rem; }
+.collection-totals { display:flex; flex-wrap:wrap; gap:7px; align-items:flex-start; }
+.collection-totals details { border:1px solid #e2e9df; border-radius:6px; padding:5px; flex:1 1 135px; min-width:0; }
+.collection-totals summary { cursor:pointer; font-size:.76rem; }
+.collection-totals summary strong { display:inline; font-size:.87rem; }
+.collection-charge-lines { padding:6px 0; }
+.collection-charge-lines > div { display:flex; justify-content:space-between; gap:7px; border-bottom:1px solid #edf0e9; padding:4px 0; font-size:.78rem; }
+.collection-charge-lines span { overflow-wrap:anywhere; }
+.collection-charge-lines strong { white-space:nowrap; }
+.collection-undo { position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:5px; padding:6px 8px; background:#f4f7ec; border:1px solid #dae4d5; border-radius:5px; font-size:.78rem; }
+.snack-direct-buyer summary { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:5px; padding:5px 0; font-size:.82rem; font-weight:400; }
+.snack-direct-buyer summary span { overflow-wrap:anywhere; font-weight:400; }
+.snack-direct-buyer summary b { white-space:nowrap; font-size:.85rem; }
+.snack-stock-facts { margin-top:12px; border-top:1px solid #dae5db; }
+.snack-stock-facts > summary { padding:10px 0; cursor:pointer; }
+.snack-billing-preview { position:relative; }
+.snack-billing-preview:after { content:'›'; position:sticky; right:2px; align-self:center; margin-left:-13px; color:#516c5d; pointer-events:none; }
+.optional-market { font-size:.84rem; }
+.invoice-form h3 { margin:3px 0 8px; font-size:.95rem; }
+.invoice-input-row { display:flex; align-items:end; gap:8px; }
+.invoice-input-row .field { flex:1; min-width:0; }
+.invoice-input-row .button { align-self:end; min-height:44px; }
+@media(max-width:350px){.collection-quick-actions .collection-pay {font-size:.66rem;padding:4px;}.collection-buyer-name {font-size:.78rem;}.collection-amount strong {font-size:.8rem;}}
   .tag.tag-テスト,.round-list-item .tag.tag-テスト {border-radius:999px!important;background:#f2f5f8;color:#355a74;}
   .tag.tag-テスト::before {border-radius:999px;}
 }

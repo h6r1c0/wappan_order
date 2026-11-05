@@ -61,13 +61,12 @@ export function SnackBilling({event}){
     <summary>おやつの用途と請求{event.billing?'（請求確定済み）':event.snackDraft?'（区分保存済み）':''}</summary>
     <div className="snack-billing-body">
       <p className="muted">分かっている区分から保存できます。請求・集金に反映するのは最後の確定後です。</p>
-      <Field label="行事・おやつ名（任意）"><input value={draft.label||''} onChange={e=>change({...draft,label:e.target.value})}/></Field>
-      <button type="button" className="text-action" onClick={()=>savePart('label',draft.label)}>名前を保存</button>
-      <h4>1 財政分</h4>
+      <details className="snack-label"><summary>おやつ名を付ける（任意）</summary><Field label="行事・おやつ名"><input value={draft.label||''} onChange={e=>change({...draft,label:e.target.value})}/></Field><button type="button" className="text-action" onClick={()=>savePart('label',draft.label)}>名前を保存</button></details>
+      <h4>財政請求</h4>
       {event.lines.map(l=><div className="snack-billing-row" key={l.id}><span>{l.name}<small>仕入単価 {yen(l.cost)}</small></span>
         <Qty label={`${l.name} 財政分`} value={amount(draft.fiscal,l.id)} max={receivedQuantity(l)} onChange={qty=>editFiscal(l.id,qty)}/></div>)}
       <Button secondary onClick={()=>savePart('fiscal',draft.fiscal)}>財政分を保存</Button>
-      <h4>2 そのまま割り振れる分</h4>
+      <h4>個別請求</h4>
       <div className="choice-grid" role="group" aria-label="おやつ直接割当の入口"><Button secondary={directMode!=='buyer'} onClick={()=>setDirectMode('buyer')}>購入者から</Button><Button secondary={directMode!=='product'} onClick={()=>setDirectMode('product')}>商品から</Button></div>
       {directMode==='product'&&<><Field label="割り当てる商品"><select value={selectedLine} onChange={e=>{setSelectedLine(e.target.value);setDirectPrice(null);}}><option value="">商品を選ぶ</option>{event.lines.map(l=><option key={l.id} value={l.id}>{l.name}（実入荷 {receivedQuantity(l)}個）</option>)}</select></Field>
         {line&&<div className="product-buyer-assignment"><p>{line.name}：割当済み {lineItems.reduce((n,x)=>n+x.qty,0)}個 ／ 直接割当に使用可能 {lineCapacity}個</p>
@@ -86,14 +85,14 @@ export function SnackBilling({event}){
       </>}
       {!!direct.length&&<div className="snack-direct-summary"><h5>直接割当 {direct.length}件・{direct.reduce((n,x)=>n+x.qty,0)}個</h5>
         {[...new Set(direct.map(x=>x.buyerId))].map(id=>{const items=direct.filter(x=>x.buyerId===id),total=items.reduce((n,x)=>n+x.qty*x.unitPrice,0);
-          return <details className="snack-direct-buyer" key={id}><summary><strong>{state.buyers.find(b=>b.id===id)?.name}</strong><span>{items.reduce((n,x)=>n+x.qty,0)}個　請求合計 {yen(total)}</span></summary>
+          return <details className="snack-direct-buyer" key={id}><summary><strong>{state.buyers.find(b=>b.id===id)?.name}</strong><span>{items.map(item=>`${event.lines.find(l=>l.id===item.lineId)?.name||'商品'} ×${item.qty}`).join('・')}</span><b>{yen(total)}</b></summary>
             <table><thead><tr><th>商品</th><th>数量</th><th>単価</th><th>小計</th><th>操作</th></tr></thead><tbody>{items.map(item=><tr key={item.lineId}>
               <th>{event.lines.find(l=>l.id===item.lineId)?.name}</th><td>{item.qty}個</td><td>{yen(item.unitPrice)}</td><td>{yen(item.qty*item.unitPrice)}</td>
               <td><button type="button" className="text-action" onClick={()=>{setDirectMode('product');setSelectedLine(item.lineId);setDirectPrice(null);requestAnimationFrame(()=>document.querySelector('.snack-billing .product-buyer-assignment')?.scrollIntoView({block:'start'}));}}>編集</button>
                 <button type="button" className="text-action" onClick={()=>change({...draft,household:draft.household.filter(x=>x!==item)})}>外す</button></td>
             </tr>)}</tbody></table></details>})}</div>}
       {directMode==='buyer'&&<Button secondary onClick={()=>savePart('direct',direct)}>直接割当を保存</Button>}
-      <div className="section-head"><h4>3 共通単価を設定した分</h4><button type="button" className="text-action" onClick={()=>change({...draft,groups:[...groups,{id:crypto.randomUUID(),label:'共通単価',lineIds:[],quantities:{},unitPrice:null,priceMode:'auto'}]})}>＋ 共通単価</button></div>
+      <div className="section-head"><h4>共通単価請求</h4><button type="button" className="text-action" onClick={()=>change({...draft,groups:[...groups,{id:crypto.randomUUID(),label:'共通単価',lineIds:[],quantities:{},unitPrice:null,priceMode:'auto'}]})}>＋ 共通単価</button></div>
       {groups.map(g=>{
         const target=Object.values(g.quantities||{}).reduce((n,x)=>n+x,0),assigned=commonAssigned(g.id),suggested=suggestedGroupPrice(event,g);
         const selected=event.lines.filter(l=>(g.quantities?.[l.id]||0)>0),cost=selected.every(l=>l.cost!=null)?selected.reduce((n,l)=>n+(g.quantities[l.id]||0)*l.cost,0):null;
@@ -106,19 +105,15 @@ export function SnackBilling({event}){
           {target>0&&<>{cost==null?<p role="alert">原価未確定：{selected.filter(l=>l.cost==null).map(l=>l.name).join('、')}。上の仕入単価から登録してください。</p>:
             <p>商品別原価の合計 {yen(cost)} ÷ {target}個。10円単位切り上げの候補 {yen(suggested)}</p>}
             <Money label="1個の共通単価" value={g.unitPrice} onChange={unitPrice=>editGroup(g.id,{unitPrice,priceMode:'manual'})}/></>}
-          <p>商品別対象 合計{target}個 ／ 家庭割当 {assigned}個 ／ 差 {target-assigned}個</p>
+          <p>対象 {target}個　割当 {assigned}個　未割当 {target-assigned}個</p>
           <details><summary>購入者と食数{assigned?`（${assigned}個）`:''}</summary>
-            {state.buyers.filter(b=>b.active&&(!b.testOnly||event.test)).map(b=>{
-              const item=draft.household.find(x=>x.groupId===g.id&&x.buyerId===b.id);
-              return <div className="snack-group-buyer" key={b.id}><span>{b.name}</span>
-                <Qty label={`${b.name} 共通単価の食数`} min={0} value={item?.qty||0} max={target} onChange={qty=>change({...draft,household:[...draft.household.filter(x=>x!==item),...(qty?[{buyerId:b.id,groupId:g.id,lineId:null,qty,unitPrice:g.unitPrice}]:[])]})}/></div>;
-            })}</details>
+            <BuyerQuantityGrid buyers={state.buyers} test={event.test} name="共通単価" value={Object.fromEntries(draft.household.filter(x=>x.groupId===g.id).map(x=>[x.buyerId,x.qty]))} max={target}
+              onChange={values=>change({...draft,household:[...draft.household.filter(x=>x.groupId!==g.id),...Object.entries(values).filter(([,qty])=>qty>0).map(([buyerId,qty])=>({buyerId,groupId:g.id,lineId:null,qty,unitPrice:g.unitPrice}))]})}/></details>
           <button type="button" className="text-action" onClick={()=>change({...draft,groups:groups.filter(x=>x.id!==g.id),household:draft.household.filter(x=>x.groupId!==g.id)})}>この共通単価を外す</button>
         </section>;
       })}
       <Button secondary onClick={()=>savePart('common',{groups,household:draft.household.filter(x=>x.groupId)})}>共通単価分を保存</Button>
-      <h4>4 販売に回す分</h4><p>上の商品ごとの用途未振分から、必要な余剰だけ販売用へ振り替えられます。</p>
-      <p className="snack-scroll-hint">数量表は横に続きます →</p>
+      <h4>余剰販売</h4><p>未振分の余剰を販売用へ振り替えられます。</p>
       <div className="snack-billing-preview" role="region" aria-label="おやつ数量照合表" tabIndex={0}><table><thead><tr>{['商品','未振分','販売振替済','実入荷','発注','用途計','財政','直接','共通'].map(h=><th key={h} scope="col">{h}</th>)}</tr></thead>
         <tbody>{status.map(x=><tr key={x.line.id}><th scope="row">{x.line.name}</th><td>{x.unassigned}</td><td>{x.retail}</td><td>{x.received}</td><td>{x.ordered}</td><td>{x.used}</td><td>{x.fiscal}</td><td>{x.direct}</td><td>{x.common}</td></tr>)}</tbody></table></div>
       {status.filter(x=>x.excess>0||x.unassigned<0||x.used>0&&x.line.cost==null).map(x=><div className="snack-quantity-state" key={x.line.id}><strong>{x.line.name}</strong>：
