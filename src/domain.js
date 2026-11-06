@@ -222,6 +222,26 @@ export function undoTransfer(s, stockId) {
   stock.qty = 0;
   stock.cancelled = true;
 }
+// Correct the original transfer lot in place. Its ID and any valid sales stay
+// attached; the released units become available on the original snack line.
+export function correctSnackToSalesTransfer(s,stockId,quantity,reason){
+  const stock=s.stocks.find(x=>x.id===stockId);
+  const event=s.events.find(e=>e.id===stock?.eventId);
+  const line=event?.lines.find(l=>l.id===stock?.eventLineId);
+  if(!stock||!line||line.sourceStockId||!Number.isSafeInteger(quantity)||quantity<0||
+    !String(reason||'').trim())throw Error('訂正する振替数量と理由を確認してください');
+  if(quantity===stock.qty)throw Error('振替数量に変更がありません');
+  const sold=soldQty(s,stock.id),children=movedOut(s,stock.id);
+  if(quantity<sold+children)throw Error(`販売済み・再振替済みの${sold+children}個より少なくできません。販売記録を先に確認してください`);
+  const allocated=event.snackDraft||event.billing?snackPurposeQuantity(event,line.id):line.used;
+  const available=receivedQuantity(line)-allocated-transferredQty(s,line.id);
+  if(quantity>stock.qty+available)throw Error(`${line.name}：実入荷と用途割当を超えています`);
+  stock.transferHistory??=[];
+  stock.transferHistory.push({at:new Date().toISOString(),previous:stock.qty,updated:quantity,reason});
+  stock.qty=quantity;
+  stock.cancelled=quantity===0;
+  return stock;
+}
 export function roundCost(s, r) {
   const deduction = invoiceDeductions(s, r);
   return r.invoice == null || deduction == null ? null : r.invoice - deduction;

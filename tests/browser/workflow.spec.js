@@ -1196,3 +1196,32 @@ test('11/6レビュー：販売用の1個を既存共通単価へ追加し、24�
   await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
   await expect(page.locator('.snack-group')).toContainText('対象 24個');expect(shared.state.events[0].stockTransferHistory).toHaveLength(1);
 });
+
+test('11/6レビュー：請求割当前の販売振替3個を同じ記録で2個へ訂正',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  const r=newRound(shared.state,'2026-10-16',true);r.status='注文確定';shared.state.rounds.push(r);
+  const e={id:'correction-event',roundId:r.id,date:r.date,name:'おやつ用',test:true,lines:[
+    {id:'apple',productId:'apple',name:'りんごデニッシュ',qty:19,used:0,cost:151},
+  ]};shared.state.events.push(e);r.eventIds.push(e.id);
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+  await page.getByRole('button',{name:'数量を指定して振替'}).click();
+  await setQty(page,'振り替える数量',3);
+  await page.getByRole('button',{name:'振り替えて販売用に追加'}).click();
+  await expect(page.locator('.snack-transfer-entry')).toContainText('振替済み 3個');
+  expect(shared.state.events[0].snackDraft).toBeUndefined();
+  const id=shared.state.stocks[0].id;
+  await page.getByRole('button',{name:'数量を訂正'}).click();
+  await setQty(page,'りんごデニッシュ 訂正後の振替数',2);
+  await page.getByLabel('訂正理由').fill('販売記録を確認して訂正');
+  await page.getByRole('button',{name:'訂正を保存'}).click();
+  await expect(page.locator('.snack-transfer-entry')).toContainText('振替済み 2個');
+  expect(shared.state.stocks).toHaveLength(1);expect(shared.state.stocks[0].id).toBe(id);
+  expect(shared.state.stocks[0].transferHistory[0]).toMatchObject({previous:3,updated:2});
+  for(const width of [320,375,430]){await page.setViewportSize({width,height:812});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.locator('.snack-billing').scrollIntoViewIfNeeded();
+    await page.screenshot({path:`test-results/nov6-transfer-correction-${width}.png`});
+  }
+  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+  await expect(page.locator('.snack-transfer-entry')).toContainText('振替済み 2個');
+});

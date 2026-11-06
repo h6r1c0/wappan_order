@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialState,newRound,validate,collections,collectionPosition,eventClaim,report,transfer} from '../src/domain.js';
+import {initialState,newRound,validate,collections,collectionPosition,eventClaim,report,transfer,correctSnackToSalesTransfer,stockRemaining} from '../src/domain.js';
 import {replaceSnackBilling,snackBillingPreview,suggestedSnackPrice,saveSnackSection,addLineToSnackGroup,mergeSnackGroups,recordFiscalReceipt,correctFiscalReceipt,effectiveFiscalReceipts} from '../src/snack-billing.js';
-import {transferStockToSnack} from '../src/snack-transfer.js';
+import {transferStockToSnack,cancelStockToSnackTransfer} from '../src/snack-transfer.js';
 
 const setup=()=>{
   const s=initialState();
@@ -78,6 +78,46 @@ test('おやつから販売用への振替と直接販売用在庫を混同せ�
   assert.equal(collectionPosition(s,r.id,'sato').current,320);
   assert.equal(s.stocks.find(x=>x.id==='direct').qty,2);
   assert.equal(s.stocks.find(x=>x.eventLineId==='beanline').qty,3);
+});
+
+test('請求区分より先に3個を販売用へ移し、元の振替を2個へ理由付き訂正して共通単価へ戻す',()=>{
+  const {s,r,e}=setup();e.lines[0].qty=26;e.lines[1].qty=19;
+  transfer(s,e,e.lines[1],3,190,r.date);
+  const stock=s.stocks.at(-1);stock.roundId=r.id;
+  assert.equal(stockRemaining(s,stock),3);
+  assert.equal(e.snackDraft,undefined);
+  saveSnackSection(s,e.id,'common',{groups:[{id:'common',label:'共通単価',lineIds:['beanline','appleline'],quantities:{beanline:11,appleline:12},unitPrice:150,priceMode:'manual'}],household:[{buyerId:'sato',groupId:'common',lineId:null,qty:24,unitPrice:150}]});
+  assert.throws(()=>transfer(s,e,e.lines[1],5,190,r.date),/余剰数/);
+  correctSnackToSalesTransfer(s,stock.id,2,'紙の販売記録で訂正');
+  assert.equal(stockRemaining(s,stock),2);
+  assert.deepEqual(stock.transferHistory.map(x=>[x.previous,x.updated,x.reason]),[[3,2,'紙の販売記録で訂正']]);
+  const group={...e.snackDraft.groups[0],quantities:{beanline:11,appleline:13}};
+  saveSnackSection(s,e.id,'common',{groups:[group],household:e.snackDraft.household});
+  assert.equal(e.snackDraft.groups[0].unitPrice,150);
+  assert.equal(e.snackDraft.household[0].qty,24);
+  assert.equal(e.snackDraft.groups.length,1);
+  assert.doesNotThrow(()=>validate(s));
+  assert.equal(structuredClone(s).stocks.find(x=>x.id===stock.id).qty,2);
+  s.sales.push({id:'sold-one',stockId:stock.id,qty:1,price:190});
+  assert.throws(()=>correctSnackToSalesTransfer(s,stock.id,0,'取り消し'),/販売済み/);
+  assert.equal(stock.qty,2);
+});
+
+test('誤った逆方向の1個と空の別グループは本人が理由付きで取り消すまで保全する',()=>{
+  const {s,r,e}=setup();
+  s.stocks.push({id:'original-sale',roundId:r.id,productId:'apple',name:'りんごデニッシュ',qty:5,cost:151,price:190,date:r.date,test:false});
+  const reverse=transferStockToSnack(s,'original-sale',e.id,1);
+  saveSnackSection(s,e.id,'common',{groups:[{id:'extra',label:'共通単価',lineIds:[reverse.id],quantities:{[reverse.id]:1},unitPrice:150,priceMode:'manual'}],household:[]});
+  assert.equal(stockRemaining(s,s.stocks[0]),4);
+  assert.throws(()=>cancelStockToSnackTransfer(s,e.id,reverse.id,''),/理由/);
+  cancelStockToSnackTransfer(s,e.id,reverse.id,'元の販売振替数量を訂正するため');
+  assert.equal(stockRemaining(s,s.stocks[0]),5);
+  assert.equal(e.lines.find(l=>l.id===reverse.id),undefined);
+  assert.equal(e.cancelledStockTransferLines[0].qty,1);
+  assert.equal(e.snackDraft.groups.length,0);
+  assert.equal(e.stockTransferHistory.at(-1).previous,1);
+  assert.equal(e.snackDraftHistory.at(-1).previous.groups.length,1);
+  assert.doesNotThrow(()=>validate(s));
 });
 
 test('受取後の請求訂正は旧金額を二重加算せず、差額を未収として追える',()=>{

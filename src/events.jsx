@@ -2,7 +2,7 @@ import {receivedQuantity} from './shortages';
 import {productDisplayName} from './product-names.js';
 import {SnackBilling} from './snack-billing.jsx';
 import {StockEditor} from './sales.jsx';
-import {transferStockToSnack} from './snack-transfer.js';
+import {transferStockToSnack,cancelStockToSnackTransfer} from './snack-transfer.js';
 import {saveSnackSection,suggestedSnackPrice,savedFiscalAmount,snackQuantityRows,saveSnackCost,snackPurposeQuantity,addLineToSnackGroup,effectiveFiscalReceipts,recordFiscalReceipt,correctFiscalReceipt} from './snack-billing.js';
 import React, { useState } from "react";
 import {
@@ -20,7 +20,6 @@ import {
   transferredQty,
   transfer,
   setEventTest,
-  undoTransfer,
   soldQty,
   stockRemaining,
 } from "./domain";
@@ -276,8 +275,8 @@ function EventEditor({ event, onClose, roundId=null }) {
 }
 function TransferEditor({ event, line, onClose }) {
   const { state, save } = useApp();
-  const remaining = receivedQuantity(line) - snackPurposeQuantity(event,line.id) - transferredQty(state, line.id);
-  const [qty, setQty] = useState(remaining),
+  const remaining = receivedQuantity(line) - (event.snackDraft||event.billing?snackPurposeQuantity(event,line.id):line.used) - transferredQty(state, line.id);
+  const [qty, setQty] = useState(0),
     [amount, setAmount] = useState(
       price(
         state.products.find((p) => p.id === line.productId) || {
@@ -288,13 +287,13 @@ function TransferEditor({ event, line, onClose }) {
     ),
     [date, setDate] = useState(event.date);
   return (
-    <Modal title="余剰を販売用へ振替" onClose={onClose}>
+    <Modal title="おやつから販売用へ振替" onClose={onClose}>
       <h3>
-        {line.name} ／ 未処理余剰 {remaining}個
+        {line.name} ／ 振替可能 {remaining}個
       </h3>
       <p className="notice">共通の販売用在庫へ移します。販売場所は、実際に売れたときだけ必要に応じて記録します。</p>
       <Field label="振り替える数量">
-        <Qty value={qty} onChange={setQty} />
+        <Qty value={qty} max={Math.max(0,remaining)} onChange={setQty} />
       </Field>
       <Money
         required
@@ -308,13 +307,11 @@ function TransferEditor({ event, line, onClose }) {
         value={date}
         onChange={(e) => setDate(e.target.value)}
       />
-      <p>
-        販売側に移る仕入額：<strong>{yen(qty * line.cost)}</strong>
-      </p>
+      <p>販売側に移る仕入額：<strong>{line.cost==null?'原価未確定':yen(qty * line.cost)}</strong></p>
       <p className="muted">
         この数量は財政へ請求しません。売れた数量分だけ販売利益になります。
       </p>
-      <Button
+      <Button disabled={qty<1||qty>remaining||amount==null||line.cost==null}
         onClick={async () => {
           if (
             await save((s) => {
@@ -349,7 +346,7 @@ function SnackUsage({event:e,onTransfer}) {
   <StockToSnack event={e}/>
   <SnackBilling event={e} onTransfer={onTransfer}/>
   <details className="snack-stock-facts"><summary>商品別の入荷・原価・余剰を確認</summary>
-  {e.lines.map(l=>{const moved=transferredQty(state,l.id);
+  {e.lines.filter(l=>receivedQuantity(l)>0).map(l=>{const moved=transferredQty(state,l.id);
    const row=rows.find(x=>x.line.id===l.id);
    const masterCost=state.products.find(p=>p.id===l.productId)?.cost;
    return <div className="event-line" key={l.id}><div className="product-row"><span className="grow">{l.name}</span></div>
@@ -360,7 +357,6 @@ function SnackUsage({event:e,onTransfer}) {
       {l.cost!=null&&costs[l.id]!==l.cost&&<Field label="原価を訂正する理由"><input value={costReason} onChange={ev=>setCostReason(ev.target.value)}/></Field>}
       <button type="button" className="text-action" disabled={costs[l.id]==null||costs[l.id]===l.cost||l.cost!=null&&!costReason.trim()} onClick={async()=>{if(await save(s=>saveSnackCost(s,e.id,l.id,costs[l.id],l.cost==null?'今回の仕入単価を確認':costReason),'おやつ仕入単価を保存'))setCostReason('');}}>仕入単価を保存</button></>}
     </details>}
-    {state.stocks.filter(st=>st.eventLineId===l.id&&st.qty>0).map(st=><div className="line" key={st.id}><small>振替 {st.qty}個 ／ 販売 {soldQty(state,st.id)}個</small><button type="button" className="text-action" disabled={soldQty(state,st.id)>0} onClick={()=>{if(confirm('振替を戻しますか？'))save(s=>undoTransfer(s,st.id),'余剰振替取消');}}>戻す</button></div>)}
    </div>;
   })}
   <div className="snack-claim"><span>おやつ使用原価（請求額とは別）</span><strong>{yen(usageCost)}</strong></div>
@@ -388,10 +384,21 @@ function StockToSnack({event}){
  const {state,save}=useApp(),sources=state.stocks.filter(st=>st.roundId===event.roundId&&!st.eventId&&stockRemaining(state,st)>0);
  const [stockId,setStockId]=useState(''),[qty,setQty]=useState(1),[purpose,setPurpose]=useState('fiscal');
  const [buyerId,setBuyerId]=useState(''),[unitPrice,setUnitPrice]=useState(null),[error,setError]=useState('');
+ const [cancelLine,setCancelLine]=useState(''),[cancelReason,setCancelReason]=useState('');
  const groups=event.snackDraft?.groups||event.billing?.groups||[];
  const [groupId,setGroupId]=useState('');
  const source=sources.find(s=>s.id===stockId);
  return <details className="stock-to-snack"><summary>販売用からおやつへ振替</summary>
+  {error&&<p role="alert" className="notice">{error}</p>}
+  {event.lines.filter(l=>l.sourceStockId&&receivedQuantity(l)>0).map(l=><div className="snack-transfer-entry" key={l.id}><span>{l.name}：販売用から {l.qty}個</span>
+    <button type="button" className="text-action" onClick={()=>{setCancelLine(l.id);setCancelReason('');setError('');}}>この振替を訂正</button>
+    {cancelLine===l.id&&<div className="snack-transfer-correction"><p>この振替行を0個に戻します。元の販売記録は保持します。請求先がある場合は取り消せません。</p>
+      <Field label="訂正理由"><input value={cancelReason} onChange={e=>setCancelReason(e.target.value)}/></Field>
+      <Button secondary disabled={!cancelReason.trim()} onClick={async()=>{try{cancelStockToSnackTransfer(structuredClone(state),event.id,l.id,cancelReason);setError('');
+        if(await save(s=>cancelStockToSnackTransfer(s,event.id,l.id,cancelReason),'販売用からおやつへの振替を訂正'))setCancelLine('');}
+        catch(e){setError(e.message);}}}>訂正を保存</Button>
+      <button type="button" className="text-action" onClick={()=>setCancelLine('')}>閉じる</button></div>}
+  </div>)}
   <p className="muted">未割当の在庫から振り替えます。</p>
   <Field label="販売用の商品"><select value={stockId} onChange={e=>{setStockId(e.target.value);setUnitPrice(null);setError('');}}>
    <option value="">商品を選ぶ</option>{sources.map(st=><option value={st.id} key={st.id}>{st.name}（残り{stockRemaining(state,st)}個）</option>)}</select></Field>
@@ -405,7 +412,6 @@ function StockToSnack({event}){
    </select></Field>}
    {(purpose==='direct'||purpose==='common'&&groupId==='new')&&<Money label="請求単価" value={unitPrice} onChange={setUnitPrice}/>}
    {source.cost==null&&<p className="notice">この販売用商品の仕入原価は未確定です。振替後も原価は推測せず、請求確定前に元の販売用商品から入力してください。</p>}
-   {error&&<p role="alert" className="notice">{error}</p>}
    <Button disabled={purpose==='direct'&&(!buyerId||unitPrice==null)||purpose==='common'&&(!groupId||groupId==='new'&&unitPrice==null)} onClick={async()=>{
     try{
      const action=s=>{

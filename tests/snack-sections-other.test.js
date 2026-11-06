@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
-import {initialState,newRound,validate,collections,collectionPosition,report,stockRemaining,addSale,eventCost} from '../src/domain.js';
+import {initialState,newRound,validate,collections,collectionPosition,report,stockRemaining,addSale,eventCost,transfer,correctSnackToSalesTransfer} from '../src/domain.js';
 import {upgrade} from '../src/commerce.js';
 import {saveSnackSection,confirmSnackPlan,snackBillingPreview} from '../src/snack-billing.js';
-import {transferStockToSnack} from '../src/snack-transfer.js';
+import {transferStockToSnack,cancelStockToSnackTransfer} from '../src/snack-transfer.js';
 import {saveOtherSale,replaceOtherAllocations} from '../src/other-sales.js';
 
 const setup=()=>{
@@ -105,12 +105,20 @@ test('DBは新しい途中保存と確定請求を受け取り、在庫・家庭
   await db.exec(await fs.readFile(new URL('../supabase/migrations/'+name,import.meta.url),'utf8'));
  const {s,r,e}=setup();saveSnackSection(s,e.id,'fiscal',[{lineId:'bean',qty:4},{lineId:'apple',qty:4}]);
  await db.query('select public.wappan_validate($1)',[s]);
+ transfer(s,e,e.lines[1],3,190,r.date);const outbound=s.stocks.at(-1);outbound.roundId=r.id;
+ await db.query('select public.wappan_validate($1)',[s]);
+ correctSnackToSalesTransfer(s,outbound.id,2,'数量訂正');
+ await db.query('select public.wappan_validate($1)',[s]);
  const item=saveOtherSale(s,{name:'検証用果物',date:r.date,qty:8,unitPrice:120,unitCost:0,paymentStatus:'unpaid',test:true});
  replaceOtherAllocations(s,item.id,[{buyerId:'buyer-a',qty:3},{buyerId:'buyer-b',qty:5}]);
  const st={id:'jelly',roundId:r.id,name:'検証商品',qty:5,cost:90,price:270,date:r.date,test:true};s.stocks.push(st);r.stockIds.push(st.id);
  addSale(s,st,{qty:3,date:r.date,price:270,destinationType:'external',paymentStatus:'paid'});
  const moved=transferStockToSnack(s,st.id,e.id,1);
- saveSnackSection(s,e.id,'direct',[{lineId:moved.id,buyerId:'buyer-a',qty:1,unitPrice:150}]);
+ await db.query('select public.wappan_validate($1)',[s]);
+ cancelStockToSnackTransfer(s,e.id,moved.id,'逆方向の入力を訂正');
+ await db.query('select public.wappan_validate($1)',[s]);
+ const restored=transferStockToSnack(s,st.id,e.id,1);
+ saveSnackSection(s,e.id,'direct',[{lineId:restored.id,buyerId:'buyer-a',qty:1,unitPrice:150}]);
  saveSnackSection(s,e.id,'common',{groups:[{id:'group',label:'共通単価',lineIds:['bean','apple'],quantities:{bean:1,apple:1},unitPrice:150}],
   household:[{buyerId:'buyer-b',groupId:'group',lineId:null,qty:2,unitPrice:150}]});
  await db.query('select public.wappan_validate($1)',[s]);

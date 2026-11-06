@@ -2160,6 +2160,9 @@ header small {
 .snack-billing-row { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; min-width:0; border-bottom:1px solid var(--line); padding:5px 0; }
 .snack-billing-row > span { min-width:0; flex:1 1 130px; overflow-wrap:anywhere; }
 .snack-billing-row small { display:block; color:var(--muted); }
+.snack-transfer-entry { flex:1 0 100%; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:5px 10px; font-size:.9rem; }
+.snack-transfer-correction { flex:1 0 100%; display:flex; align-items:end; flex-wrap:wrap; gap:8px; padding:8px; background:var(--paper); border:1px solid var(--line); border-radius:8px; }
+.snack-transfer-correction > p { flex:1 0 100%; margin:0; }
 .snack-household { border-top:1px solid var(--line); padding:8px 0; display:grid; gap:6px; }
 .snack-household-amount { display:flex; flex-wrap:wrap; align-items:end; gap:8px; }
 .snack-household-amount .money-input { max-width:120px; }
