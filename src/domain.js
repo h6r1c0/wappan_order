@@ -233,7 +233,8 @@ export function correctSnackToSalesTransfer(s,stockId,quantity,reason){
   if(quantity===stock.qty)throw Error('振替数量に変更がありません');
   const sold=soldQty(s,stock.id),children=movedOut(s,stock.id);
   if(quantity<sold+children)throw Error(`販売済み・再振替済みの${sold+children}個より少なくできません。販売記録を先に確認してください`);
-  const allocated=event.snackDraft||event.billing?snackPurposeQuantity(event,line.id):line.used;
+  const allocated=Math.max(event.snackDraft?snackPurposeQuantity(event,line.id,event.snackDraft):line.used,
+    event.billing?snackPurposeQuantity(event,line.id,event.billing):0);
   const available=receivedQuantity(line)-allocated-transferredQty(s,line.id);
   if(quantity>stock.qty+available)throw Error(`${line.name}：実入荷と用途割当を超えています`);
   stock.transferHistory??=[];
@@ -293,7 +294,9 @@ export function transfer(s, event, line, qty, sellingPrice, date) {
   integer(sellingPrice, "販売価格");
   if (!qty) throw Error("振替数は1以上にしてください");
   if (line.cost == null) throw Error("仕入単価を確認して入力してください");
-  if (qty > receivedQuantity(line) - (event.snackDraft?snackPurposeQuantity(event,line.id):line.used) - transferredQty(s, line.id))
+  const allocated=Math.max(event.snackDraft?snackPurposeQuantity(event,line.id,event.snackDraft):line.used,
+    event.billing?snackPurposeQuantity(event,line.id,event.billing):0);
+  if (qty > receivedQuantity(line) - allocated - transferredQty(s, line.id))
     throw Error("余剰数を超えています");
   s.stocks.push({
     id: uid(),

@@ -21,6 +21,7 @@ export function cancelStockToSnackTransfer(state,eventId,lineId,reason){
   const event=state.events.find(e=>e.id===eventId),line=event?.lines.find(l=>l.id===lineId);
   const plan=event?.snackDraft;
   if(!line?.sourceStockId||!String(reason||'').trim())throw Error('振替記録と訂正理由を確認してください');
+  if(event.lines.length===1)throw Error('最後のおやつ商品はこの画面で取り消せません。元の注文記録を確認してください');
   if(event.billing)throw Error('請求確定済みです。先に請求を訂正してください');
   if(state.stocks.some(st=>st.eventLineId===lineId&&st.qty>0))throw Error('再振替した販売用在庫を先に確認してください');
   if((plan?.fiscal||[]).some(x=>x.lineId===lineId&&x.qty>0)||
@@ -33,6 +34,7 @@ export function cancelStockToSnackTransfer(state,eventId,lineId,reason){
   if(plan){
     event.snackDraftHistory??=[];
     event.snackDraftHistory.push({at:new Date().toISOString(),section:'common',reason,previous:structuredClone(plan)});
+    plan.fiscal=plan.fiscal.filter(x=>x.lineId!==lineId);
     plan.groups=plan.groups.map(g=>({...g,lineIds:(g.lineIds||[]).filter(id=>id!==lineId),
       quantities:Object.fromEntries(Object.entries(g.quantities||{}).filter(([id])=>id!==lineId))}))
       .filter(g=>Object.values(g.quantities).some(n=>n>0)||(plan.household||[]).some(x=>x.groupId===g.id));

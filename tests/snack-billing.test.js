@@ -96,9 +96,12 @@ test('請求区分より先に3個を販売用へ移し、元の振替を2個へ
   assert.equal(e.snackDraft.groups[0].unitPrice,150);
   assert.equal(e.snackDraft.household[0].qty,24);
   assert.equal(e.snackDraft.groups.length,1);
+  assert.equal(s.stocks.length,1);
+  assert.equal(collectionPosition(s,r.id,'sato').current,0);
   assert.doesNotThrow(()=>validate(s));
   assert.equal(structuredClone(s).stocks.find(x=>x.id===stock.id).qty,2);
   s.sales.push({id:'sold-one',stockId:stock.id,qty:1,price:190});
+  assert.equal(stockRemaining(s,stock),1);
   assert.throws(()=>correctSnackToSalesTransfer(s,stock.id,0,'取り消し'),/販売済み/);
   assert.equal(stock.qty,2);
 });

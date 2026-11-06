@@ -275,7 +275,9 @@ function EventEditor({ event, onClose, roundId=null }) {
 }
 function TransferEditor({ event, line, onClose }) {
   const { state, save } = useApp();
-  const remaining = receivedQuantity(line) - (event.snackDraft||event.billing?snackPurposeQuantity(event,line.id):line.used) - transferredQty(state, line.id);
+  const allocated=Math.max(event.snackDraft?snackPurposeQuantity(event,line.id,event.snackDraft):line.used,
+    event.billing?snackPurposeQuantity(event,line.id,event.billing):0);
+  const remaining = receivedQuantity(line) - allocated - transferredQty(state, line.id);
   const [qty, setQty] = useState(0),
     [amount, setAmount] = useState(
       price(
@@ -293,7 +295,7 @@ function TransferEditor({ event, line, onClose }) {
       </h3>
       <p className="notice">共通の販売用在庫へ移します。販売場所は、実際に売れたときだけ必要に応じて記録します。</p>
       <Field label="振り替える数量">
-        <Qty value={qty} max={Math.max(0,remaining)} onChange={setQty} />
+        <Qty label="振り替える数量" value={qty} max={Math.max(0,remaining)} onChange={setQty} />
       </Field>
       <Money
         required
