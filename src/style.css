@@ -2815,7 +2815,7 @@ header small {
   }
   #root:has(> .login-header)::before {
     --login-canvas-width:min(100cqi,500px);
-    content:''; position:absolute; inset:0; width:var(--login-canvas-width); margin-inline:auto;
+    content:''; position:absolute; inset:0; width:var(--login-canvas-width); margin-inline:auto; box-sizing:border-box;
     pointer-events:none; z-index:-1;
     border-style:solid; border-color:transparent; border-width:1px;
     border-image-source:url('./assets/login/crayon-background.webp');

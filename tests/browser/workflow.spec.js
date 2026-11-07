@@ -1275,7 +1275,7 @@ test('11/7レビュー：仕分けを編集中・残り0でも元3→2を保存�
  expect(shared.state.events[0].snackDraft.fiscal.find(x=>x.lineId==='bean').qty).toBe(4);
  await expect(group.getByLabel('請求名',{exact:true})).toHaveValue('編集中の共通単価');
  await expect(page.getByRole('button',{name:'こしあんぱん 財政分 3、直接入力する',exact:true})).toBeVisible();
- await setQty(page,'りんごデニッシュ（涼） 共通単価の対象数',13);
+ await setQty(group,'りんごデニッシュ（涼） 共通単価の対象数',13);
  await page.getByRole('button',{name:'共通単価分を保存',exact:true}).click();
  await expect(group).toContainText('対象 24個');
  expect(shared.state.events[0].snackDraft.groups[0]).toMatchObject({id:'original-common',unitPrice:150,priceMode:'manual'});
@@ -1330,7 +1330,8 @@ test('11/7レビュー：実ログイン背景・ロゴ・フォームを3幅と
   for(const name of ['メールアドレス','パスワード']){const box=await page.getByLabel(name,{exact:true}).boundingBox();expect(box.width).toBeGreaterThan(200);expect(box.height).toBeGreaterThanOrEqual(40);}
   await expect(page.locator('.school-logo')).toHaveAttribute('src',/ohisama_header_logo/);await expect(page.locator('.login-brand')).toHaveAttribute('src',/wappan_title_logo_display/);
   await page.screenshot({path:`test-results/nov7-login-${width}.png`,fullPage:true});
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const dimensions=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth,decoration:getComputedStyle(document.getElementById('root'),'::before').width}));
+  expect(dimensions.scroll,JSON.stringify(dimensions)).toBeLessThanOrEqual(dimensions.viewport);
  }
  await page.setViewportSize({width:375,height:812});await login(page);
  await expect(page.locator('.workspace-header')).toBeVisible();
