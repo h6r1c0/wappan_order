@@ -1329,6 +1329,9 @@ test('11/7レビュー：実ログイン背景・ロゴ・フォームを3幅と
   const root=page.locator('#root');expect(await root.evaluate(el=>getComputedStyle(el,'::before').borderImageSource)).toContain('crayon-background');
   for(const name of ['メールアドレス','パスワード']){const box=await page.getByLabel(name,{exact:true}).boundingBox();expect(box.width).toBeGreaterThan(200);expect(box.height).toBeGreaterThanOrEqual(40);}
   await expect(page.locator('.school-logo')).toHaveAttribute('src',/ohisama_header_logo/);await expect(page.locator('.login-brand')).toHaveAttribute('src',/wappan_title_logo_display/);
+  const header=await page.locator('.login-header').boundingBox(),brand=await page.locator('.login-brand').boundingBox();
+  const artworkHeight=await page.locator('.login-header').evaluate(el=>parseFloat(getComputedStyle(el,'::before').height));
+  expect(header.y+artworkHeight).toBeLessThanOrEqual(brand.y+1);
   await page.screenshot({path:`test-results/nov7-login-${width}.png`,fullPage:true});
   const dimensions=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth,decoration:getComputedStyle(document.getElementById('root'),'::before').width}));
   expect(dimensions.scroll,JSON.stringify(dimensions)).toBeLessThanOrEqual(dimensions.viewport);
