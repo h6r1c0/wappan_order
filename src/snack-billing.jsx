@@ -1,7 +1,7 @@
 import React,{useState,useEffect,useRef} from 'react';
 import {useApp,Button,Field,Money,Qty,BuyerPicker} from './ui';
 import {BuyerQuantityGrid} from './buyer-quantity-grid.jsx';
-import {yen,correctSnackToSalesTransfer,soldQty} from './domain';
+import {yen,correctSnackToSalesTransfer,soldQty,snackTransferLimits,validate} from './domain';
 import {saveSnackSection,confirmSnackPlan,emptySnackPlan,suggestedSnackPrice,suggestedGroupPrice,snackQuantityRows,mergeSnackGroups} from './snack-billing.js';
 import {receivedQuantity} from './shortages.js';
 
@@ -18,6 +18,7 @@ export function SnackBilling({event,onTransfer}){
   const [saved,setSaved]=useState('');
   const [mergeTarget,setMergeTarget]=useState({});
   const [correction,setCorrection]=useState(null),[correctionQty,setCorrectionQty]=useState(0),[correctionReason,setCorrectionReason]=useState('');
+  const [correctionError,setCorrectionError]=useState('');
   const persisted=useRef(JSON.stringify(event.snackDraft||event.billing||emptySnackPlan()));
   useEffect(()=>{
     const next=JSON.stringify(event.snackDraft||event.billing||emptySnackPlan());
@@ -93,15 +94,22 @@ export function SnackBilling({event,onTransfer}){
         const stocks=state.stocks.filter(st=>st.eventLineId===x.line.id&&st.qty>0);
         return <div className="snack-billing-row" key={x.line.id}><span>{x.line.name}<small>入荷 {x.received}個 ／ 販売へ {x.retail}個 ／ 残り {x.unassigned}個</small></span>
           {x.unassigned>0&&<button type="button" className="text-action" disabled={x.line.cost==null||unsaved} onClick={()=>onTransfer(x.line)}>数量を指定して振替 ›</button>}
-          {stocks.map(st=><div className="snack-transfer-entry" key={st.id}><span>振替済み {st.qty}個{soldQty(state,st.id)>0?` ／ 販売済み ${soldQty(state,st.id)}個`:''}</span>
-            <button type="button" className="text-action" disabled={unsaved} onClick={()=>{setCorrection(st.id);setCorrectionQty(st.qty);setCorrectionReason('');setError('');}}>数量を訂正</button>
-            {correction===st.id&&<div className="snack-transfer-correction"><Qty label={`${x.line.name} 訂正後の振替数`} value={correctionQty} min={0} max={x.received} onChange={setCorrectionQty}/>
+          {stocks.map(st=>{const limits=snackTransferLimits(state,st.id);return <div className="snack-transfer-entry" key={st.id}><span>振替済み {st.qty}個{soldQty(state,st.id)>0?` ／ 販売済み ${soldQty(state,st.id)}個`:''}</span>
+            <button type="button" className="text-action" onClick={()=>{setCorrection(st.id);setCorrectionQty(st.qty);setCorrectionReason('');setCorrectionError('');}}>数量を訂正</button>
+            {correction===st.id&&<div className="snack-transfer-correction" role="region" aria-label={`${x.line.name}の振替数量訂正`}>
+              <p>販売済み {limits.sold}個 ／ 再振替済み {limits.moved}個 ／ 訂正可能な最小数量 {limits.minimum}個</p>
+              {limits.unused===0&&<p>未使用の在庫はありません。減らすには先に販売・再振替の記録を確認してください。</p>}
+              {unsaved&&<p className="notice">仕分けの編集中の値は保持し、振替数量の訂正だけを保存します。仕分けは引き続き編集できます。</p>}
+              <Qty label={`${x.line.name} 訂正後の振替数`} value={correctionQty} min={limits.minimum} max={Math.max(st.qty,limits.maximum)} onChange={qty=>{setCorrectionQty(qty);setCorrectionError('');}}/>
               <Field label="訂正理由"><input value={correctionReason} onChange={e=>setCorrectionReason(e.target.value)}/></Field>
-              <Button secondary disabled={!correctionReason.trim()||correctionQty===st.qty} onClick={async()=>{try{const probe=structuredClone(state);correctSnackToSalesTransfer(probe,st.id,correctionQty,correctionReason);setError('');
-                if(await save(s=>correctSnackToSalesTransfer(s,st.id,correctionQty,correctionReason),'おやつから販売用への振替数量を訂正')){setCorrection(null);setSaved(`振替を ${st.qty}個から ${correctionQty}個へ訂正しました。`);}}
-                catch(e){setError(e.message);}}}>訂正を保存</Button>
+              {correctionError&&<p role="alert">{correctionError}</p>}
+              <Button secondary disabled={!correctionReason.trim()||correctionQty===st.qty} onClick={async()=>{try{const probe=structuredClone(state);correctSnackToSalesTransfer(probe,st.id,correctionQty,correctionReason);validate(probe);setCorrectionError('');
+                if(await save(s=>correctSnackToSalesTransfer(s,st.id,correctionQty,correctionReason),'おやつから販売用への振替数量を訂正')){setCorrection(null);setSaved(`振替を ${st.qty}個から ${correctionQty}個へ訂正しました。仕分けの編集中の値は保持しています。`);}
+                else setCorrectionError('保存できませんでした。お知らせの理由を確認して再試行してください。入力内容は保持しています。');}
+                catch(e){setCorrectionError(e.message);}}}>訂正を保存</Button>
               <button type="button" className="text-action" onClick={()=>setCorrection(null)}>閉じる</button></div>}
-          </div>)}</div>;
+            {!!st.transferHistory?.length&&<details className="snack-transfer-history"><summary>振替数量の訂正履歴</summary>{st.transferHistory.map((h,i)=><p key={i}>{h.previous}個 → {h.updated}個：{h.reason}</p>)}</details>}
+          </div>;})}</div>;
       })}
       <h4>財政請求</h4>
       {primaryLines.map(fiscalRow)}

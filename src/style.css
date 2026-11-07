@@ -2803,3 +2803,35 @@ header small {
   .profit-card-value { font-size:1rem; }
   .profit-card-value strong { font-size:1.55rem; }
 }
+
+/* Login only: preserve the illustrated edges; extend only the empty paper centre. */
+@media screen {
+  body:has(#root > .login-header) { background:#fff8e8; }
+  #root:has(> .login-header) {
+    --login-canvas-width:min(100vw,500px);
+    position:relative; isolation:isolate;
+    min-height:max(100svh,760px,calc(var(--login-canvas-width) * 1.777778));
+    background:#fff8e8;
+  }
+  #root:has(> .login-header)::before {
+    content:''; position:absolute; inset:0; width:var(--login-canvas-width); margin-inline:auto;
+    pointer-events:none; z-index:-1;
+    border-style:solid; border-color:transparent; border-width:1px;
+    border-image-source:url('./assets/login/crayon-background.webp');
+    border-image-slice:420 0 536 fill;
+    border-image-width:calc(var(--login-canvas-width) * .486111) 0 calc(var(--login-canvas-width) * .620370);
+    border-image-repeat:stretch;
+  }
+  #root > header.login-header { background:transparent; padding-left:8px; padding-right:8px; }
+  #root > header.login-header .school-logo {
+    background:#fff8e8; box-shadow:0 0 10px 7px #fff8e8;
+  }
+  #root:has(> .login-header) main.login,
+  #root:has(> .login-header) .login form { background:transparent; }
+  #root:has(> .login-header) .login { padding-bottom:30px; }
+  #root:has(> .login-header) .login .field input { background:rgba(255,255,255,.9); }
+  .snack-transfer-correction [role='alert'] { color:#8e253e; }
+}
+
+.snack-transfer-history { flex:1 0 100%; font-size:.85rem; }
+.snack-transfer-history p { overflow-wrap:anywhere; }

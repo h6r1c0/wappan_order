@@ -6,6 +6,8 @@ import { setSalesOrderQuantities, upgrade } from "../../src/commerce.js";
 import { saveOtherSale } from "../../src/other-sales.js";
 import {saveSnackSection} from '../../src/snack-billing.js';
 import {transferStockToSnack} from '../../src/snack-transfer.js';
+import {transferEditingFixture} from '../fixtures/transfer-editing.js';
+import {moveStock} from '../../src/commerce.js';
 import * as XLSX from "xlsx";
 import fs from "node:fs/promises";
 async function qaFont(page) {
@@ -1253,4 +1255,84 @@ test('11/6レビュー Work4：過去の未充当受取を保持して今回分�
   await expect(row.getByRole('button',{name:'今回分受取'})).toHaveCount(0);
   expect(shared.state.collectionEntries).toHaveLength(3);
   expect(shared.state.collectionCorrections).toHaveLength(1);
+});
+
+
+test('11/7レビュー：仕分けを編集中・残り0でも元3→2を保存し、戻した1個を既存共通単価へ追加する',async({page,context})=>{
+ const fixture=transferEditingFixture(),shared={state:fixture.s,revision:0};
+ await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+ const group=page.locator('.snack-group').first();
+ await group.getByLabel('請求名',{exact:true}).fill('編集中の共通単価');
+ await setQty(page,'こしあんぱん 財政分',3);
+ const entry=page.locator('.snack-transfer-entry').filter({hasText:'振替済み 3個'});
+ await expect(entry.getByRole('button',{name:'数量を訂正'})).toBeEnabled();await entry.getByRole('button',{name:'数量を訂正'}).click();
+ const editor=page.getByRole('region',{name:'りんごデニッシュ（涼）の振替数量訂正'});
+ await expect(editor).toContainText('仕分けの編集中の値は保持');await expect(editor).toContainText('訂正可能な最小数量 0個');
+ await setQty(page,'りんごデニッシュ（涼） 訂正後の振替数',2);await editor.getByLabel('訂正理由').fill('販売実績を確認して訂正');
+ await editor.getByRole('button',{name:'訂正を保存'}).click();
+ await expect(entry).toContainText('振替済み 2個');
+ expect(shared.state.stocks.find(x=>x.id===fixture.apple.id).qty).toBe(2);
+ expect(shared.state.events[0].snackDraft.fiscal.find(x=>x.lineId==='bean').qty).toBe(4);
+ await expect(group.getByLabel('請求名',{exact:true})).toHaveValue('編集中の共通単価');
+ await expect(page.getByRole('button',{name:'こしあんぱん 財政分 3、直接入力する',exact:true})).toBeVisible();
+ await setQty(page,'りんごデニッシュ（涼） 共通単価の対象数',13);
+ await page.getByRole('button',{name:'共通単価分を保存',exact:true}).click();
+ await expect(group).toContainText('対象 24個');
+ expect(shared.state.events[0].snackDraft.groups[0]).toMatchObject({id:'original-common',unitPrice:150,priceMode:'manual'});
+ expect(shared.state.events[0].snackDraft.household.find(x=>x.groupId).qty).toBe(24);
+ await page.getByRole('button',{name:'財政分を保存',exact:true}).click();
+ for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await entry.scrollIntoViewIfNeeded();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/nov7-corrected-${width}.png`});}
+ await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+ await expect(page.locator('.snack-transfer-entry').filter({hasText:'振替済み 2個'})).toBeVisible();
+ await expect(page.locator('.snack-group').first()).toContainText('対象 24個');
+ expect(shared.state.stocks.find(x=>x.id===fixture.apple.id).transferHistory.at(-1)).toMatchObject({previous:3,updated:2,reason:'販売実績を確認して訂正'});
+});
+
+test('11/7レビュー：白パン5個の未使用分を訂正し、使用済みの具体的な下限も示す',async({page,context})=>{
+ const f=transferEditingFixture(),shared={state:f.s,revision:0};
+ addSale(f.s,f.white,{qty:2,date:f.r.date,destinationType:'external',paymentStatus:'paid'});moveStock(f.s,f.white,1);
+ await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+ const entry=page.locator('.snack-transfer-entry').filter({hasText:'振替済み 5個'});await entry.getByRole('button',{name:'数量を訂正'}).click();
+ const editor=page.getByRole('region',{name:'天然酵母ハイジの白パンの振替数量訂正'});
+ await expect(editor).toContainText('販売済み 2個 ／ 再振替済み 1個 ／ 訂正可能な最小数量 3個');
+ await setQty(page,'天然酵母ハイジの白パン 訂正後の振替数',3);await editor.getByLabel('訂正理由').fill('未使用2個をおやつへ戻す');
+ await editor.getByRole('button',{name:'訂正を保存'}).click();
+ const updated=page.locator('.snack-transfer-entry').filter({hasText:'振替済み 3個'}).filter({hasText:'販売済み 2個'});
+ await updated.getByRole('button',{name:'数量を訂正'}).click();await expect(editor).toContainText('未使用の在庫はありません');
+ await expect(editor.getByRole('button',{name:'天然酵母ハイジの白パン 訂正後の振替数を減らす'})).toBeDisabled();
+ expect(shared.state.stocks.find(x=>x.id===f.white.id).qty).toBe(3);expect(shared.state.sales[0].qty).toBe(2);
+ for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await editor.screenshot({path:`test-results/nov7-white-limits-${width}.png`});}
+ await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+ await expect(page.locator('.snack-transfer-entry').filter({hasText:'販売済み 2個'})).toContainText('振替済み 3個');
+});
+
+test('11/7レビュー：保存競合でも訂正値と別区分の編集を保持し、再試行で一度だけ保存',async({page,context})=>{
+ const f=transferEditingFixture(),shared={state:f.s,revision:0};await backend(context,shared);
+ let fail=true;await context.route('https://test.supabase.co/rest/v1/rpc/wappan_save',async route=>{if(fail){fail=false;return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({code:'40001',message:'CONFLICT'}),headers:{'access-control-allow-origin':'*'}});}return route.fallback();});
+ await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+ await page.locator('.snack-group').first().getByLabel('請求名',{exact:true}).fill('保存前の編集');
+ await page.locator('.snack-transfer-entry').filter({hasText:'振替済み 3個'}).getByRole('button',{name:'数量を訂正'}).click();
+ const editor=page.getByRole('region',{name:'りんごデニッシュ（涼）の振替数量訂正'});
+ await setQty(page,'りんごデニッシュ（涼） 訂正後の振替数',2);await editor.getByLabel('訂正理由').fill('数量を確認');await editor.getByRole('button',{name:'訂正を保存'}).click();
+ await expect(editor.getByRole('alert')).toContainText('入力内容は保持');await expect(editor.getByLabel('訂正理由')).toHaveValue('数量を確認');
+ expect(shared.state.stocks.find(x=>x.id===f.apple.id).qty).toBe(3);
+ await editor.getByRole('button',{name:'訂正を保存'}).click();await expect(editor).toHaveCount(0);
+ expect(shared.state.stocks.find(x=>x.id===f.apple.id).transferHistory).toHaveLength(1);
+ await expect(page.locator('.snack-group').first().getByLabel('請求名',{exact:true})).toHaveValue('保存前の編集');
+});
+
+test('11/7レビュー：実ログイン背景・ロゴ・フォームを3幅とPCで検証し、認証後は背景を外す',async({page,context})=>{
+ await backend(context,{state:preparedState(),revision:0});await page.goto('/');
+ await expect(page.getByRole('button',{name:'ログイン',exact:true})).toBeVisible();
+ for(const {width,height} of [{width:320,height:667},{width:375,height:812},{width:430,height:932},{width:1280,height:900}]){
+  await page.setViewportSize({width,height});
+  const root=page.locator('#root');expect(await root.evaluate(el=>getComputedStyle(el,'::before').borderImageSource)).toContain('crayon-background');
+  for(const name of ['メールアドレス','パスワード']){const box=await page.getByLabel(name,{exact:true}).boundingBox();expect(box.width).toBeGreaterThan(200);expect(box.height).toBeGreaterThanOrEqual(40);}
+  await expect(page.locator('.school-logo')).toHaveAttribute('src',/ohisama_header_logo/);await expect(page.locator('.login-brand')).toHaveAttribute('src',/wappan_title_logo_display/);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:`test-results/nov7-login-${width}.png`,fullPage:true});
+ }
+ await page.setViewportSize({width:375,height:812});await login(page);
+ await expect(page.locator('.workspace-header')).toBeVisible();
+ expect(await page.locator('#root').evaluate(el=>getComputedStyle(el,'::before').borderImageSource)).toBe('none');
 });
