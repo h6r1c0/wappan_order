@@ -32,12 +32,14 @@ test('Work4: 過去の未充当受取を動かさず今回分を一度だけ受�
  const s=initialState(),old=newRound(s,'2026-09-11');s.rounds.push(old);
  old.orders.hori={name:'堀',quantities:{brown:2}};
  const current=newRound(s,'2026-10-16');s.rounds.push(current);current.orders.hori={name:'堀',quantities:{brown:1}};
- s.collectionEntries.push({id:'old-cash',roundId:old.id,buyerId:'hori',date:'2026-09-11',received:100,adjustment:0});
+ s.collectionEntries.push({id:'old-cash',roundId:old.id,buyerId:'hori',date:'2026-09-11',received:100,adjustment:0,note:'過去分の受取'});
+ validate(s);
  const item=collectionDueItems(s,current.id,'hori').items.find(x=>x.roundId===current.id);
  assert.equal(collectionPosition(s,current.id,'hori').unallocated,100);
  assert.equal(canReceiveDueItem(s,current.id,'hori',item),true);
  const original=structuredClone(s.collectionEntries),amount=item.balance;
  const received=receiveDueItem(s,current.id,'hori',item.id);
+ validate(s);
  assert.equal(received.received,amount);assert.deepEqual(s.collectionEntries[0],original[0]);
  assert.equal(collectionPosition(s,current.id,'hori').unallocated,100);
  assert.throws(()=>receiveDueItem(s,current.id,'hori',item.id),/未収/);

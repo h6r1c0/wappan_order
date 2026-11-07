@@ -1234,7 +1234,7 @@ test('11/6レビュー Work4：過去の未充当受取を保持して今回分�
   const shared={state:preparedState(),revision:0};
   const old=newRound(shared.state,'2026-09-11',true);old.collectionLive=true;old.orders.asano={name:'浅野',quantities:{brown:3}};shared.state.rounds.push(old);
   const r=newRound(shared.state,'2026-10-16',true);r.status='納品済み';r.shortageConfirmation='none';r.orders.asano={name:'浅野',quantities:{brown:1}};shared.state.rounds.push(r);
-  const original={id:'past-cash',roundId:old.id,buyerId:'asano',date:old.date,received:100,adjustment:0};shared.state.collectionEntries.push(original);
+  const original={id:'past-cash',roundId:old.id,buyerId:'asano',date:old.date,received:100,adjustment:0,note:'過去分の受取'};shared.state.collectionEntries.push(original);
   await backend(context,shared);await login(page);await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();await page.locator('.stage-4 > .stage-trigger').click();
   const row=page.locator('.collection-entry[data-buyer="asano"]');
   await expect(row.getByRole('button',{name:'今回分受取'})).toBeVisible();
