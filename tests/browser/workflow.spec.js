@@ -1169,8 +1169,9 @@ test('11/6レビュー：過去回の受取と今回の未受取を分け、氏�
   await expect(row.locator('.collection-context')).toContainText('前回未収 56円');
   await expect(row.getByRole('button',{name:'今回分受取'})).toBeVisible();
   await row.locator('.collection-open').click();
-  await expect(row.locator('.collection-expanded')).toContainText('2026-09-11分の受取');
-  await expect(row.locator('.collection-expanded')).toContainText('受取記録日 2026-10-23');
+  await row.getByRole('button',{name:'請求・過去の履歴を調べる'}).click();
+  await expect(row.locator('.collection-expanded')).toContainText('2026-09-11 請求分未収 56円');
+  await expect(row.locator('.collection-history')).toContainText('2026-10-23 実際受取 1,234円');
   await row.locator('.collection-open').click();
   await expect(row.locator('.collection-context')).toContainText('前回未収 56円');
   await page.locator('.collection-completed > summary').click();
