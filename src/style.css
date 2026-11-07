@@ -2827,7 +2827,7 @@ header small {
   #root > header.login-header { background:transparent; padding-left:8px; padding-right:8px; }
   #root > header.login-header::before {
     content:''; position:absolute; top:0; right:0; z-index:-1; pointer-events:none;
-    width:160px; aspect-ratio:864 / 420;
+    width:144px; aspect-ratio:864 / 420;
     background:url('./assets/login/crayon-background.webp') center top / 100% auto no-repeat;
   }
   #root:has(> .login-header) main.login,
