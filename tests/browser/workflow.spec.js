@@ -1372,16 +1372,16 @@ test('11/7集金再確認：旧受取を二重未収にせず終了、次回は�
  }
  await backend(context,shared);await login(page);
  await page.locator('.round-list-item').filter({hasText:'2026/09/11'}).click();await page.locator('.stage-4 > .stage-trigger').click();
- await expect(page.locator('.collection-entry').filter({hasText:'淺野'}).locator('.collection-open')).toContainText('受取済み');
+ await expect(page.locator('.collection-entry[data-buyer="asano"] .collection-open')).toContainText('受取済み');
  await page.getByRole('button',{name:'‹ 注文一覧へ'}).click();
  await page.locator('.round-list-shell').filter({hasText:'2026/09/11'}).locator('.round-list-menu > summary').click();
  await page.getByRole('button',{name:'未収を残して今回分を終了'}).click();
  await expect(page.getByText('今回分の未収：1人 ／ 380円')).toBeVisible();
- await expect(page.locator('.close-people')).not.toContainText('淺野');
+ await expect(page.locator('.close-people')).not.toContainText('浅野');
  await page.getByRole('button',{name:'未収を残して今回分を終了'}).last().click();
  expect(shared.state.rounds[0].collectionClose).toBeTruthy();expect(shared.state.collectionEntries).toHaveLength(4);
  await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();await page.locator('.stage-4 > .stage-trigger').click();
- const asano=page.locator('.collection-entry').filter({hasText:'淺野'}),hori=page.locator('.collection-entry').filter({hasText:'堀'});
+ const asano=page.locator('.collection-entry[data-buyer="asano"]'),hori=page.locator('.collection-entry[data-buyer="hori"]');
  await expect(asano.getByRole('button',{name:'全額受取'})).toBeVisible();
  await expect(hori.getByRole('button',{name:'未収分受取'})).toBeVisible();
  await expect(hori.getByRole('button',{name:'今回分受取'})).toBeVisible();
