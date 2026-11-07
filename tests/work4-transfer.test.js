@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {initialState,newRound,transfer,correctSnackToSalesTransfer,addSale,stockRemaining,report,collections,validate,collectionPosition,collectionDueItems} from '../src/domain.js';
 import {moveStock} from '../src/commerce.js';
 import {saveSnackSection} from '../src/snack-billing.js';
-import {canReceiveDueItem,receiveDueItem} from '../src/collection-workflow.js';
+import {canReceiveDueItem,receiveDueItem,correctCollectionRecord} from '../src/collection-workflow.js';
 
 test('Work4: 販売・再振替の2個を守り、3→2訂正で原価・売上・請求・現金原本は変わらない',()=>{
  const s=initialState(),r=newRound(s,'2026-10-16');s.rounds.push(r);
@@ -41,6 +41,11 @@ test('Work4: 過去の未充当受取を動かさず今回分を一度だけ受�
  assert.equal(received.received,amount);assert.deepEqual(s.collectionEntries[0],original[0]);
  assert.equal(collectionPosition(s,current.id,'hori').unallocated,100);
  assert.throws(()=>receiveDueItem(s,current.id,'hori',item.id),/未収/);
+ correctCollectionRecord(s,'collectionEntries',received.id,'操作ミス（現金の受取なし）');
+ const retried=receiveDueItem(s,current.id,'hori',item.id);
+ assert.notEqual(retried.requestId,received.requestId);
+ assert.equal(collectionDueItems(s,current.id,'hori').items.find(x=>x.id===item.id).balance,0);
+ assert.deepEqual(s.collectionEntries[0],original[0]);
  const other=structuredClone(s);other.collectionEntries=original;
  other.collectionEntries[0].roundId=current.id;
  assert.equal(canReceiveDueItem(other,current.id,'hori',item),false);

@@ -57,12 +57,12 @@ export function SnackBilling({event,onTransfer}){
   };
   const status=snackQuantityRows(state,event,draft).filter(x=>x.received>0);
   const visibleLines=status.map(x=>x.line);
-  const matchedOriginal=l=>visibleLines.some(p=>!p.sourceStockId&&p.productId===l.productId&&p.name===l.name&&p.cost===l.cost);
+  const matchedOriginal=l=>!!l.productId&&visibleLines.some(p=>!p.sourceStockId&&p.productId===l.productId&&p.name===l.name&&p.cost===l.cost);
   const primaryLines=visibleLines.filter(l=>!l.sourceStockId||!matchedOriginal(l));
   const inboundLines=visibleLines.filter(l=>l.sourceStockId&&matchedOriginal(l));
   const quantitySummary=[];
   for(const row of status){
-    const primary=row.line.sourceStockId&&quantitySummary.find(x=>x.line.productId===row.line.productId&&x.line.name===row.line.name&&x.line.cost===row.line.cost);
+    const primary=row.line.sourceStockId&&row.line.productId&&quantitySummary.find(x=>x.line.productId===row.line.productId&&x.line.name===row.line.name&&x.line.cost===row.line.cost);
     if(primary){for(const key of ['ordered','received','used','retail','fiscal','direct','common','unassigned','excess'])primary[key]+=row[key];primary.parts.push(row);}
     else quantitySummary.push({...row,parts:[row]});
   }

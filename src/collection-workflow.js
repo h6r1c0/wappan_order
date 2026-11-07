@@ -193,7 +193,7 @@ export function receiveDueItem(state,roundId,buyerId,itemId){
   if(!canReceiveDueItem(state,roundId,buyerId,due))throw Error('保存済みの受取の充当先を先に確認してください');
   return receiveCollection(state,{roundId,buyerId,received:due.balance,
     reason:due.balance===position.balance?'':'一部しか受け取っていない',itemId,
-    requestId:`claim:${roundId}:${buyerId}:${itemId}`});
+    requestId:`claim:${roundId}:${buyerId}:${itemId}:${(state.collectionEntries||[]).filter(e=>e.roundId===roundId&&e.buyerId===buyerId&&e.itemId===itemId).length}`});
 }
 
 export function adjustReceivable(state,{roundId,buyerId,amount,reason}){

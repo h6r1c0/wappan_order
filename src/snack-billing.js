@@ -102,7 +102,7 @@ export function snackQuantityRows(state,event,plan=event.snackDraft||event.billi
     const common=sum((plan?.groups||[]).map(g=>g.quantities?.[line.id]||0));
     const retail=sum((state.stocks||[]).filter(st=>st.eventLineId===line.id&&!st.cancelled).map(st=>st.qty));
     const received=receivedQuantity(line),allocated=fiscal+direct+common,used=allocated;
-    return {line,ordered:line.qty,received,used,retail,fiscal,direct,common,allocated,
+    return {line,ordered:line.sourceStockId?0:line.qty,received,used,retail,fiscal,direct,common,allocated,
       unassigned:received-used-retail,unused:received-used-retail,
       excess:Math.max(0,allocated+retail-received)};
   });

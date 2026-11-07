@@ -1245,4 +1245,8 @@ test('11/6レビュー Work4：過去の未充当受取を保持して今回分�
   expect(shared.state.collectionAllocations||[]).toHaveLength(0);
   await page.locator('.collection-undo button').click();
   await expect(row.getByRole('button',{name:'今回分受取'})).toBeVisible();
+  await row.getByRole('button',{name:'今回分受取'}).click();
+  await expect(row.getByRole('button',{name:'今回分受取'})).toHaveCount(0);
+  expect(shared.state.collectionEntries).toHaveLength(3);
+  expect(shared.state.collectionCorrections).toHaveLength(1);
 });

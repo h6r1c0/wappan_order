@@ -81,6 +81,7 @@ test('注文時の用途に納品後の販売用からの振替を混ぜず、�
  s.stocks.push(stock);r.stockIds.push(stock.id);
  const moved=transferStockToSnack(s,stock.id,e.id,1);
  assert.equal(moved.sourceStockId,stock.id);
+ assert.equal(snackQuantityRows(s,e).find(x=>x.line.id===moved.id).ordered,0);
  assert.equal(snackOrderQuantities(s,r.id)[productId],26);
  const snapshot=structuredClone(moved);
  setSnackOrderQuantities(s,r.id,{[productId]:26});
