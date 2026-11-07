@@ -101,6 +101,7 @@ export function SnackBilling({event,onTransfer}){
           {x.unassigned>0&&<button type="button" className="text-action" disabled={x.line.cost==null||unsaved} onClick={()=>onTransfer(x.line)}>数量を指定して振替 ›</button>}
           {stocks.map(st=>{const limits=snackTransferLimits(state,st.id);return <div className="snack-transfer-entry" key={st.id}>
             <Qty label={`${x.line.name} 販売用振替の保存済み数量を訂正`} value={correction===st.id?correctionQty:st.qty} min={limits.minimum} max={Math.max(st.qty,limits.maximum)} onChange={qty=>{setCorrection(st.id);setCorrectionQty(qty);setCorrectionReason('');setCorrectionError('');}}/>
+            {limits.unused===0&&<small>減らせません：販売済み {limits.sold}個、再振替済み {limits.moved}個。最小 {limits.minimum}個</small>}
             {correction===st.id&&correctionQty!==st.qty&&<div className="snack-transfer-correction" role="region" aria-label={`${x.line.name}の振替数量訂正`}>
               <p>販売済み {limits.sold}個 ／ 再振替済み {limits.moved}個 ／ 訂正可能な最小数量 {limits.minimum}個</p>
               {limits.unused===0&&<p>未使用の在庫はありません。減らすには先に販売・再振替の記録を確認してください。</p>}

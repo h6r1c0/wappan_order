@@ -2843,7 +2843,7 @@ header small {
 /* 11/7 device review: the paper stays intact across the entire upper edge. */
 @media screen {
   #root:has(> .login-header)::before { mask-image:none; }
-  #root > header.login-header { padding-top:calc(var(--login-canvas-width) * .28); min-height:calc(135px + var(--login-canvas-width) * .28); }
+  #root > header.login-header { padding-top:calc(var(--login-canvas-width) * .31); min-height:calc(135px + var(--login-canvas-width) * .31); }
   #root > header.login-header::before { content:none; }
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-full:not(.secondary):not(.danger),
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-current:not(.secondary):not(.danger),

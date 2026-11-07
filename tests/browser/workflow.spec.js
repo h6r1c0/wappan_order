@@ -1292,7 +1292,7 @@ test('11/7レビュー：仕分けを編集中・残り0でも元3→2を保存�
  await snackStep(page,'販売用へ振替');
  for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await entry.scrollIntoViewIfNeeded();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/nov7-corrected-${width}.png`});}
  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
- await snackStep(page,'販売用へ振替');await expect(page.locator('.snack-transfer-entry').filter({hasText:'りんごデニッシュ（涼）'})).toContainText('2');
+ await snackStep(page,'販売用へ振替');await expect(page.locator('.snack-billing-row').filter({hasText:'りんごデニッシュ（涼）'}).locator('.snack-transfer-entry')).toContainText('2');
  await snackStep(page,'共通単価請求');
  await expect(page.locator('.snack-group').first()).toContainText('対象 24個');
  expect(shared.state.stocks.find(x=>x.id===fixture.apple.id).transferHistory.at(-1)).toMatchObject({previous:3,updated:2,reason:'販売実績を確認して訂正'});
@@ -1302,18 +1302,19 @@ test('11/7レビュー：白パン5個の未使用分を訂正し、使用済み
  const f=transferEditingFixture(),shared={state:f.s,revision:0};
  addSale(f.s,f.white,{qty:2,date:f.r.date,destinationType:'external',paymentStatus:'paid'});moveStock(f.s,f.white,1);
  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
- await snackStep(page,'販売用へ振替');const entry=page.locator('.snack-transfer-entry').filter({hasText:'天然酵母ハイジの白パン'});
+ await snackStep(page,'販売用へ振替');const entry=page.locator('.snack-billing-row').filter({hasText:'天然酵母ハイジの白パン'}).locator('.snack-transfer-entry');
  await setQty(page,'天然酵母ハイジの白パン 販売用振替の保存済み数量を訂正',3);
  const editor=page.getByRole('region',{name:'天然酵母ハイジの白パンの振替数量訂正'});
  await expect(editor).toContainText('販売済み 2個 ／ 再振替済み 1個 ／ 訂正可能な最小数量 3個');
  await editor.getByLabel('訂正理由').fill('未使用2個をおやつへ戻す');
  await editor.getByRole('button',{name:'訂正を保存'}).click();
- const updated=page.locator('.snack-transfer-entry').filter({hasText:'天然酵母ハイジの白パン'});
+ const updated=page.locator('.snack-billing-row').filter({hasText:'天然酵母ハイジの白パン'}).locator('.snack-transfer-entry');
  await expect(updated.getByRole('button',{name:'天然酵母ハイジの白パン 販売用振替の保存済み数量を訂正を減らす'})).toBeDisabled();
+ await expect(updated).toContainText('販売済み 2個、再振替済み 1個。最小 3個');
  expect(shared.state.stocks.find(x=>x.id===f.white.id).qty).toBe(3);expect(shared.state.sales[0].qty).toBe(2);
- for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await editor.screenshot({path:`test-results/nov7-white-limits-${width}.png`});}
+ for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await updated.screenshot({path:`test-results/nov7-white-limits-${width}.png`});}
  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
- await snackStep(page,'販売用へ振替');await expect(page.locator('.snack-transfer-entry').filter({hasText:'天然酵母ハイジの白パン'})).toContainText('3');
+ await snackStep(page,'販売用へ振替');await expect(page.locator('.snack-billing-row').filter({hasText:'天然酵母ハイジの白パン'}).locator('.snack-transfer-entry')).toContainText('3');
 });
 
 test('11/7レビュー：保存競合でも訂正値と別区分の編集を保持し、再試行で一度だけ保存',async({page,context})=>{
