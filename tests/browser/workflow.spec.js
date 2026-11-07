@@ -1389,6 +1389,7 @@ test('11/7集金再確認：旧受取を二重未収にせず終了、次回は�
   for(const pay of ['pay-full','pay-current','pay-past']){
    const button=page.locator('.collection-pay.'+pay).first();
    expect(await button.evaluate(x=>getComputedStyle(x).color)).toBe('rgb(255, 255, 255)');
+   expect(await button.evaluate(x=>getComputedStyle(x).backgroundImage)).toContain('red-deep');
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:`test-results/nov7-collection-repair-${width}.png`});

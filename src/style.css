@@ -2848,14 +2848,14 @@ header small {
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-full:not(.secondary):not(.danger),
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-current:not(.secondary):not(.danger),
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-past:not(.secondary):not(.danger) {
-    color:#fff; background-image:linear-gradient(rgba(200,43,108,.92),rgba(200,43,108,.92)),url('./assets/pencil/red-deep.png');
+    color:#fff; background-image:linear-gradient(rgba(195,6,89,.78),rgba(195,6,89,.78)),url('./assets/pencil/red-deep.png');
     background-size:100% 100%; border:0; text-shadow:0 1px 1px #71304a;
   }
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-current:not(.secondary):not(.danger) {
-    background-image:linear-gradient(rgba(192,54,111,.92),rgba(192,54,111,.92)),url('./assets/pencil/red-deep.png');
+    background-image:linear-gradient(rgba(190,14,95,.75),rgba(190,14,95,.75)),url('./assets/pencil/red-deep.png');
   }
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-past:not(.secondary):not(.danger) {
-    background-image:linear-gradient(rgba(180,70,116,.94),rgba(180,70,116,.94)),url('./assets/pencil/red-deep.png');
+    background-image:linear-gradient(rgba(180,20,90,.70),rgba(180,20,90,.70)),url('./assets/pencil/red-deep.png');
   }
   .snack-billing-preview:after { content:none; }
   .snack-scroll-hint { text-align:left; margin:10px 0 3px; }
