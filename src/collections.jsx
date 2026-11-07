@@ -34,7 +34,8 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
   const pastDue=dueOptions.filter(x=>x.roundId!==round.id);
   const singleQuick=knownQuick&&dueOptions.length===1&&!(position.received===0&&audit?.knownBag!=null&&audit.knownBag!==audit.expected);
   const separateQuick=knownQuick&&currentDue.length===1&&pastDue.length===1;
-  const currentQuick=!singleQuick&&!separateQuick&&!pending&&!audit?.issues.length&&currentDue.length===1&&
+  const currentQuick=!singleQuick&&!separateQuick&&position.balance>0&&!pending&&!audit?.issues.length&&
+    !(position.received===0&&audit?.knownBag!=null&&audit.knownBag!==audit.expected)&&currentDue.length===1&&
     canReceiveDueItem(state,round.id,buyer.id,currentDue[0]);
   const act=async(fn,description)=>{if(busy)return false;setBusy(true);try{return await save(fn,description);}finally{setBusy(false);}};
   const afterSave=()=>{setReceived(null);setReason('');setOpen(false);setInvestigate(false);request.current=uid();onDone(buyer.id);};
