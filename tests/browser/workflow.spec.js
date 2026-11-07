@@ -1169,7 +1169,11 @@ test('11/6レビュー：過去回の受取と今回の未受取を分け、氏�
     const columns=await row.evaluate(el=>{const name=el.querySelector('.collection-buyer-name').getBoundingClientRect(),amount=el.querySelector('.collection-amount').getBoundingClientRect();return {nameRight:name.right,amountLeft:amount.left};});
     expect(columns.nameRight).toBeLessThanOrEqual(columns.amountLeft);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    await row.scrollIntoViewIfNeeded();await page.screenshot({path:`test-results/nov6-collection-origin-${width}.png`});}
+    await row.scrollIntoViewIfNeeded();await page.screenshot({path:`test-results/nov6-collection-origin-${width}.png`});
+    await row.locator('.collection-open').click();
+    await row.locator('.collection-expanded').screenshot({path:`test-results/work4-collection-detail-${width}.png`});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await row.locator('.collection-open').click();}
   expect(shared.state.collectionEntries).toHaveLength(1);expect(shared.state.collectionEntries[0].roundId).toBe(old.id);
 });
 
