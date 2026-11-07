@@ -570,6 +570,7 @@ export function collectionDueItems(s, roundId, buyerId) {
   }
   const entries=(s.collectionEntries||[]).filter(e=>e.buyerId===buyerId&&eligible.some(r=>r.id===e.roundId));
   let unallocated=0;
+  const unallocatedEntryIds=[];
   for(const entry of entries){
     let amount=entry.received+entry.adjustment;
     if(amount<0){
@@ -586,23 +587,29 @@ export function collectionDueItems(s, roundId, buyerId) {
       }
       continue;
     }
-    const open=items.filter(x=>x.balance>0),outstanding=sum(open.map(x=>x.balance));
+    // An older receipt cannot become ambiguous merely because a later round
+    // added a new claim. Evaluate the claims that existed in its own round.
+    const origin=eligible.find(r=>r.id===entry.roundId);
+    const open=items.filter(x=>x.balance>0&&(x.kind==='opening'||
+      eligible.some(r=>r.id===x.roundId&&origin&&(r.date<origin.date||r.date===origin.date&&r.id<=origin.id))));
+    const outstanding=sum(open.map(x=>x.balance));
     if(!entry.itemId&&entry.received>0&&open.length>1&&amount<outstanding){
       unallocated+=amount;
+      unallocatedEntryIds.push(entry.id);
       continue;
     }
     if(entry.itemId){
       const chosen=items.find(x=>x.id===entry.itemId);
       if(chosen){const used=Math.min(amount,chosen.balance);chosen.balance-=used;amount-=used;}
     }
-    for(const item of items){
+    for(const item of open){
       const used=Math.min(amount,item.balance);item.balance-=used;amount-=used;
       if(!amount) break;
     }
     credit+=amount;
   }
   if(credit) for(const item of items){const used=Math.min(credit,item.balance);item.balance-=used;credit-=used;if(!credit)break;}
-  return {items,credit,unallocated};
+  return {items,credit,unallocated,unallocatedEntryIds};
 }
 export function collectionPosition(s, roundId, buyerId) {
   s=effectiveCollectionState(s);

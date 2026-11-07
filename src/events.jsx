@@ -390,17 +390,8 @@ function StockToSnack({event}){
  const groups=event.snackDraft?.groups||event.billing?.groups||[];
  const [groupId,setGroupId]=useState('');
  const source=sources.find(s=>s.id===stockId);
- return <details className="stock-to-snack"><summary>販売用からおやつへ振替</summary>
+ return <details className="stock-to-snack snack-work-step" name={`snack-work-${event.id}`}><summary>販売用からおやつへ振替 ／ {event.lines.some(l=>l.sourceStockId&&receivedQuantity(l)>0)?"振替保存済み":"未振替"}</summary>
   {error&&<p role="alert" className="notice">{error}</p>}
-  {event.lines.filter(l=>l.sourceStockId&&receivedQuantity(l)>0).map(l=><div className="snack-transfer-entry" key={l.id}><span>{l.name}：販売用から {l.qty}個</span>
-    <button type="button" className="text-action" onClick={()=>{setCancelLine(l.id);setCancelReason('');setError('');}}>この振替を訂正</button>
-    {cancelLine===l.id&&<div className="snack-transfer-correction"><p>この振替行を0個に戻します。元の販売記録は保持します。請求先がある場合は取り消せません。</p>
-      <Field label="訂正理由"><input value={cancelReason} onChange={e=>setCancelReason(e.target.value)}/></Field>
-      <Button secondary disabled={!cancelReason.trim()} onClick={async()=>{try{cancelStockToSnackTransfer(structuredClone(state),event.id,l.id,cancelReason);setError('');
-        if(await save(s=>cancelStockToSnackTransfer(s,event.id,l.id,cancelReason),'販売用からおやつへの振替を訂正'))setCancelLine('');}
-        catch(e){setError(e.message);}}}>訂正を保存</Button>
-      <button type="button" className="text-action" onClick={()=>setCancelLine('')}>閉じる</button></div>}
-  </div>)}
   <p className="muted">未割当の在庫から振り替えます。</p>
   <Field label="販売用の商品"><select value={stockId} onChange={e=>{setStockId(e.target.value);setUnitPrice(null);setError('');}}>
    <option value="">商品を選ぶ</option>{sources.map(st=><option value={st.id} key={st.id}>{st.name}（残り{stockRemaining(state,st)}個）</option>)}</select></Field>
@@ -430,5 +421,16 @@ function StockToSnack({event}){
      if(await save(action,'販売用からおやつへ振替し用途を保存')){setStockId('');setQty(1);setBuyerId('');setUnitPrice(null);setGroupId('');}
     }catch(e){setError(e.message);}
    }}>おやつへ振替して保存</Button></>}
+  {event.lines.some(l=>l.sourceStockId&&receivedQuantity(l)>0)&&<details className="snack-past-transfers"><summary>過去の振替と訂正</summary>
+  {event.lines.filter(l=>l.sourceStockId&&receivedQuantity(l)>0).map(l=><div className="snack-transfer-entry" key={l.id}><span>{l.name}：販売用から {l.qty}個</span>
+    <button type="button" className="text-action" onClick={()=>{setCancelLine(l.id);setCancelReason('');setError('');}}>この振替を訂正</button>
+    {cancelLine===l.id&&<div className="snack-transfer-correction"><p>この振替行を0個に戻します。元の販売記録は保持します。請求先がある場合は取り消せません。</p>
+      <Field label="訂正理由"><input value={cancelReason} onChange={e=>setCancelReason(e.target.value)}/></Field>
+      <Button secondary disabled={!cancelReason.trim()} onClick={async()=>{try{cancelStockToSnackTransfer(structuredClone(state),event.id,l.id,cancelReason);setError('');
+        if(await save(s=>cancelStockToSnackTransfer(s,event.id,l.id,cancelReason),'販売用からおやつへの振替を訂正'))setCancelLine('');}
+        catch(e){setError(e.message);}}}>訂正を保存</Button>
+      <button type="button" className="text-action" onClick={()=>setCancelLine('')}>閉じる</button></div>}
+  </div>)}
+  </details>}
  </details>;
 }

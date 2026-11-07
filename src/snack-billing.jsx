@@ -79,24 +79,29 @@ export function SnackBilling({event,onTransfer}){
   };
   const changeDirectPrice=unitPrice=>{setDirectPrice(unitPrice);change({...draft,household:draft.household.map(x=>!x.groupId&&x.lineId===selectedLine?{...x,unitPrice}:x)});};
   const unsaved=JSON.stringify(draft)!==JSON.stringify(event.snackDraft||event.billing||emptySnackPlan());
+  const stored=event.snackDraft||event.billing||emptySnackPlan();
+  const changed={fiscal:JSON.stringify(draft.fiscal)!==JSON.stringify(stored.fiscal),
+    direct:JSON.stringify(direct)!==JSON.stringify(stored.household.filter(x=>!x.groupId&&x.lineId)),
+    common:JSON.stringify([groups,draft.household.filter(x=>x.groupId)])!==JSON.stringify([stored.groups||[],stored.household.filter(x=>x.groupId)])};
+  const sectionLabel=(title,key)=>`${title} ／ ${changed[key]?'編集中・未保存':event.snackDraft?'途中保存済み':'未保存'}`;
   const fiscalRow=l=><div className="snack-billing-row" key={l.id}><span>{l.name}<small>仕入単価 {yen(l.cost)}</small></span>
     <Qty label={`${l.name} 財政分`} value={amount(draft.fiscal,l.id)} max={receivedQuantity(l)} onChange={qty=>editFiscal(l.id,qty)}/></div>;
   const buyerRow=l=><div className="snack-billing-row" key={l.id}><span>{l.name}</span>
     <Qty label={`${l.name} 割当数量`} value={quantities[l.id]?.qty||0} max={receivedQuantity(l)} onChange={qty=>setQuantities({...quantities,[l.id]:{qty,unitPrice:quantities[l.id]?.unitPrice??suggestedSnackPrice([l.cost])}})}/>
     {(quantities[l.id]?.qty||0)>0&&<Money label={`${l.name} 請求単価`} value={quantities[l.id].unitPrice} onChange={unitPrice=>setQuantities({...quantities,[l.id]:{...quantities[l.id],unitPrice}})}/>}</div>;
-  return <section className="snack-billing">
+  return <section className="snack-billing" data-unsaved={unsaved}>
     <div className="snack-billing-body">
-      <p className="muted">{event.billing?'請求確定済み':event.snackDraft?'区分保存済み・請求未確定':'請求未確定'}{unsaved?' ／ 編集中・未保存':''}</p>
+      <p className="snack-save-state" role="status">{event.billing?'おやつ請求確定済み・集金へ反映':event.snackDraft?'おやつの区分を途中保存済み・請求未確定':'おやつ請求未確定'}{unsaved?' ／ 編集中の値は未保存':''}<small>販売用の割当と振替は各操作で保存されます。おやつの区分保存は請求確定前の途中保存です。</small></p>
       <details className="snack-label"><summary>おやつ名を付ける（任意）</summary><Field label="行事・おやつ名"><input value={draft.label||''} onChange={e=>change({...draft,label:e.target.value})}/></Field><button type="button" className="text-action" onClick={()=>savePart('label',draft.label)}>名前を保存</button></details>
-      <h4>販売用へ振替</h4>
+      <details className="snack-work-step" name={`snack-work-${event.id}`}><summary>販売用へ振替 ／ {status.some(x=>x.retail>0)?'振替保存済み':'未振替'}</summary>
       <p className="muted">請求先を決める前でも、販売用に回す数量だけ保存できます。</p>
       {status.filter(x=>!x.line.sourceStockId).map(x=>{
         const stocks=state.stocks.filter(st=>st.eventLineId===x.line.id&&st.qty>0);
         return <div className="snack-billing-row" key={x.line.id}><span>{x.line.name}<small>入荷 {x.received}個 ／ 販売へ {x.retail}個 ／ 残り {x.unassigned}個</small></span>
           {x.unassigned>0&&<button type="button" className="text-action" disabled={x.line.cost==null||unsaved} onClick={()=>onTransfer(x.line)}>数量を指定して振替 ›</button>}
-          {stocks.map(st=>{const limits=snackTransferLimits(state,st.id);return <div className="snack-transfer-entry" key={st.id}><span>振替済み {st.qty}個{soldQty(state,st.id)>0?` ／ 販売済み ${soldQty(state,st.id)}個`:''}</span>
-            <button type="button" className="text-action" onClick={()=>{setCorrection(st.id);setCorrectionQty(st.qty);setCorrectionReason('');setCorrectionError('');}}>数量を訂正</button>
-            {correction===st.id&&<div className="snack-transfer-correction" role="region" aria-label={`${x.line.name}の振替数量訂正`}>
+          {stocks.map(st=>{const limits=snackTransferLimits(state,st.id);return <div className="snack-transfer-entry" key={st.id}>
+            <Qty label={`${x.line.name} 販売用振替の保存済み数量を訂正`} value={correction===st.id?correctionQty:st.qty} min={limits.minimum} max={Math.max(st.qty,limits.maximum)} onChange={qty=>{setCorrection(st.id);setCorrectionQty(qty);setCorrectionReason('');setCorrectionError('');}}/>
+            {correction===st.id&&correctionQty!==st.qty&&<div className="snack-transfer-correction" role="region" aria-label={`${x.line.name}の振替数量訂正`}>
               <p>販売済み {limits.sold}個 ／ 再振替済み {limits.moved}個 ／ 訂正可能な最小数量 {limits.minimum}個</p>
               {limits.unused===0&&<p>未使用の在庫はありません。減らすには先に販売・再振替の記録を確認してください。</p>}
               {unsaved&&<p className="notice">仕分けの編集中の値は保持し、振替数量の訂正だけを保存します。仕分けは引き続き編集できます。</p>}
@@ -111,11 +116,13 @@ export function SnackBilling({event,onTransfer}){
             {!!st.transferHistory?.length&&<details className="snack-transfer-history"><summary>振替数量の訂正履歴</summary>{st.transferHistory.map((h,i)=><p key={i}>{h.previous}個 → {h.updated}個：{h.reason}</p>)}</details>}
           </div>;})}</div>;
       })}
-      <h4>財政請求</h4>
+      </details>
+      <details className="snack-work-step" name={`snack-work-${event.id}`}><summary>{sectionLabel('財政請求','fiscal')}</summary>
       {primaryLines.map(fiscalRow)}
       {!!inboundLines.length&&<details><summary>販売用から振り替えた商品の内訳</summary>{inboundLines.map(fiscalRow)}</details>}
-      <Button secondary onClick={()=>savePart('fiscal',draft.fiscal)}>財政分を保存</Button>
-      <h4>個別請求</h4>
+      <Button className="snack-save-part" secondary onClick={()=>savePart('fiscal',draft.fiscal)}>財政分を途中保存</Button>
+      </details>
+      <details className="snack-work-step" name={`snack-work-${event.id}`}><summary>{sectionLabel('個別請求','direct')}</summary>
       <div className="choice-grid" role="group" aria-label="おやつ直接割当の入口"><Button secondary={directMode!=='buyer'} onClick={()=>setDirectMode('buyer')}>購入者から</Button><Button secondary={directMode!=='product'} onClick={()=>setDirectMode('product')}>商品から</Button></div>
       {directMode==='product'&&<><Field label="割り当てる商品"><select value={selectedLine} onChange={e=>{setSelectedLine(e.target.value);setDirectPrice(null);}}><option value="">商品を選ぶ</option>{visibleLines.map(l=><option key={l.id} value={l.id}>{l.name}{l.sourceStockId?'（販売用から振替）':''}（実入荷 {receivedQuantity(l)}個）</option>)}</select></Field>
         {line&&<div className="product-buyer-assignment"><p>{line.name}：割当済み {lineItems.reduce((n,x)=>n+x.qty,0)}個 ／ 直接割当に使用可能 {lineCapacity}個</p>
@@ -138,8 +145,10 @@ export function SnackBilling({event,onTransfer}){
               <td><button type="button" className="text-action" onClick={()=>{setDirectMode('product');setSelectedLine(item.lineId);setDirectPrice(null);requestAnimationFrame(()=>document.querySelector('.snack-billing .product-buyer-assignment')?.scrollIntoView({block:'start'}));}}>編集</button>
                 <button type="button" className="text-action" onClick={()=>change({...draft,household:draft.household.filter(x=>x!==item)})}>外す</button></td>
             </tr>)}</tbody></table></details>})}</div>}
-      {directMode==='buyer'&&<Button secondary onClick={()=>savePart('direct',direct)}>直接割当を保存</Button>}
-      <div className="section-head"><h4>共通単価請求</h4><button type="button" className="text-action" onClick={()=>change({...draft,groups:[...groups,{id:crypto.randomUUID(),label:'共通単価',lineIds:[],quantities:{},unitPrice:null,priceMode:'auto'}]})}>新しい共通単価を追加</button></div>
+      {directMode==='buyer'&&<Button className="snack-save-part" secondary onClick={()=>savePart('direct',direct)}>直接割当を途中保存</Button>}
+      </details>
+      <details className="snack-work-step" name={`snack-work-${event.id}`}><summary>{sectionLabel('共通単価請求','common')}</summary>
+      <button type="button" className="text-action" onClick={()=>change({...draft,groups:[...groups,{id:crypto.randomUUID(),label:'共通単価',lineIds:[],quantities:{},unitPrice:null,priceMode:'auto'}]})}>新しい共通単価を追加</button>
       {groups.map(g=>{
         const target=Object.values(g.quantities||{}).reduce((n,x)=>n+x,0),assigned=commonAssigned(g.id),suggested=suggestedGroupPrice(event,g);
         const selected=event.lines.filter(l=>(g.quantities?.[l.id]||0)>0),cost=selected.every(l=>l.cost!=null)?selected.reduce((n,l)=>n+(g.quantities[l.id]||0)*l.cost,0):null;
@@ -171,7 +180,9 @@ export function SnackBilling({event,onTransfer}){
           <button type="button" className="text-action" onClick={()=>{if(!confirm(`「${g.label}」と、このグループの購入者割当を外します。請求へ反映するには保存と確定が必要です。続けますか？`))return;change({...draft,groups:groups.filter(x=>x.id!==g.id),household:draft.household.filter(x=>x.groupId!==g.id)});}}>この共通単価を外す</button>
         </section>;
       })}
-      <Button secondary onClick={()=>savePart('common',{groups,household:draft.household.filter(x=>x.groupId)})}>共通単価分を保存</Button>
+      <Button className="snack-save-part" secondary onClick={()=>savePart('common',{groups,household:draft.household.filter(x=>x.groupId)})}>共通単価分を途中保存</Button>
+      </details>
+      <p className="snack-scroll-hint">数量照合表：左右にスクロールして全項目を確認できます ↔</p>
       <div className="snack-billing-preview" role="region" aria-label="おやつ数量照合表" tabIndex={0}><table><thead><tr>{['商品','未振分','販売振替済','実入荷','発注','用途計','財政','直接','共通'].map(h=><th key={h} scope="col">{h}</th>)}</tr></thead>
         <tbody>{quantitySummary.map(x=><tr key={x.line.id}><th scope="row">{x.line.name}{x.parts.length>1&&<small>（振替分を含む）</small>}</th><td>{x.unassigned}</td><td>{x.retail}</td><td>{x.received}</td><td>{x.ordered}</td><td>{x.used}</td><td>{x.fiscal}</td><td>{x.direct}</td><td>{x.common}</td></tr>)}</tbody></table></div>
       {status.filter(x=>x.excess>0||x.unassigned<0||x.used>0&&x.line.cost==null).map(x=><div className="snack-quantity-state" key={x.line.id}><strong>{x.line.name}</strong>：
@@ -185,11 +196,12 @@ export function SnackBilling({event,onTransfer}){
       {(event.billing||event.snackDraft&&(unsaved||groups.some(g=>commonAssigned(g.id)>Object.values(g.quantities||{}).reduce((n,x)=>n+x,0))))&&
         <Field label={event.billing?'確定請求を変更する理由':'訂正・確認待ちのメモ（任意）'}><input value={reason} onChange={e=>setReason(e.target.value)} placeholder="例：販売記録の返却待ち・最終精算時に説明"/></Field>}
       {!event.billing&&event.snackDraft&&!unsaved&&reason.trim()&&<button type="button" className="text-action" onClick={()=>savePart('common',{groups,household:draft.household.filter(x=>x.groupId)})}>確認待ちのメモを保存</button>}
+      <p className="snack-final-note">おやつの請求だけを確定し、家庭分を集金へ反映します。確定後の変更は理由を入力し、区分を途中保存してから再確定します。</p>
       <Button disabled={!event.snackDraft||unsaved||status.some(x=>x.excess>0||x.unassigned!==0)||!!event.billing&&!reason.trim()} onClick={async()=>{
         try{const probe=structuredClone(state);confirmSnackPlan(probe,event.id,reason||'請求先を確定');setError('');
           if(await save(s=>confirmSnackPlan(s,event.id,reason||'請求先を確定'),'おやつ請求を確定')){setSaved('請求先別の内容を確定しました。');setReason('');}}
         catch(e){setError(e.message);}
-      }}>保存済みの区分で請求を確定</Button>
+      }}>おやつ請求を確定して集金へ反映</Button>
       {!!event.billingHistory?.length&&<details><summary>請求の変更履歴</summary>{event.billingHistory.map((x,i)=><p key={i}>{x.at.slice(0,10)} {x.reason}</p>)}</details>}
       {!!event.snackDraftHistory?.length&&<details><summary>仕分けの保存・訂正履歴</summary>{event.snackDraftHistory.map((x,i)=><p key={i}>{x.at.slice(0,10)} {x.reason}</p>)}</details>}
     </div>
