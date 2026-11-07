@@ -1368,7 +1368,7 @@ test('11/7集金再確認：旧受取を二重未収にせず終了、次回は�
   sep.orders[id]={name,quantities:{[`bread-${id}`]:1}};
   oct.products.push({id:`later-${id}`,name:`${name}の10月分`,price:430,cost:100});
   oct.orders[id]={name,quantities:{[`later-${id}`]:1}};
-  s.collectionEntries.push({id:`legacy-${id}`,roundId:sep.id,buyerId:id,date:'2026-10-23',received:id==='hori'?2130:amount,adjustment:0,reason:'全額受取'});
+  s.collectionEntries.push({id:`legacy-${id}`,roundId:sep.id,buyerId:id,date:'2026-10-23',received:id==='hori'?2130:amount,adjustment:0,note:'旧回の現金受取'});
  }
  await backend(context,shared);await login(page);
  await page.locator('.round-list-item').filter({hasText:'2026/09/11'}).click();await page.locator('.stage-4 > .stage-trigger').click();
