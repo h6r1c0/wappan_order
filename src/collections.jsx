@@ -49,7 +49,7 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
   const history=[...(state.collectionEntries||[]).filter(x=>historyRounds.includes(x.roundId)&&x.buyerId===buyer.id).map(x=>({...x,kind:'collectionEntries'})),
     ...(state.collectionReconciliations||[]).filter(x=>historyRounds.includes(x.roundId)&&x.buyerId===buyer.id).map(x=>({...x,kind:'collectionReconciliations'}))];
   const resolved=id=>(state.collectionCorrections||[]).some(x=>x.targetId===id);
-  const unallocatedEntries=history.filter(x=>x.kind==='collectionEntries'&&x.received>0&&!x.itemId&&!resolved(x.id)&&!(state.collectionAllocations||[]).some(a=>a.entryId===x.id));
+  const unallocatedEntries=history.filter(x=>x.kind==='collectionEntries'&&due.unallocatedEntryIds.includes(x.id));
   const priorUnallocated=unallocatedEntries.filter(x=>x.roundId!==round.id);
   const priorOrigin=priorUnallocated.length===1?state.rounds.find(r=>r.id===priorUnallocated[0].roundId)?.date:null;
   const priorCashLabel=priorUnallocated.length===1&&priorOrigin

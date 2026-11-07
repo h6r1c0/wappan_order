@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,newRound,validate,collectionDueItems} from '../src/domain.js';
 import {receiveDueItem} from '../src/collection-workflow.js';
-import {roundProgress,closeRoundWithCarry} from '../src/round-progress.js';
+import {roundProgress,roundWorkSummary,closeRoundWithCarry} from '../src/round-progress.js';
 
 function fixture(){
  const s=initialState(),r=newRound(s,'2026-09-11');s.rounds.push(r);
@@ -68,4 +68,15 @@ test('保存済みのおやつ請求に必要な対象数が未確定なら終�
  assert.equal(roundProgress(s,r).status,'集金中');
  assert.match(roundProgress(s,r).issues[0].message,/おやつ・財政請求/);
  assert.throws(()=>closeRoundWithCarry(s,r.id),/おやつ・財政請求/);
+});
+test('販売の残数とおやつ仕分けを一覧に出しても、確定済み個人請求は別に残す',()=>{
+ const {s,r}=fixture();
+ const st={id:'pending-stock',roundId:r.id,date:r.date,name:'運動会パン',qty:3,cost:100,price:150,test:false};
+ s.stocks.push(st);r.stockIds.push(st.id);
+ const e={id:'pending-snack',roundId:r.id,date:r.date,name:'おやつ',test:false,lines:[{id:'snack-line',name:'長い名前のパン',qty:2,used:0,cost:100}],snackDraft:{label:'',fiscal:[],household:[],groups:[]}};
+ s.events.push(e);r.eventIds.push(e.id);
+ const summary=roundWorkSummary(s,r);
+ assert.ok(summary.includes('販売用の残数・販売先を確認'));
+ assert.ok(summary.includes('おやつの仕分け途中'));
+ assert.equal(collectionDueItems(s,r.id,'hori').items.find(x=>x.roundId===r.id).balance,430);
 });

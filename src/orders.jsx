@@ -5,7 +5,7 @@ import {receivedQuantity, updateDeliveryStatus} from './shortages';
 import React, { useEffect, useState } from "react";
 import { deliveryTotals, setSalesOrderQuantities, salesOrderQuantities, salesCutQuantities } from './commerce';
 import {BatchImport} from './batch-import.jsx';
-import {roundProgress} from './round-progress.js';
+import {roundProgress,roundWorkSummary} from './round-progress.js';
 import {RoundClosePrompt} from './round-close.jsx';
 import {Sales} from './sales';
 import {RoundCollections} from './collections';
@@ -86,7 +86,7 @@ export function Orders() {
             </div>
             {r.test && <Tag status="テスト">テスト・年度集計対象外</Tag>}
             {progress.carry&&<Tag status="繰越">未収繰越あり</Tag>}
-            <small className="round-next-step">{progress.status==='入力中'?'注文を入力':progress.status==='注文確定'?'次は欠品・納品確認':progress.status==='納品済み'?'仕入・販売を確認':progress.status==='集金中'?`今回分の未収 ${progress.due.people.length}人`:'今回分の業務完了'}</small>
+            <small className="round-next-step">{progress.status==='入力中'?'注文を入力':progress.status==='注文確定'?'次は欠品・納品確認':roundWorkSummary(state,r).join(' ／ ')||'納品・精算を確認'}</small>
             <span className="round-open" aria-hidden="true">›</span>
           </button>{progress.status==='集金中'&&progress.due.total>0&&<details className="round-list-menu"><summary>操作</summary><button type="button" className="text-action" onClick={()=>setClosingId(r.id)}>未収を残して今回分を終了</button></details>}</div>;
         })}
@@ -199,6 +199,7 @@ function Round({ round: r, initialTab = null, back }) {
   const monthLabel = `${Number(r.date.slice(5, 7))}月`;
   const activeStage = PURPOSES.includes(tab) ? "注文" : tab;
   const moveTo = (next) => {
+    if(next!==tab&&document.querySelector('.snack-billing[data-unsaved="true"]')&&!confirm('編集中のおやつ仕分けがあります。途中保存してから移動してください。保存せず閉じますか？'))return;
     if(next!==tab&&document.querySelector('.sales-workspace[data-unsaved="true"]')&&!confirm('未保存の販売先・数量があります。入力を閉じて別の工程へ移動しますか？'))return;
     if (draft && JSON.stringify(draft) !== JSON.stringify(orderDraft(state, r, currentBuyer)) &&
       !confirm("未保存の個人注文を閉じますか？")) return;
@@ -213,6 +214,7 @@ function Round({ round: r, initialTab = null, back }) {
     <>
       <button type="button" className="text-action back-link"
         onClick={() => {
+          if(document.querySelector('.snack-billing[data-unsaved="true"]')&&!confirm('編集中のおやつ仕分けがあります。途中保存してから移動してください。保存せず閉じますか？'))return;
           if (
             draft && currentBuyer &&
             JSON.stringify(draft)!==JSON.stringify(orderDraft(state,r,currentBuyer)) &&
@@ -462,7 +464,7 @@ function Round({ round: r, initialTab = null, back }) {
           <details className="after-work" id="snack-after-work"><summary>おやつの仕分け</summary>
             <Events roundId={r.id} phase="after"/>
           </details>
-          <section className="profit-card" aria-label="商品利益"><div className="profit-card-value"><span>商品利益{finances.profit!=null&&profitPending?'（仕分け・請求確認中）':''}</span><strong>{yen(finances.profit)}</strong></div>
+          <section className="profit-card" aria-label="商品利益"><div className="profit-card-value"><span>商品利益{finances.profit!=null&&(profitPending||roundWorkSummary(state,r).some(x=>x.startsWith('販売用')))?'（現時点・販売実績確認中）':''}</span><strong>{yen(finances.profit)}</strong></div>
           <details className="profit-details"><summary>利益の内訳を見る</summary>
             <div className="grid2"><Summary label="売上合計" value={yen(finances.revenue)} />
               <Summary label="納品書の仕入額" value={yen(r.invoice)} /></div>

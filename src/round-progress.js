@@ -1,4 +1,4 @@
-import {collectionDueItems, roundSettlementStatus, uid} from './domain.js';
+import {collectionDueItems, roundSettlementStatus, stockAllocation, uid} from './domain.js';
 import {billingAudit} from './collection-workflow.js';
 import {snackBillingPreview} from './snack-billing.js';
 
@@ -13,15 +13,21 @@ export function currentRoundDue(state,round){
     ...Object.keys(round.orders),
     ...(state.receivableItems||[]).filter(x=>x.roundId===round.id).map(x=>x.buyerId),
     ...(state.sales||[]).filter(x=>!x.void&&x.chargeRoundId===round.id&&x.buyerId).map(x=>x.buyerId),
+    ...(state.collectionEntries||[]).filter(x=>state.rounds.some(r=>r.id===x.roundId&&r.date<=latest.date&&(r.test===latest.test||r.collectionLive))).map(x=>x.buyerId),
   ]);
-  const people=[];
+  const people=[],unresolved=[];
   for(const buyerId of buyers){
-    const items=collectionDueItems(state,latest.id,buyerId).items
-      .filter(x=>x.roundId===round.id&&x.balance>0);
+    const due=collectionDueItems(state,latest.id,buyerId);
+    const items=due.items.filter(x=>x.roundId===round.id&&x.balance>0);
+    const uncertain=due.unallocatedEntryIds.some(id=>{
+      const entry=(state.collectionEntries||[]).find(x=>x.id===id);
+      return items.length>0||state.rounds.some(r=>r.id===entry?.roundId&&(r.date<round.date||r.date===round.date&&r.id<=round.id));
+    });
+    if(uncertain){unresolved.push({buyerId,amount:due.unallocated});continue;}
     const amount=items.reduce((n,x)=>n+x.balance,0);
     if(amount)people.push({buyerId,name:state.buyers.find(b=>b.id===buyerId)?.name||round.orders[buyerId]?.name||'購入者',amount,items});
   }
-  return {people,total:people.reduce((n,x)=>n+x.amount,0)};
+  return {people,total:people.reduce((n,x)=>n+x.amount,0),unresolved};
 }
 
 export function roundCompletionIssues(state,round){
@@ -46,7 +52,8 @@ export function roundCompletionIssues(state,round){
     issues.push({message:'要確認として保留した集金があります',stage:'集金',target:'cases'});
   const corrected=new Set((state.collectionCorrections||[]).filter(x=>x.kind==='collectionEntries').map(x=>x.targetId));
   const allocations=new Set((state.collectionAllocations||[]).filter(x=>!corrected.has(x.entryId)).map(x=>x.entryId));
-  if((state.collectionEntries||[]).some(x=>x.roundId===round.id&&x.received>0&&!x.itemId&&!corrected.has(x.id)&&!allocations.has(x.id)&&collectionDueItems(state,round.id,x.buyerId).unallocated>0))
+  if(currentRoundDue(state,round).unresolved.length||
+    (state.collectionEntries||[]).some(x=>x.roundId===round.id&&x.received>0&&!x.itemId&&!corrected.has(x.id)&&!allocations.has(x.id)&&collectionDueItems(state,round.id,x.buyerId).unallocatedEntryIds.includes(x.id)))
     issues.push({message:'受取済み現金の充当先を確認してください',stage:'集金',target:'cash'});
   return issues;
 }
@@ -60,6 +67,23 @@ export function roundProgress(state,round){
   const increased=previouslyClosed&&due.people.some(p=>p.items.some(item=>item.balance>(previouslyClosed.balances?.[item.id]||0)));
   const complete=!issues.length&&(due.total===0||previouslyClosed&&!increased);
   return {status:complete?'完了':'集金中',carry:!!(complete&&previouslyClosed&&due.total>0),issues,due,increased:!!increased};
+}
+
+export function roundWorkSummary(state,round){
+  if(round.status==='入力中'||round.status==='注文確定')return [];
+  const steps=[];
+  const stock=round.stockIds.map(id=>state.stocks.find(x=>x.id===id)).filter(Boolean);
+  if(stock.some(x=>{const a=stockAllocation(state,x);return a.remaining>0||a.unconfirmed>0;}))steps.push('販売用の残数・販売先を確認');
+  if(round.eventIds.some(id=>{const e=state.events.find(x=>x.id===id);return e&&!e.billing&&
+    e.lines.some(line=>(line.receivedQty??line.qty??0)>0);}))steps.push('おやつの仕分け途中');
+  if(billingAudit(state,round.id).issues.length)steps.push('請求を確認');
+  const progress=roundProgress(state,round);
+  if(progress.status==='集金中'||(progress.status==='納品済み'&&
+    (state.collectionEntries||[]).some(x=>x.roundId===round.id)))steps.push('集金中');
+  else if(progress.status==='納品済み'&&round.shortageConfirmation&&
+    !billingAudit(state,round.id).issues.length)steps.push('確定済みの個人請求は集金可能');
+  if(progress.status==='完了')steps.push(progress.carry?'未収繰越あり・今回終了':'精算済み');
+  return steps;
 }
 
 export function closeRoundWithCarry(state,roundId){
