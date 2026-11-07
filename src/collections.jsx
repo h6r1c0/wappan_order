@@ -2,7 +2,7 @@ import React,{useState,useRef,useEffect} from 'react';
 import {collectionPosition,collectionDueItems,today,uid,yen,collections} from './domain';
 import {useApp,Button,Field,Money,Qty,copyText,buyerCompare} from './ui';
 import {productDisplayName} from './product-names.js';
-import {billingAudit,chargeLines,collectionReasons,correctionReasons,confirmBilling,confirmLinePrice,flagMissingCharge,saveCollectionCase,receiveCollection,receiveDueItem,correctCollectionRecord,recordCollectionAllocation,recordHistoricalCredit,adjustReceivable} from './collection-workflow.js';
+import {billingAudit,chargeLines,collectionReasons,correctionReasons,confirmBilling,confirmLinePrice,flagMissingCharge,saveCollectionCase,receiveCollection,receiveDueItem,canReceiveDueItem,correctCollectionRecord,recordCollectionAllocation,recordHistoricalCredit,adjustReceivable} from './collection-workflow.js';
 import {openPrintPreview} from './print-preview.js';
 
 function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,onSource,recentReceipt,onRecent}){
@@ -34,6 +34,9 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
   const pastDue=dueOptions.filter(x=>x.roundId!==round.id);
   const singleQuick=knownQuick&&dueOptions.length===1&&!(position.received===0&&audit?.knownBag!=null&&audit.knownBag!==audit.expected);
   const separateQuick=knownQuick&&currentDue.length===1&&pastDue.length===1;
+  const currentQuick=!singleQuick&&!separateQuick&&position.balance>0&&!pending&&!audit?.issues.length&&
+    !(position.received===0&&audit?.knownBag!=null&&audit.knownBag!==audit.expected)&&currentDue.length===1&&
+    canReceiveDueItem(state,round.id,buyer.id,currentDue[0]);
   const act=async(fn,description)=>{if(busy)return false;setBusy(true);try{return await save(fn,description);}finally{setBusy(false);}};
   const afterSave=()=>{setReceived(null);setReason('');setOpen(false);setInvestigate(false);request.current=uid();onDone(buyer.id);};
   const quickReceipt=async(item,description)=>{let entryId;
@@ -69,9 +72,11 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
       </button>
       <div className="collection-quick-actions">{singleQuick&&<Button className={`collection-pay ${dueOptions[0].roundId===round.id?'pay-full':'pay-past'}`} disabled={busy} onClick={()=>quickReceipt(dueOptions[0],'請求分を受取')}>{dueOptions[0].roundId===round.id?'全額受取':'未収分受取'}</Button>}
       {separateQuick&&<><Button className="collection-pay pay-past" disabled={busy} onClick={()=>quickReceipt(pastDue[0],'未収分を受取')}>未収分受取</Button><Button className="collection-pay pay-current" disabled={busy} onClick={()=>quickReceipt(currentDue[0],'今回分を受取')}>今回分受取</Button></>}
+      {currentQuick&&<Button className="collection-pay pay-current" disabled={busy} onClick={()=>quickReceipt(currentDue[0],'今回分を受取')}>今回分受取</Button>}
       </div>
     </div>
-    {!isOpen&&context&&<small className={`collection-context ${pending||audit?.issues.length?'needs-check':''}`}>{context}</small>}
+    {!isOpen&&context&&<small className={`collection-context ${pending||audit?.issues.length?'needs-check':''}`}>{priorCashLabel||position.unallocated>0?`${position.received===0?'今回分は未受取 ／ ':''}過去を含む受取の充当先を確認`:context}</small>}
+    {isOpen&&<div className="collection-expanded" role="region" aria-label={`${buyer.name}の集金詳細`}>
     {isOpen&&knownClaim&&<p className="collection-alert">請求漏れ：{productDisplayName(knownClaim.note?.replace(/\s*×.*$/u,'')||'商品')} {knownClaim.qty||''}点 ／ {yen(knownClaim.amount)}{!position.received&&<small>案内済み {yen(knownClaim.notifiedAmount)} ／ 現金は未受取</small>}</p>}
     {isOpen&&!!position.confirmedHistorical&&<p className="collection-alert">過去の支払済み確認 {yen(position.confirmedHistorical)}<small>現金の受取記録とは別の確認です。履歴から内容を調べられます。</small></p>}
     {isOpen&&audit?.issues.map((x,i)=><p className="collection-alert" key={i}>{x.message}</p>)}
@@ -136,6 +141,7 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
         <Button disabled={busy} onClick={()=>act(s=>confirmBilling(s,round.id,buyer.id,bag??audit?.knownBag??audit?.expected??position.current,{exceptionReason:exception}),'請求内容のみ確認・現金受取なし')}>請求内容だけ確認</Button>
         {audit?.review&&<small>{audit.complete?'請求内容確認済み':'請求は未確定'} ／ この操作で受取記録は作成しません。</small>}
       </details>
+    </div>}
     </div>}
   </section>;
 }

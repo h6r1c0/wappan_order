@@ -102,7 +102,7 @@ export function snackQuantityRows(state,event,plan=event.snackDraft||event.billi
     const common=sum((plan?.groups||[]).map(g=>g.quantities?.[line.id]||0));
     const retail=sum((state.stocks||[]).filter(st=>st.eventLineId===line.id&&!st.cancelled).map(st=>st.qty));
     const received=receivedQuantity(line),allocated=fiscal+direct+common,used=allocated;
-    return {line,ordered:line.qty,received,used,retail,fiscal,direct,common,allocated,
+    return {line,ordered:line.sourceStockId?0:line.qty,received,used,retail,fiscal,direct,common,allocated,
       unassigned:received-used-retail,unused:received-used-retail,
       excess:Math.max(0,allocated+retail-received)};
   });
@@ -144,7 +144,7 @@ export function correctFiscalReceipt(state,eventId,targetId,reason){
 
 export function snackGroupTarget(state,event,billing,group){
   const ids=new Set(group.lineIds||[]);
-  if(!ids.size||ids.size!==(group.lineIds||[]).length||event.lines.filter(l=>ids.has(l.id)).length!==ids.size)
+  if((!ids.size&&!(group.quantities&&Object.keys(group.quantities).length===0))||ids.size!==(group.lineIds||[]).length||event.lines.filter(l=>ids.has(l.id)).length!==ids.size)
     throw Error('共通単価の対象商品を選んでください');
   if(group.quantities){
     if(Object.keys(group.quantities).some(id=>!ids.has(id)))throw Error('共通単価の商品を確認してください');

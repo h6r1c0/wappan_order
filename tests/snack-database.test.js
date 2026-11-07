@@ -45,7 +45,9 @@ test('DB は旧注文を保ち、おやつ請求の二重割当・振替後数�
   e.billing.household.pop();e.billing.household[0].buyerId='missing';
   await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Invalid household snack/);
   e.billing.household[0].buyerId='hori';
-  transfer(s,e,e.lines[0],4,160,r.date);
+  assert.throws(()=>transfer(s,e,e.lines[0],4,160,r.date),/余剰数/);
+  const savedBilling=e.billing;delete e.billing;
+  transfer(s,e,e.lines[0],4,160,r.date);e.billing=savedBilling;
   await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Snack billing exceeds/);
   // Group validation shares the same boundary as persistent saves.
   s.stocks=[];e.lines.forEach(l=>{l.used=2;l.usedConfirmed=true;});
