@@ -114,9 +114,13 @@ test('DBは新しい途中保存と確定請求を受け取り、在庫・家庭
  const st={id:'jelly',roundId:r.id,name:'検証商品',qty:5,cost:90,price:270,date:r.date,test:true};s.stocks.push(st);r.stockIds.push(st.id);
  addSale(s,st,{qty:3,date:r.date,price:270,destinationType:'external',paymentStatus:'paid'});
  const moved=transferStockToSnack(s,st.id,e.id,1);
+ saveSnackSection(s,e.id,'common',{groups:[{id:'keep-empty',label:'手動単価を保持',lineIds:[moved.id],quantities:{[moved.id]:1},unitPrice:170,priceMode:'manual'}],household:[]});
  await db.query('select public.wappan_validate($1)',[s]);
  cancelStockToSnackTransfer(s,e.id,moved.id,'逆方向の入力を訂正');
  await db.query('select public.wappan_validate($1)',[s]);
+ assert.deepEqual(e.snackDraft.groups[0],{id:'keep-empty',label:'手動単価を保持',lineIds:[],quantities:{},unitPrice:170,priceMode:'manual'});
+ confirmSnackPlan(s,e.id);
+ await db.query('select public.wappan_validate($1)',[JSON.parse(JSON.stringify(s))]);
  const restored=transferStockToSnack(s,st.id,e.id,1);
  saveSnackSection(s,e.id,'direct',[{lineId:restored.id,buyerId:'buyer-a',qty:1,unitPrice:150}]);
  saveSnackSection(s,e.id,'common',{groups:[{id:'group',label:'共通単価',lineIds:['bean','apple'],quantities:{bean:1,apple:1},unitPrice:150}],

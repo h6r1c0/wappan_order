@@ -117,7 +117,8 @@ test('誤った逆方向の1個と空の別グループは本人が理由付き�
   assert.equal(stockRemaining(s,s.stocks[0]),5);
   assert.equal(e.lines.find(l=>l.id===reverse.id),undefined);
   assert.equal(e.cancelledStockTransferLines[0].qty,1);
-  assert.equal(e.snackDraft.groups.length,0);
+  assert.equal(e.snackDraft.groups.length,1);
+  assert.deepEqual(e.snackDraft.groups[0],{id:'extra',label:'共通単価',lineIds:[],quantities:{},unitPrice:150,priceMode:'manual'});
   assert.equal(e.stockTransferHistory.at(-1).previous,1);
   assert.equal(e.snackDraftHistory.at(-1).previous.groups.length,1);
   assert.doesNotThrow(()=>validate(s));

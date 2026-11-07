@@ -1,4 +1,4 @@
-import {collections,collectionPosition,collectionDueItems,price,snapshot,integer,uid,today,stockAllocation} from './domain.js';
+import {collections,collectionPosition,collectionDueItems,effectiveCollectionState,price,snapshot,integer,uid,today,stockAllocation} from './domain.js';
 import {deliveredQuantity} from './shortages.js';
 
 export const collectionReasons=['前回の不足分をまとめて受け取った','前回の預かり金を今回使った','今回の請求から商品が漏れている','一部しか受け取っていない','多く受け取ったので次回へ預かる','返金がある','原因が分からないので調べたい'];
@@ -170,13 +170,27 @@ export function receiveFullCollection(state,roundId,buyerId){
 }
 
 // The chosen unpaid claim supplies both the cash amount and its destination.
+export function canReceiveDueItem(state,roundId,buyerId,item){
+  if(!item||item.balance<=0)return false;
+  const position=collectionPosition(state,roundId,buyerId);
+  if(!position.unallocated)return true;
+  // An unresolved receipt belonging to an older round must not hide a new
+  // current claim. Never infer its destination or collect past claims again.
+  const round=state.rounds.find(r=>r.id===roundId);
+  const unmatched=effectiveCollectionState(state).collectionEntries.filter(e=>
+    e.buyerId===buyerId&&e.received>0&&!e.itemId&&
+    !(state.collectionAllocations||[]).some(a=>a.entryId===e.id)&&
+    state.rounds.some(r=>r.id===e.roundId&&(r.test===round.test||r.collectionLive)&&r.date<=round.date));
+  return item.roundId===roundId&&item.balance<=position.balance&&unmatched.length>0&&
+    unmatched.every(e=>state.rounds.some(r=>r.id===e.roundId&&r.date<round.date));
+}
 export function receiveDueItem(state,roundId,buyerId,itemId){
   const due=collectionDueItems(state,roundId,buyerId).items.find(x=>x.id===itemId&&x.balance>0);
   if(!due)throw Error('対象の未収を確認してください');
   const audit=billingAudit(state,roundId).buyers.find(x=>x.buyerId===buyerId);
   if(audit?.issues.some(x=>x.type==='price'||x.type==='missing-product'))throw Error('請求単価を先に確認してください');
   const position=collectionPosition(state,roundId,buyerId);
-  if(position.unallocated)throw Error('保存済みの受取の充当先を先に確認してください');
+  if(!canReceiveDueItem(state,roundId,buyerId,due))throw Error('保存済みの受取の充当先を先に確認してください');
   return receiveCollection(state,{roundId,buyerId,received:due.balance,
     reason:due.balance===position.balance?'':'一部しか受け取っていない',itemId,
     requestId:`claim:${roundId}:${buyerId}:${itemId}`});

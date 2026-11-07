@@ -305,7 +305,7 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
   expect(shared.state.rounds[0].orders.hori.quantities.galette).toBe(2);
   expect(shared.state.rounds[0].orders.hori.deliveredQuantities.galette).toBe(1);
   await page.getByRole('button',{name:'すべての欠品処理を確認'}).click();
-  await page.getByLabel('税込合計').fill('100');
+  await page.getByLabel('納品書の税込合計').fill('100');
   await page.locator('.invoice-form').getByRole('button',{name:'保存',exact:true}).click();
   await expect.poll(()=>shared.state.rounds[0].invoice).toBe(100);
   await expect.poll(()=>shared.state.rounds[0].status).toBe('納品済み');
@@ -775,7 +775,7 @@ test('欠品抽選: 未選択ゲート、1人1個を優先、確認後に集金�
   r.planned=structuredClone(r.orders);shared.state.rounds.push(r);
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
   await page.locator('.stage-3 > .stage-trigger').click();
-  await expect(page.getByLabel('税込合計')).toHaveCount(0);
+  await expect(page.getByLabel('納品書の税込合計')).toHaveCount(0);
   await expect(page.getByRole('button',{name:'欠品なしを確認'})).toBeEnabled();
   await page.getByRole('button',{name:'欠品がある場合 ›'}).click();
   await page.getByRole('button',{name:'欠品ありとして明細へ進む'}).click();
@@ -813,7 +813,7 @@ test('場所なしセット、既知のおやつ単価・使用数、税込合�
   expect(shared.state.markets).toHaveLength(0);expect(shared.state.bundles[0].roundId).toBe(r.id);
   await page.getByRole('button',{name:'販売を記録',exact:true}).click();await page.getByRole('button',{name:'この内容で販売を記録'}).click();
   expect(shared.state.bundleSales[0].marketId).toBe(null);expect(shared.state.bundleSales[0].qty).toBe(1);
-  await page.getByLabel('税込合計').fill('1000');await page.locator('.invoice-input-row').getByRole('button',{name:'保存',exact:true}).click();expect(shared.state.rounds[0].invoice).toBe(1000);
+  await page.getByLabel('納品書の税込合計').fill('1000');await page.locator('.invoice-input-row').getByRole('button',{name:'保存',exact:true}).click();expect(shared.state.rounds[0].invoice).toBe(1000);
   await mobileShots(page,'delivery');
   await page.locator('.after-work').filter({has:page.locator('summary',{hasText:'おやつの仕分け'})}).locator('summary').first().click();
 
@@ -1149,14 +1149,18 @@ test('11/5レビュー：午後の集金一覧の1行操作、金額直下の全
 
 test('11/6レビュー：過去回の受取と今回の未受取を分け、氏名を省略しない',async({page,context})=>{
   const shared={state:preparedState(),revision:0};shared.state.buyers.find(b=>b.id==='asano').name='検証用の長い姓名';
-  const old=newRound(shared.state,'2026-09-11',true);old.collectionLive=true;old.status='納品済み';shared.state.rounds.push(old);
+  const old=newRound(shared.state,'2026-09-11',true);old.collectionLive=true;old.status='納品済み';shared.state.rounds.push(old);old.orders.asano={name:'検証用の長い姓名',quantities:{brown:3}};
   const current=newRound(shared.state,'2026-10-16',true);current.status='納品済み';current.shortageConfirmation='none';current.collectionLive=true;
   current.orders.asano={name:'検証用の長い姓名',quantities:{brown:1}};shared.state.rounds.push(current);
   shared.state.collectionEntries.push({id:'old-cash',roundId:old.id,buyerId:'asano',date:'2026-10-23',received:1234,adjustment:0,note:'全額受取'});
   await backend(context,shared);await login(page);await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();await page.locator('.stage-4 > .stage-trigger').click();
   const row=page.locator('.collection-entry[data-buyer="asano"]');await expect(row.locator('.collection-buyer-name')).toHaveText('検証用の長い姓名');
-  await expect(row.locator('.collection-context')).toContainText('2026-09-11分の受取');
-  await expect(row.locator('.collection-context')).toContainText('受取記録日 2026-10-23');
+  await expect(row.locator('.collection-context')).toContainText('充当先を確認');
+  await expect(row.getByRole('button',{name:'今回分受取'})).toBeVisible();
+  await row.locator('.collection-open').click();
+  await expect(row.locator('.collection-expanded')).toContainText('2026-09-11分の受取');
+  await expect(row.locator('.collection-expanded')).toContainText('受取記録日 2026-10-23');
+  await row.locator('.collection-open').click();
   await expect(row.locator('.collection-context')).toContainText('今回分は未受取');
   await page.locator('.collection-completed > summary').click();
   for(const width of [320,375,430]){await page.setViewportSize({width,height:812});
@@ -1224,4 +1228,21 @@ test('11/6レビュー：請求割当前の販売振替3個を同じ記録で2�
   }
   await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
   await expect(page.locator('.snack-transfer-entry')).toContainText('振替済み 2個');
+});
+
+test('11/6レビュー Work4：過去の未充当受取を保持して今回分だけを受け取る',async({page,context})=>{
+  const shared={state:preparedState(),revision:0};
+  const old=newRound(shared.state,'2026-09-11',true);old.collectionLive=true;old.orders.asano={name:'浅野',quantities:{brown:3}};shared.state.rounds.push(old);
+  const r=newRound(shared.state,'2026-10-16',true);r.status='納品済み';r.shortageConfirmation='none';r.orders.asano={name:'浅野',quantities:{brown:1}};shared.state.rounds.push(r);
+  const original={id:'past-cash',roundId:old.id,buyerId:'asano',date:old.date,received:100,adjustment:0};shared.state.collectionEntries.push(original);
+  await backend(context,shared);await login(page);await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();await page.locator('.stage-4 > .stage-trigger').click();
+  const row=page.locator('.collection-entry[data-buyer="asano"]');
+  await expect(row.getByRole('button',{name:'今回分受取'})).toBeVisible();
+  await row.getByRole('button',{name:'今回分受取'}).click();
+  await expect(row.getByRole('button',{name:'今回分受取'})).toHaveCount(0);
+  expect(shared.state.collectionEntries[0]).toEqual(original);
+  expect(shared.state.collectionEntries[1]).toMatchObject({received:430,itemId:`round:${r.id}:asano`});
+  expect(shared.state.collectionAllocations||[]).toHaveLength(0);
+  await page.locator('.collection-undo button').click();
+  await expect(row.getByRole('button',{name:'今回分受取'})).toBeVisible();
 });

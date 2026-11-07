@@ -35,9 +35,13 @@ export function cancelStockToSnackTransfer(state,eventId,lineId,reason){
     event.snackDraftHistory??=[];
     event.snackDraftHistory.push({at:new Date().toISOString(),section:'common',reason,previous:structuredClone(plan)});
     plan.fiscal=plan.fiscal.filter(x=>x.lineId!==lineId);
-    plan.groups=plan.groups.map(g=>({...g,lineIds:(g.lineIds||[]).filter(id=>id!==lineId),
-      quantities:Object.fromEntries(Object.entries(g.quantities||{}).filter(([id])=>id!==lineId))}))
-      .filter(g=>Object.values(g.quantities).some(n=>n>0)||(plan.household||[]).some(x=>x.groupId===g.id));
+    plan.groups=plan.groups.map(g=>{
+      if(!g.lineIds.includes(lineId))return g;
+      const lineIds=g.lineIds.filter(id=>id!==lineId);
+      const quantities=Object.fromEntries(Object.entries(g.quantities||{}).filter(([id])=>id!==lineId));
+      // Keep the now-empty group, its identity and its manually chosen price.
+      return {...g,lineIds,quantities};
+    });
   }
   event.stockTransferHistory??=[];
   event.stockTransferHistory.push({at:new Date().toISOString(),action:'販売用からおやつへの振替を訂正',

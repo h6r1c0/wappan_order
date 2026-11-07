@@ -1,0 +1,97 @@
+{
+  "source": "2026-11-07 利用者「わっぱんWork4：役割・過去の成果・未完了作業の引き継ぎ」全文",
+  "purpose": "Work3保存済みPR #35の継承。先行手動振替・元数量訂正・表示整理と最新実機指摘の差分修正。全要望の状態と未解決18件を保全。本番取引の書込みなし。",
+  "targets": [
+    {
+      "id": "WAP-0002",
+      "ledgerRef": "WAP-0002",
+      "ledgerDigest": "0f119424204201e6c38a6c2f135de7bf4d73eaee98762ebc333dceebef8a6a83"
+    },
+    {
+      "id": "WAP-0004",
+      "ledgerRef": "WAP-0004",
+      "ledgerDigest": "71421c5f68193e4ff423897c93b215ac0340af30710fee1b9be07f2c115c19a5"
+    },
+    {
+      "id": "WAP-0006",
+      "ledgerRef": "WAP-0006",
+      "ledgerDigest": "f96fed501debb9d70476211f045909678610d513f220d2337d9509f12d491eef"
+    },
+    {
+      "id": "WAP-0031",
+      "ledgerRef": "WAP-0031",
+      "ledgerDigest": "e354f942684bebafa971516b29f94ea88a736a75451854c6d0924a94b0603ef1"
+    },
+    {
+      "id": "WAP-0034",
+      "ledgerRef": "WAP-0034",
+      "ledgerDigest": "5d978361b79cf517a5a7304e07fac5bcaf267a561304848d0ea0f5c4680552d8"
+    },
+    {
+      "id": "WAP-0035",
+      "ledgerRef": "WAP-0035",
+      "ledgerDigest": "dcca3ac9e79eea58d4e232db4f2d79d65c42f3bb20fc2a1b53e21eeb95f76059"
+    },
+    {
+      "id": "WAP-0041",
+      "ledgerRef": "WAP-0041",
+      "ledgerDigest": "b8d1ed68472b6ac2575dae1ede09143551ca0dfd6cb71ff6fd3001bb4c00a34e"
+    },
+    {
+      "id": "WAP-0042",
+      "ledgerRef": "WAP-0042",
+      "ledgerDigest": "17655091d3927bcdb346de69d8aac1f8af0e377c3fd1fa568901ad2a3ca74c91"
+    },
+    {
+      "id": "WAP-0043",
+      "ledgerRef": "WAP-0043",
+      "ledgerDigest": "0708f99cee314e59970f9bd279903a0087162c2227432b14d3e6a8eb54d809d2"
+    },
+    {
+      "id": "WAP-0044",
+      "ledgerRef": "WAP-0044",
+      "ledgerDigest": "3f3772cf0fb7a9e239611f7d25212231a5bf3f9e50d430cae49139bcc3d3ccb2"
+    },
+    {
+      "id": "WAP-0048",
+      "ledgerRef": "WAP-0048",
+      "ledgerDigest": "b148bb05cab62d31057ac951a433d3296009ca15ffdca5a68aa57c0d37ada269"
+    },
+    {
+      "id": "WAP-0054",
+      "ledgerRef": "WAP-0054",
+      "ledgerDigest": "20c333984c9c23fc584b5e1e3ce568bf57f0a26bac623cab4e9bad80f92d708b"
+    },
+    {
+      "id": "WAP-0068",
+      "ledgerRef": "WAP-0068",
+      "ledgerDigest": "b00bba5a457108a110e04e24c078b88ff989e41c5e2e6aeb0f0cdb38b9cc8e43"
+    },
+    {
+      "id": "WAP-0069",
+      "ledgerRef": "WAP-0069",
+      "ledgerDigest": "b873682ad64bd4d3b8ef0d065c922521e8562e84508779cd73b75700c4f936ca"
+    },
+    {
+      "id": "WAP-0072",
+      "ledgerRef": "WAP-0072",
+      "ledgerDigest": "284625df7e17723e079c2d3f846a98f4a480a105da68b03af802ec5f2257222f"
+    },
+    {
+      "id": "WAP-0071",
+      "ledgerRef": "WAP-0071",
+      "ledgerDigest": "acc9a59ee1d612362e39302d58c20801e1b71c5f0b3312a7c9edeb2f5484e6f0"
+    },
+    {
+      "id": "WAP-0070",
+      "ledgerRef": "WAP-0070",
+      "ledgerDigest": "e6e4acf2f1151eae2295ac22e35f16579185a5d297a7a8c80d2131987e9713a8"
+    },
+    {
+      "id": "WAP-0073",
+      "ledgerRef": "WAP-0073",
+      "ledgerDigest": "250f404954b95f9f5d190e839bd1385bd21f6955e6d3a8ba9d3b3ec95f83ffd7"
+    }
+  ],
+  "deferred": []
+}

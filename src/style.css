@@ -2791,3 +2791,15 @@ header small {
 @media screen {
   .sales-workspace-product .stock-summary {padding:3px 0;}
 }
+
+/* Work4: keep the expanded person's records inside one visible boundary. */
+@media screen {
+  .collection-expanded { grid-column:1/-1; min-width:0; margin:0 0 8px; padding:9px; border:1px solid #dcb9c5; border-left:3px solid #a44865; border-radius:5px; background:#fff9fa; }
+  .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-past:not(.secondary):not(.danger) { background-image:none; background-color:#fce6ea; color:#713148; }
+  .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-current:not(.secondary):not(.danger) { background-image:none; background-color:#d8869d; color:#381122; }
+  .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-full:not(.secondary):not(.danger) { background-image:none; background-color:#87364f; color:#fff; }
+  .login form > .button:not(.login-reset) { background:transparent url('./assets/pencil/green-deep.png') center/100% 100% no-repeat!important; border:0!important; color:#fff; }
+  .profit-card { padding:14px 10px; }
+  .profit-card-value { font-size:1rem; }
+  .profit-card-value strong { font-size:1.55rem; }
+}

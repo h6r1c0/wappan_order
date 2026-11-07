@@ -556,10 +556,10 @@ function Invoice({ round: r }) {
         }, "納品・仕入額を保存");
       }}
     >
-      <h3>納品書の税込合計</h3><div className="invoice-input-row"><Money label="税込合計" value={invoice} onChange={setInvoice}/><Button type="submit">保存</Button></div>
+      <div className="invoice-input-row"><Money label="納品書の税込合計" value={invoice} onChange={setInvoice}/><Button type="submit">保存</Button></div>
       {r.invoice != null && <details><summary>仕入の内訳を見る</summary>
         <div className="cost-overview">個人注文 {yen(roundCost(state, preview))} ／ 販売用 {yen(salesCost)} ／ おやつ用 {yen(snackCost)}</div>
-        {snackRows.map(e=><p key={e.id}>おやつ用：{e.name}</p>)}
+        {snackRows.map(e=><p key={e.id}>{e.name==='おやつ用'?'おやつ用':`おやつ用：${e.name}`}</p>)}
         {salesRows.map(st=><p key={st.id}>販売用：{st.name} ×{st.qty}</p>)}
         {ded == null && <small>{finances.method==='invoice'?'販売済み分を含む利益は納品書総額から計算できます。商品別原価は内訳が必要なときに確認します。':'用途別の仕入単価が必要な計算は、対象商品の原価を確認してください。'}</small>}
       </details>}

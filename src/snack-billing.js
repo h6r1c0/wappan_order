@@ -144,7 +144,7 @@ export function correctFiscalReceipt(state,eventId,targetId,reason){
 
 export function snackGroupTarget(state,event,billing,group){
   const ids=new Set(group.lineIds||[]);
-  if(!ids.size||ids.size!==(group.lineIds||[]).length||event.lines.filter(l=>ids.has(l.id)).length!==ids.size)
+  if((!ids.size&&!(group.quantities&&Object.keys(group.quantities).length===0))||ids.size!==(group.lineIds||[]).length||event.lines.filter(l=>ids.has(l.id)).length!==ids.size)
     throw Error('共通単価の対象商品を選んでください');
   if(group.quantities){
     if(Object.keys(group.quantities).some(id=>!ids.has(id)))throw Error('共通単価の商品を確認してください');
