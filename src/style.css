@@ -2809,11 +2809,12 @@ header small {
   body:has(#root > .login-header) { background:#fff8e8; }
   #root:has(> .login-header) {
     --login-canvas-width:min(100vw,500px);
-    position:relative; isolation:isolate;
+    position:relative; isolation:isolate; container-type:inline-size;
     min-height:max(100svh,760px,calc(var(--login-canvas-width) * 1.777778));
     background:#fff8e8;
   }
   #root:has(> .login-header)::before {
+    --login-canvas-width:min(100cqi,500px);
     content:''; position:absolute; inset:0; width:var(--login-canvas-width); margin-inline:auto;
     pointer-events:none; z-index:-1;
     border-style:solid; border-color:transparent; border-width:1px;

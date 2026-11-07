@@ -1264,7 +1264,7 @@ test('11/7レビュー：仕分けを編集中・残り0でも元3→2を保存�
  const group=page.locator('.snack-group').first();
  await group.getByLabel('請求名',{exact:true}).fill('編集中の共通単価');
  await setQty(page,'こしあんぱん 財政分',3);
- const entry=page.locator('.snack-transfer-entry').filter({hasText:'振替済み 3個'});
+ const entry=page.locator('.snack-billing-row').filter({hasText:'りんごデニッシュ（涼）'}).filter({has:page.locator('.snack-transfer-entry')}).locator('.snack-transfer-entry');
  await expect(entry.getByRole('button',{name:'数量を訂正'})).toBeEnabled();await entry.getByRole('button',{name:'数量を訂正'}).click();
  const editor=page.getByRole('region',{name:'りんごデニッシュ（涼）の振替数量訂正'});
  await expect(editor).toContainText('仕分けの編集中の値は保持');await expect(editor).toContainText('訂正可能な最小数量 0個');
@@ -1329,8 +1329,8 @@ test('11/7レビュー：実ログイン背景・ロゴ・フォームを3幅と
   const root=page.locator('#root');expect(await root.evaluate(el=>getComputedStyle(el,'::before').borderImageSource)).toContain('crayon-background');
   for(const name of ['メールアドレス','パスワード']){const box=await page.getByLabel(name,{exact:true}).boundingBox();expect(box.width).toBeGreaterThan(200);expect(box.height).toBeGreaterThanOrEqual(40);}
   await expect(page.locator('.school-logo')).toHaveAttribute('src',/ohisama_header_logo/);await expect(page.locator('.login-brand')).toHaveAttribute('src',/wappan_title_logo_display/);
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:`test-results/nov7-login-${width}.png`,fullPage:true});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
  await page.setViewportSize({width:375,height:812});await login(page);
  await expect(page.locator('.workspace-header')).toBeVisible();
