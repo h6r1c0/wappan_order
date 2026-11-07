@@ -963,7 +963,9 @@ test('11/5レビュー：実使用、保存済み財政・家庭請求、余剰�
   await expect(page.getByRole('region',{name:'おやつ数量照合表'}).locator('tr').filter({hasText:'こしあんぱん'})).toContainText('22');
   expect(shared.state.events[0].snackDraft.household).toHaveLength(4);
 
+  await snackStep(page,'財政請求');
   await expect(page.getByRole('button',{name:'財政分を途中保存'})).toBeVisible();
+  await snackStep(page,'個別請求');
   const buyerDetail=page.locator('.snack-direct-buyer').filter({hasText:'ホリ'});
   await expect(buyerDetail.locator('summary')).toContainText('こしあんぱん ×2');await expect(buyerDetail.locator('summary')).toContainText('2,250円');
   await buyerDetail.locator('summary').click();
@@ -1099,7 +1101,7 @@ test('11/5レビュー：保存済みの商品別数量から共通候補を出�
   shared.state.events.push(e);r.eventIds.push(e.id);
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
 
-  const group=page.locator('.snack-group');
+  await snackStep(page,'共通単価請求');const group=page.locator('.snack-group');
   await expect(group.getByLabel('1個の共通単価')).toHaveValue('150');
   await expect(group).toContainText('商品別原価の合計 3,242円');
   await setQty(page,'こしあんぱん 共通単価の対象数',0);
@@ -1111,7 +1113,7 @@ test('11/5レビュー：保存済みの商品別数量から共通候補を出�
   expect(shared.state.events[0].snackDraft.groups[0].unitPrice).toBe(170);
   await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
 
-  await expect(page.locator('.snack-group').getByLabel('1個の共通単価')).toHaveValue('170');
+  await snackStep(page,'共通単価請求');await expect(page.locator('.snack-group').getByLabel('1個の共通単価')).toHaveValue('170');
   await mobileShots(page,'nov5-weighted-price');
 });
 
@@ -1121,13 +1123,13 @@ test('11/5レビュー：午後の共通単価の既存購入者を全員から�
   const r=newRound(shared.state,'2026-10-16',true);r.status='注文確定';shared.state.rounds.push(r);
   const e={id:'common-buyers',roundId:r.id,date:r.date,name:'隔離おやつ',test:true,lines:[{id:'bean',name:'こしあんぱん',qty:3,cost:130,used:0}],snackDraft:{label:'',fiscal:[],household:[],groups:[{id:'common',label:'共通単価',lineIds:['bean'],quantities:{bean:3},unitPrice:130,priceMode:'auto'}]}};
   shared.state.events.push(e);r.eventIds.push(e.id);await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
-  await page.locator('.snack-group details > summary').click();
+  await snackStep(page,'共通単価請求');await page.locator('.snack-group details > summary').click();
   for(const name of ['森本','花房','西尾'])await expect(page.getByRole('button',{name:new RegExp(`^共通単価 ${name}の数量 0、直接入力する$`)})).toBeVisible();
   for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await page.locator('.snack-group .buyer-quantity-grid').scrollIntoViewIfNeeded();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/nov5-common-buyers-${width}.png`});}
   for(const name of ['森本','花房','西尾'])await setQty(page,`共通単価 ${name}の数量`,1);
   await expect(page.locator('.snack-group')).toContainText('未割当 0個');await page.getByRole('button',{name:'共通単価分を途中保存'}).click();
   expect(shared.state.events[0].snackDraft.household.map(x=>x.qty)).toEqual([1,1,1]);
-  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');await page.locator('.snack-group details > summary').click();
+  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');await snackStep(page,'共通単価請求');await page.locator('.snack-group details > summary').click();
   for(const name of ['森本','花房','西尾'])await expect(page.getByRole('button',{name:new RegExp(`共通単価 ${name}の数量 1`)})).toBeVisible();
 });
 
@@ -1200,6 +1202,7 @@ test('11/6レビュー：販売用の1個を既存共通単価へ追加し、24�
   shared.state.stocks.push(st);r.stockIds.push(st.id);
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
   await expect(page.locator('.snack-group')).toContainText('1個超過');
+  await snackStep(page,'共通単価請求');
   await page.locator('.snack-group details > summary').click();await expect(page.locator('.snack-group details')).toContainText('1個超過');
   await page.locator('.stock-to-snack > summary').click();await page.getByLabel('販売用の商品').selectOption(st.id);
   await page.getByLabel('振替先の用途').selectOption('common');await page.getByLabel('追加先の共通単価').selectOption('existing');
