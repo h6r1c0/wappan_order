@@ -224,6 +224,17 @@ export function undoTransfer(s, stockId) {
 }
 // Correct the original transfer lot in place. Its ID and any valid sales stay
 // attached; the released units become available on the original snack line.
+export function snackTransferLimits(s,stockId){
+  const stock=s.stocks.find(x=>x.id===stockId);
+  const event=s.events.find(e=>e.id===stock?.eventId);
+  const line=event?.lines.find(l=>l.id===stock?.eventLineId);
+  if(!stock||!line||line.sourceStockId)throw Error('元のおやつ振替記録を確認してください');
+  const sold=soldQty(s,stock.id),moved=movedOut(s,stock.id);
+  const allocated=Math.max(event.snackDraft?snackPurposeQuantity(event,line.id,event.snackDraft):line.used,
+    event.billing?snackPurposeQuantity(event,line.id,event.billing):0);
+  const maximum=stock.qty+receivedQuantity(line)-allocated-transferredQty(s,line.id);
+  return {sold,moved,minimum:sold+moved,maximum,unused:stock.qty-sold-moved};
+}
 export function correctSnackToSalesTransfer(s,stockId,quantity,reason){
   const stock=s.stocks.find(x=>x.id===stockId);
   const event=s.events.find(e=>e.id===stock?.eventId);
@@ -231,12 +242,9 @@ export function correctSnackToSalesTransfer(s,stockId,quantity,reason){
   if(!stock||!line||line.sourceStockId||!Number.isSafeInteger(quantity)||quantity<0||
     !String(reason||'').trim())throw Error('訂正する振替数量と理由を確認してください');
   if(quantity===stock.qty)throw Error('振替数量に変更がありません');
-  const sold=soldQty(s,stock.id),children=movedOut(s,stock.id);
-  if(quantity<sold+children)throw Error(`販売済み・再振替済みの${sold+children}個より少なくできません。販売記録を先に確認してください`);
-  const allocated=Math.max(event.snackDraft?snackPurposeQuantity(event,line.id,event.snackDraft):line.used,
-    event.billing?snackPurposeQuantity(event,line.id,event.billing):0);
-  const available=receivedQuantity(line)-allocated-transferredQty(s,line.id);
-  if(quantity>stock.qty+available)throw Error(`${line.name}：実入荷と用途割当を超えています`);
+  const limits=snackTransferLimits(s,stockId);
+  if(quantity<limits.minimum)throw Error(`販売済み・再振替済みの数量を下回っています（販売済み ${limits.sold}個・再振替済み ${limits.moved}個、最小 ${limits.minimum}個）。販売記録を先に確認してください`);
+  if(quantity>limits.maximum)throw Error(`${line.name}：実入荷と用途割当を超えています`);
   stock.transferHistory??=[];
   stock.transferHistory.push({at:new Date().toISOString(),previous:stock.qty,updated:quantity,reason});
   stock.qty=quantity;
