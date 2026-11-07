@@ -53,3 +53,14 @@ test('同じ注文回に複数の候補が本当に残るときは推測充当�
  assert.equal(collectionDueItems(s,oct.id,'a').unallocated,0);
  assert.equal(collectionDueItems(s,oct.id,'a').items.find(x=>x.id==='extra').balance,100);
 });
+test('後から発生した開始時未収を古い受取へ混ぜない',()=>{
+ const {s,sep,oct}=rounds();
+ sep.collectionLive=true;oct.collectionLive=true;
+ sep.orders.asano={name:'浅野',quantities:{bread:1}};
+ oct.orders.asano={name:'浅野',quantities:{bread:1}};
+ s.receivableItems.push({id:'future-opening',kind:'opening',buyerId:'asano',date:'2026-10-01',amount:200,reason:'別の未収'});
+ s.collectionEntries.push({id:'old-cash',roundId:sep.id,buyerId:'asano',date:'2026-10-23',received:790,adjustment:0});
+ assert.equal(collectionDueItems(s,oct.id,'asano').unallocated,0);
+ assert.equal(currentRoundDue(s,sep).total,0);
+ assert.equal(collectionPosition(s,oct.id,'asano').carry,200);
+});

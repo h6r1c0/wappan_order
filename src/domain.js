@@ -590,7 +590,7 @@ export function collectionDueItems(s, roundId, buyerId) {
     // An older receipt cannot become ambiguous merely because a later round
     // added a new claim. Evaluate the claims that existed in its own round.
     const origin=eligible.find(r=>r.id===entry.roundId);
-    const open=items.filter(x=>x.balance>0&&(x.kind==='opening'||
+    const open=items.filter(x=>x.balance>0&&(x.kind==='opening'&&origin&&x.date<=origin.date||
       eligible.some(r=>r.id===x.roundId&&origin&&(r.date<origin.date||r.date===origin.date&&r.id<=origin.id))));
     const outstanding=sum(open.map(x=>x.balance));
     if(!entry.itemId&&entry.received>0&&open.length>1&&amount<outstanding){

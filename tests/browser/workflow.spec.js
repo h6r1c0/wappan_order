@@ -1166,13 +1166,13 @@ test('11/6レビュー：過去回の受取と今回の未受取を分け、氏�
   shared.state.collectionEntries.push({id:'old-cash',roundId:old.id,buyerId:'asano',date:'2026-10-23',received:1234,adjustment:0,note:'全額受取'});
   await backend(context,shared);await login(page);await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();await page.locator('.stage-4 > .stage-trigger').click();
   const row=page.locator('.collection-entry[data-buyer="asano"]');await expect(row.locator('.collection-buyer-name')).toHaveText('検証用の長い姓名');
-  await expect(row.locator('.collection-context')).toContainText('充当先を確認');
+  await expect(row.locator('.collection-context')).toContainText('前回未収 56円');
   await expect(row.getByRole('button',{name:'今回分受取'})).toBeVisible();
   await row.locator('.collection-open').click();
   await expect(row.locator('.collection-expanded')).toContainText('2026-09-11分の受取');
   await expect(row.locator('.collection-expanded')).toContainText('受取記録日 2026-10-23');
   await row.locator('.collection-open').click();
-  await expect(row.locator('.collection-context')).toContainText('今回分は未受取');
+  await expect(row.locator('.collection-context')).toContainText('前回未収 56円');
   await page.locator('.collection-completed > summary').click();
   for(const width of [320,375,430]){await page.setViewportSize({width,height:812});
     expect(await row.locator('.collection-buyer-name').evaluate(el=>getComputedStyle(el).textOverflow)).not.toBe('ellipsis');
