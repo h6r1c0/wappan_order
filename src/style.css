@@ -2855,7 +2855,7 @@ header small {
     background-image:linear-gradient(rgba(192,54,111,.92),rgba(192,54,111,.92)),url('./assets/pencil/red-deep.png');
   }
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-past:not(.secondary):not(.danger) {
-    background-image:linear-gradient(rgba(180,70,116,.92),rgba(180,70,116,.92)),url('./assets/pencil/red-deep.png');
+    background-image:linear-gradient(rgba(180,70,116,.94),rgba(180,70,116,.94)),url('./assets/pencil/red-deep.png');
   }
   .snack-billing-preview:after { content:none; }
   .snack-scroll-hint { text-align:left; margin:10px 0 3px; }
