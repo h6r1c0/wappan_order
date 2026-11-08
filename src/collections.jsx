@@ -40,8 +40,9 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
   const act=async(fn,description)=>{if(busy)return false;setBusy(true);try{return await save(fn,description);}finally{setBusy(false);}};
   const afterSave=()=>{setReceived(null);setReason('');setOpen(false);setInvestigate(false);request.current=uid();onDone(buyer.id);};
   const quickReceipt=async(item,description)=>{let entryId;
-    if(await act(s=>{entryId=receiveDueItem(s,round.id,buyer.id,item.id).id;},description)){
-      onRecent({buyerId:buyer.id,id:entryId});afterSave();
+    const result=await act(s=>{entryId=receiveDueItem(s,round.id,buyer.id,item.id).id;},`${buyer.name}・${item.date}分の${description}`);
+    if(result){
+      onRecent({buyerId:buyer.id,id:result.receiptId||entryId});afterSave();
     }
   };
   const chooseLine=key=>{setLineKey(key);setQty(1);const l=lines.find(x=>x.key===key);setUnitPrice(l?.unitPrice??l?.candidate??null);};
@@ -75,7 +76,8 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
       {currentQuick&&<Button className="collection-pay pay-current" disabled={busy} onClick={()=>quickReceipt(currentDue[0],'今回分を受取')}>今回分受取</Button>}
       </div>
     </div>
-    {!isOpen&&context&&<small className={`collection-context ${pending||audit?.issues.length?'needs-check':''}`}>{priorCashLabel||position.unallocated>0?`${position.received===0?'今回分は未受取 ／ ':''}過去を含む受取の充当先を確認`:context}</small>}
+    {!isOpen&&!position.unallocated&&pastDue.length>0&&currentDue.length>0&&<small className="collection-context collection-split">未収分 {yen(pastDue.reduce((n,x)=>n+x.balance,0))} ／ 今回分 {yen(currentDue.reduce((n,x)=>n+x.balance,0))}</small>}
+    {!isOpen&&(position.unallocated||!pastDue.length||!currentDue.length)&&context&&<small className={`collection-context ${pending||audit?.issues.length?'needs-check':''}`}>{priorCashLabel||position.unallocated>0?`${position.received===0?'今回分は未受取 ／ ':''}過去を含む受取の充当先を確認`:context}</small>}
     {isOpen&&<div className="collection-expanded" role="region" aria-label={`${buyer.name}の集金詳細`}>
     {isOpen&&knownClaim&&<p className="collection-alert">請求漏れ：{productDisplayName(knownClaim.note?.replace(/\s*×.*$/u,'')||'商品')} {knownClaim.qty||''}点 ／ {yen(knownClaim.amount)}{!position.received&&<small>案内済み {yen(knownClaim.notifiedAmount)} ／ 現金は未受取</small>}</p>}
     {isOpen&&!!position.confirmedHistorical&&<p className="collection-alert">過去の支払済み確認 {yen(position.confirmedHistorical)}<small>現金の受取記録とは別の確認です。履歴から内容を調べられます。</small></p>}
@@ -95,7 +97,7 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
       {reason==='返金がある'&&<Money label="返金額" value={refund??Math.max(0,-position.balance)} onChange={setRefund}/>}
       {!!missingPast&&<div className="fact-confirmation"><p>{reason===collectionReasons[0]?'未登録の前回不足':'未登録の前回預かり'}候補：{yen(missingPast)}</p><Field label="前回分の対象日" type="date" value={pastDate} max={round.date} onChange={e=>setPastDate(e.target.value)}/><small>確認して受取を保存すると、前回分も一緒に記録します。登録済みの分は残高へ反映済みです。</small></div>}
       <div className="actions"><Button disabled={busy||received==null||(reason==='返金がある'?(refund??Math.max(0,-position.balance))<=0:received<=0)||delta!==0&&!reason||reason===collectionReasons[6]||received>0&&due.items.length>1&&received<position.balance&&!receiptTarget||audit?.lines.some(l=>l.qty>0&&(l.unitPrice==null||l.missingProduct))}
-        onClick={async()=>{if(await act(s=>receiveCollection(s,{roundId:round.id,buyerId:buyer.id,received:reason==='返金がある'?-(refund??Math.max(0,-position.balance)):received,reason,pastAmount:missingPast,pastDate,requestId:request.current,caseId:pending?.id,itemId:receiptTarget}),'実際の受取と差額理由を保存'))afterSave();}}>{reason==='返金がある'?'返金を保存':'受取額を保存'}</Button>
+        onClick={async()=>{if(await act(s=>receiveCollection(s,{roundId:round.id,buyerId:buyer.id,received:reason==='返金がある'?-(refund??Math.max(0,-position.balance)):received,reason,pastAmount:missingPast,pastDate,requestId:request.current,caseId:pending?.id,itemId:receiptTarget}),`${buyer.name}・${round.date}分の受取`))afterSave();}}>{reason==='返金がある'?'返金を保存':'受取額を保存'}</Button>
         <button type="button" className="text-action" onClick={()=>setInvestigate(!investigate)} aria-expanded={investigate}>請求・過去の履歴を調べる ›</button></div>
       {(investigate||reason===collectionReasons[6])&&<div className="collection-investigation" aria-label="差額の調査">
         <h3>注文・納品・請求を照合</h3>
@@ -164,7 +166,7 @@ export function RoundCollections({round,rows,sessions={},onDraft,onSource,initia
   const auditDetails=<>
     <details><summary>販売用の入荷・割当を照合</summary>{audit.stocks.map(x=><p key={x.stock.id}>{productDisplayName(x.stock.name)}<small>注文 {x.ordered} ／ 入荷 {x.received} ／ 欠品 {x.ordered-x.received} ／ 振替 {x.moved} ／ 販売先確定 {x.assigned} ／ 販売待ち・残り在庫 {x.remaining} ／ 販売済み・購入者未確認 {x.unconfirmed}</small></p>)}</details>
     {unresolved&&<details><summary>例外：未確定の請求表を作る</summary><Field label="未確定の請求表を作る理由"><select value={exception} onChange={e=>setException(e.target.value)}><option value="">理由を選ぶ</option><option>単価を確認中</option><option>請求内容を照合中</option></select></Field><small>「未確定」と理由を明記します。</small></details>}
-    <details className="collection-print"><summary>集金袋に記入する金額の一覧を印刷{unresolved?'（請求未確定）':''}</summary>{unresolved&&<small>未確定の請求があります。警告から確認するか、例外理由を選ぶと未確定と明記した一覧を作れます。</small>}<button className="text-action" type="button" disabled={exporting||unresolved&&!exception} onClick={exportBills}>金額一覧のPDFを開く ›</button></details>
+    <button className="text-action collection-print" type="button" disabled={exporting||unresolved&&!exception} onClick={exportBills}>集金袋に記入する金額の一覧を印刷{unresolved?'（請求未確定）':''} ›</button>
   </>;
   return <div className="stack collection-list">
     {recentReceipt&&!(state.collectionCorrections||[]).some(x=>x.targetId===recentReceipt.id)&&<div className="collection-undo"><span>{state.buyers.find(x=>x.id===recentReceipt.buyerId)?.name}の受取を記録しました</span><button type="button" className="text-action" onClick={async()=>{if(await save(s=>correctCollectionRecord(s,'collectionEntries',recentReceipt.id,'操作ミス（現金の受取なし）'),'直前の誤受取を取消'))setRecentReceipt(null);}}>誤タップを取り消す</button></div>}
