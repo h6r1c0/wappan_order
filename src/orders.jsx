@@ -16,6 +16,7 @@ import {TaskIcon} from './task-icon';
 import {PrintPrep} from './print-prep.jsx';
 import {productDisplayName} from './product-names.js';
 import {estimatePrice} from './price-estimate.js';
+import {externalSalesSummary} from './external-sales-summary.js';
 import {
   newRound,
   productAvailable,
@@ -367,12 +368,16 @@ function Round({ round: r, initialTab = null, back }) {
       )}
       {stage === "注文" && PURPOSES.includes(tab) && <div className="purpose-next" aria-label="ほかの注文用途">
         {PURPOSES.map((label,index) =>
-          <button type="button" className={`text-action ${label === tab ? 'selected' : ''}`} aria-pressed={label===tab} key={label} onClick={() => moveTo(label)}>{['個人','販売','おやつ'][index]} {label===tab?'✓':'›'}</button>)}
+          <button type="button" className={`text-action ${label === tab ? 'selected' : ''}`} aria-pressed={label===tab} key={label} onClick={() => moveTo(label)}>{['個人','販売','おやつ'][index]}</button>)}
       </div>}
       {tab === "集金" && (
         <>
           <div className="collection-total"><span>{rows.some(x=>x.unpriced.length)?'判明分の小計・請求未確定':'今回の請求合計'}</span>
             <strong>{yen(rows.reduce((a, b) => a + b.total, 0))}</strong></div>
+          {(()=>{const external=externalSalesSummary(state,r);return <details className="collection-external"><summary>支払い済み・外部販売 <strong>{yen(external.total)}</strong></summary>
+            {external.lines.length?external.lines.map((line,i)=><div key={i}>{productDisplayName(line.name)} {line.qty}個 × {yen(line.unitPrice)}{line.place?` ／ ${line.place}`:''}<strong>{yen(line.amount)}</strong></div>):<small>登録された外部販売はありません。</small>}
+            <small>登録売上です。実際の受取現金と照合してください。個人未収には含みません。</small>
+          </details>})()}
           <RoundCollections round={r} rows={rows} sessions={collectionSessions} initialFocus={collectionReturn}
             onDraft={(id,draft)=>setCollectionSessions(s=>({...s,[id]:draft}))}
             onSource={(kind,id)=>{
@@ -426,9 +431,9 @@ function Round({ round: r, initialTab = null, back }) {
                       .map((p) => `${p.name}　${p.qty}`)
                       .join("\n"),
                 );
-                notify("発注数をコピーしました");
-              } catch (e) {
-                notify(e.message);
+                notify("コピーしました");
+              } catch {
+                notify("コピーできませんでした。ブラウザのコピー許可を確認してください。");
               }
             }}
           >
