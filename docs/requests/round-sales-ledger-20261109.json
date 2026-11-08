@@ -1,0 +1,52 @@
+{
+  "source": "2026-11-09 利用者 Work4 次回総合修正依頼（PR #40 公開後）",
+  "purpose": "販売割当と請求先注文回の整合を優先し、その他商品の分割、集金袋ラベル、おやつ区分、集計と表示の差分を実装。本番取引は読み取りのみ。",
+  "targets": [
+    {
+      "id": "WAP-0039",
+      "ledgerRef": "WAP-0039",
+      "ledgerDigest": "fe7be2dce78ea28736a313ee30feb5b7da8687dc657aa1d2ccd79e67b37dee40"
+    },
+    {
+      "id": "WAP-0041",
+      "ledgerRef": "WAP-0041",
+      "ledgerDigest": "b8d1ed68472b6ac2575dae1ede09143551ca0dfd6cb71ff6fd3001bb4c00a34e"
+    },
+    {
+      "id": "WAP-0074",
+      "ledgerRef": "WAP-0074",
+      "ledgerDigest": "94416a57294f509a0df73f57c815fff624a1097b88625bd3fe0f7c56f08d7413"
+    },
+    {
+      "id": "WAP-0078",
+      "ledgerRef": "WAP-0078",
+      "ledgerDigest": "7f6aad4cd5c4c760653e3eca9a20776f588a30145975cd238a974ba9ef91c757"
+    },
+    {
+      "id": "WAP-0079",
+      "ledgerRef": "WAP-0079",
+      "ledgerDigest": "6ae8260191738e79d939d7e27c806590feae6ffa7929885fd16b44c7a71ad0c8"
+    },
+    {
+      "id": "WAP-0080",
+      "ledgerRef": "WAP-0080",
+      "ledgerDigest": "f98320c90e20d3d737908f0ae89ef6f1e5089b73e6a2eaa513c5d790379b6791"
+    },
+    {
+      "id": "WAP-0081",
+      "ledgerRef": "WAP-0081",
+      "ledgerDigest": "947bec0f426efbbc59b566739d386288dd5d1df8cdd68d3a630b35c5d809c233"
+    },
+    {
+      "id": "WAP-0082",
+      "ledgerRef": "WAP-0082",
+      "ledgerDigest": "49f45c1f6f652ad7658f2373b67099fb284bb274521cbada0347e35bb2ea3d01"
+    },
+    {
+      "id": "WAP-0083",
+      "ledgerRef": "WAP-0083",
+      "ledgerDigest": "7b7dd2b05b3959e045a8cfd93aaa22e09870d87073a8261e5f4dc7ffb889bed3"
+    }
+  ],
+  "deferred": []
+}
