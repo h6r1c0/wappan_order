@@ -1,4 +1,5 @@
-import {faxProducts,normalize} from './domain.js';
+import {faxProducts,normalize,collections} from './domain.js';
+import {billingAudit} from './collection-workflow.js';
 import {deliveredQuantity,receivedQuantity} from './shortages.js';
 import {buyerCompare} from './buyer-order.js';
 import {productDisplayName} from './product-names.js';
@@ -64,12 +65,17 @@ export function salesPrintName(name) {
 export function sortingPrintRows(state, round) {
   const products = faxProducts(round.products);
   const buyers = new Map(state.buyers.map(b => [b.id,b]));
-  return Object.entries(round.orders).map(([id,order],index) => ({
+  const bills=new Map(collections(state,'','',round.id,round.test).map(x=>[x.id,x]));
+  const issues=new Map(billingAudit(state,round.id).buyers.map(x=>[x.buyerId,x.issues]));
+  const rowIds=[...new Set([...Object.keys(round.orders),...bills.keys()])];
+  return rowIds.map((id,index) => {const order=round.orders[id]||{name:buyers.get(id)?.name,quantities:{}};const bill=bills.get(id);
+   return ({
     id, index, buyer:buyers.get(id), name:buyers.get(id)?.name || order.name,
+    billAmount:bill?.total??0,billPending:!!(bill?.unpriced.length||issues.get(id)?.length),
     lines:products.map(product => ({id:product.id,name:product.name,
       printName:sortingPrintName(product.name,products),qty:deliveredQuantity(order,product.id)}))
       .filter(line => line.qty > 0),
-  })).filter(row => row.lines.length)
+  });}).filter(row => row.lines.length||row.billAmount||row.billPending)
     .sort((a,b) => a.buyer && b.buyer ? buyerCompare(a.buyer,b.buyer) || a.index-b.index : a.buyer ? -1 : b.buyer ? 1 : a.index-b.index);
 }
 
@@ -108,13 +114,13 @@ export function sortingPrintName(name, products) {
 // Physical height estimate: 16mm for name/padding, 5.5mm per product line.
 // Leave Safari substantial page-bottom headroom rather than filling the A4 box.
 const sortingGridHeight=235;
-export function sortingSpan(lines, rowCount=4) {
+export function sortingSpan(lines, rowCount=4, hasBill=false) {
   const units=lines.reduce((n,line)=>n+(line.printUnits??Math.max(1,Math.ceil([...(line.printName||line.name)].length/11))),0);
-  return Math.min(4,Math.max(1,Math.ceil((16+units*5.5)/(sortingGridHeight/rowCount))));
+  return Math.min(4,Math.max(1,Math.ceil((16+(hasBill?6:0)+units*5.5)/(sortingGridHeight/rowCount))));
 }
 
 function arrange(rows,rowCount,pageCount=0) {
-  const ranked=rows.map((row,index)=>({...row,index,span:sortingSpan(row.lines,rowCount)}))
+  const ranked=rows.map((row,index)=>({...row,index,span:sortingSpan(row.lines,rowCount,row.billAmount!==undefined)}))
     .sort((a,b)=>b.span-a.span || a.index-b.index);
   const pages=Array.from({length:pageCount},()=>({items:[],used:new Set()}));
   const place=(page,item)=>{
