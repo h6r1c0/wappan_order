@@ -1490,3 +1490,31 @@ test('11/8レビュー：保留だけを除外して共有保存し、再読込�
  await page.getByRole('button',{name:'注文内容を貼り付け'}).click();
  await expect(page.getByRole('button',{name:'保留行を確認'})).toHaveCount(0);
 });
+
+test('11/9レビュー：別注文回の未収を保ち、購入者への販売とレモン外部1個を保存・再読込・集金照合',async({page,context})=>{
+ const s=preparedState();s.buyers.push({id:'kondo-qa-1109',name:'近藤',kana:'こんどう',active:true,fixed:[]});
+ const old=newRound(s,'2026-10-16',true),r=newRound(s,'2026-10-30',true);old.collectionLive=true;r.collectionLive=true;r.status='納品済み';s.rounds.push(old,r);
+ s.receivableItems=[{id:'prior-2460',kind:'opening',buyerId:'kondo-qa-1109',date:old.date,roundId:old.id,amount:2460,reason:'過去未収',note:'前回分'}];
+ const stock={id:'kondo-stock',roundId:r.id,date:r.date,name:'隔離パン',category:'パン',qty:3,price:450,cost:200,test:true};s.stocks.push(stock);r.stockIds.push(stock.id);
+ const lemon=saveOtherSale(s,{name:'隔離レモン',date:r.date,qty:2,unitPrice:100,unitCost:0,paymentStatus:'unpaid',test:true});
+ lemon.allocations=[{buyerId:'hori',qty:1,chargeRoundId:r.id}];
+ const shared={state:s,revision:0};await backend(context,shared);await login(page);
+ await page.locator('.round-list-item').filter({hasText:'2026/10/30'}).click();await openAfter(page,'販売用の仕分け');
+ await page.getByRole('button',{name:'商品から複数人へ割当'}).click();
+ await page.getByRole('button',{name:/隔離パン 未割当 3個/}).click();
+ await setQty(page,'隔離パン 近藤の数量',2);
+ await page.getByRole('button',{name:'この商品の割当をまとめて保存'}).click();
+ await expect.poll(()=>shared.state.sales.filter(x=>x.buyerId==='kondo-qa-1109'&&x.chargeRoundId===r.id).length).toBe(1);
+ await page.getByLabel('販売商品を絞り込む').getByRole('button',{name:'その他',exact:true}).click();
+ await page.getByRole('button',{name:/隔離レモン 未割当 1個/}).click();
+ await setQty(page,'支払い済み・外部販売',1);
+ await page.getByRole('button',{name:'この商品の割当をまとめて保存'}).click();
+ await expect.poll(()=>shared.state.otherSales.find(x=>x.id===lemon.id).paidExternalQty).toBe(1);
+ await page.reload();await page.locator('.round-list-item').filter({hasText:'2026/10/30'}).click();
+ await page.locator('.stage-4 > .stage-trigger').click();
+ const row=page.locator('.collection-entry').filter({hasText:'近藤'});
+ await expect(row.locator('.collection-split')).toContainText('未収分 2,460円 ／ 今回分 900円');
+ expect(collections(shared.state,'','',r.id,true).find(x=>x.id==='kondo-qa-1109').onsite).toBe(900);
+ await mobileShots(page,'nov9-kondo-collection');
+ await page.getByRole('button',{name:'ヘルプ',exact:true}).click();await expect(page.getByText('操作マニュアルを見る')).toBeVisible();
+});

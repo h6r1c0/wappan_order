@@ -4,6 +4,7 @@ import { client, configured, readWorkspace, writeWorkspace } from "./store";
 import { validate } from "./domain";
 import { upgrade } from "./commerce";
 import { receiptIntent, savedReceipt } from "./save-recovery";
+import {saleIntent,savedSaleIntent} from './sale-save-recovery';
 import { AppContext, Button, Field } from "./ui";
 import { Orders } from "./orders";
 import { Reports } from "./reports";
@@ -100,13 +101,14 @@ function App() {
     if (lock.current) return false;
     lock.current = true;
     setSaving(true);
-    let intent;
+    let intent,salesIntent;
     try {
       const next = structuredClone(state);
       change(next);
       upgrade(next);
       validate(next);
       intent=receiptIntent(state,next);
+      salesIntent=description==='販売先と数量をまとめて割り当て'?saleIntent(state,next):null;
       if(intent){
         // Check the server before a receipt attempt. A previous response may
         // have been lost, and local revision alone cannot settle that case.
@@ -124,6 +126,17 @@ function App() {
       notify(intent?"受取を保存しました。残高と履歴を更新しました":"保存しました");
       return true;
     } catch (e) {
+      if(salesIntent){
+        try{
+          const latest=await readWorkspace();
+          if(savedSaleIntent(latest.state,salesIntent)){
+            setState(latest.state);setRevision(latest.revision);revisionRef.current=latest.revision;
+            notify('販売割当は保存済みです。請求と内訳を更新しました');return true;
+          }
+          notify(`販売割当は保存されていません。${e.message} 入力した数量を残しています。`);
+        }catch{notify('販売割当の保存結果を確認できません。通信回復後に保存済み内訳を確認してください。入力は残しています。');}
+        return false;
+      }
       if(intent){
         try{
           const latest=await readWorkspace();
@@ -242,9 +255,9 @@ function App() {
                     <Orders />
                   ) : page === "集計" ? (
                     <Reports />
-                  ) : page === "設定" ? <Settings userId={session.user.id}/> : <section className="usage-guide"><h1>使い方</h1>
-                    <ol><li>注文を入力する</li><li>発注数を確認して注文確定</li><li>納品後、欠品・販売先・おやつ・仕入額を確認</li><li>集金を記録する</li></ol>
-                    <p>欠品時は03 納品・精算で配分を確認してから確定します。</p>
+                  ) : page === "設定" ? <Settings userId={session.user.id}/> : <section className="usage-guide"><h1>ヘルプ</h1>
+                    <details><summary>操作マニュアルを見る</summary><p>実画面に沿ったマニュアルを準備しています。公開後、ここから開けるようにします。</p></details>
+                    <details><summary>質問・不具合を報告</summary><p>報告先の準備中です。窓口が決まるまでは、現在の連絡方法をご利用ください。</p></details>
                   </section>}
                 </fieldset>
               </main>
@@ -253,7 +266,7 @@ function App() {
                   ["業務", "order"],
                   ["集計", "report"],
                   ["設定", "people"],
-                  ["使い方", "event"],
+                  ["ヘルプ", "event"],
                 ].map(([label, icon]) => (
                   <button
                     type="button"

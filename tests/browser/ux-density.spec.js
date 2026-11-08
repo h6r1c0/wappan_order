@@ -150,7 +150,7 @@ test('預かり金の返金は候補を選ぶだけでは受取を作らず、�
  await expect(page.getByLabel('返金額')).toHaveValue('100');
  expect(shared.state.collectionEntries).toHaveLength(0);
  await page.getByRole('button',{name:'返金を保存'}).click();
- expect(shared.state.collectionEntries).toHaveLength(1);
+ await expect.poll(()=>shared.state.collectionEntries.length).toBe(1);
  expect(shared.state.collectionEntries[0].received).toBe(-100);
  expect(collectionPosition(shared.state,r.id,'nishio').balance).toBe(690);
  await expect(page.locator('[data-buyer="nishio"] .collection-amount')).toContainText('690円');

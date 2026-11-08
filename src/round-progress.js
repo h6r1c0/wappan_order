@@ -82,7 +82,7 @@ export function roundWorkSummary(state,round){
     (state.collectionEntries||[]).some(x=>x.roundId===round.id)))steps.push('集金中');
   else if(progress.status==='納品済み'&&round.shortageConfirmation&&
     !billingAudit(state,round.id).issues.length)steps.push('確定済みの個人請求は集金可能');
-  if(progress.status==='完了')steps.push(progress.carry?'未収繰越あり・今回終了':'精算済み');
+  if(progress.status==='完了')steps.push(progress.carry?'今回の集金終了':'精算済み');
   return steps;
 }
 

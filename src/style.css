@@ -2921,3 +2921,26 @@ header small {
   .snack-save-state {background:#fffaf1;border:1px solid #e7d6bd;border-left:0;border-radius:7px;color:#6c5235;}
   .snack-billing-preview thead th {background:#fff0db;color:#845016;}
 }
+
+/* Bottom navigation has four distinct selected contexts. */
+nav button.active:has(span:last-child) {font-weight:700;}
+nav button.active:nth-child(1) {background:#fff0d8;color:#a45119;}
+nav button.active:nth-child(2) {background:#e8f2ff;color:#255a9b;}
+nav button.active:nth-child(3) {background:#e9f5e9;color:#296b3c;}
+nav button.active:nth-child(4) {background:#f3ecfa;color:#724296;}
+.collection-snack-badge {display:inline-block!important;width:max-content;border-radius:999px;background:#fff0d8;color:#775321;padding:2px 9px;margin-left:8px;font-size:.72rem;}
+.collection-snack-detail {display:block;color:#746e64;font-size:.75rem;margin:3px 8px;}
+.envelope-print {padding:8px 10px;border:1px solid #ecd5c4;border-radius:9px;}
+.envelope-print .field {max-width:300px;margin:0;}.envelope-print small {display:block;color:#726964;}
+.origin-summary,.round-chart {padding:12px;border:1px solid #e3ded1;border-radius:10px;margin:12px 0;}
+.origin-summary p {font-size:.84rem;margin:6px 0;}.round-chart h3 {margin:0 0 8px;}
+.round-chart-controls {display:flex;gap:10px;flex-wrap:wrap;}.round-chart-controls select {min-height:40px;}
+.round-chart-plot svg {width:100%;height:auto;max-height:200px;}
+.round-chart-dates {display:flex;gap:3px;overflow-x:auto;min-height:44px;}
+.round-chart-dates button {flex:none;border:1px solid #ddd;background:#fff;padding:5px;font-size:.76rem;}
+.round-chart-dates button.selected {background:#e6eef8;border-color:#7894b5;}
+@media screen {
+  body:has(#root > .login-header),#root:has(> .login-header) {background:#fff9ed;}
+  #root > header.login-header {padding-top:calc(var(--login-canvas-width) * .215);min-height:calc(95px + var(--login-canvas-width) * .215);}
+  #root > header.login-header .school-logo {margin-left:clamp(24px,12vw,61px);}
+}

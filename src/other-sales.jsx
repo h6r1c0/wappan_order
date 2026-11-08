@@ -3,7 +3,7 @@ import {useApp,Button,Field,Money,Qty,BuyerPicker} from './ui';
 import {today,yen,normalize} from './domain';
 import {saveOtherSale,voidOtherSale,replaceOtherAllocations,otherAllocationNeedsReason} from './other-sales.js';
 
-const empty=(date,test)=>({name:'',date:date||today(),qty:1,unitPrice:null,unitCost:0,paymentStatus:'',note:'',test});
+const empty=(date,test)=>({name:'',date:date||today(),qty:1,unitPrice:null,unitCost:0,paymentStatus:'',note:'',test,origin:'unknown'});
 export function OtherSales({round,query='',showAllocations=true}){
   const {state,save}=useApp();
   const [editing,setEditing]=useState(null);
@@ -34,6 +34,7 @@ export function OtherSales({round,query='',showAllocations=true}){
       <Field label="現金の受取状況"><select value={draft.paymentStatus} onChange={e=>update({paymentStatus:e.target.value})}>
         <option value="">選択してください</option><option value="paid">受取済み</option><option value="unpaid">未受取</option>
       </select></Field>
+      <Field label="商品由来（確認できた場合）"><select value={draft.origin||'unknown'} onChange={e=>update({origin:e.target.value})}><option value="unknown">未確認</option><option value="wappan">わっぱん商品</option><option value="non-wappan">わっぱん以外の商品</option></select></Field>
       <Field label="メモ（任意）"><input value={draft.note||''} onChange={e=>update({note:e.target.value})}/></Field>
       {draft.qty>0&&draft.unitPrice!=null&&draft.unitCost!=null&&<p>売上 {yen(draft.qty*draft.unitPrice)} ／ 原価 {yen(draft.qty*draft.unitCost)} ／ 利益 {yen(draft.qty*(draft.unitPrice-draft.unitCost))}</p>}
       {editing&&<Field label="訂正・取消の理由"><input value={reason} onChange={e=>setReason(e.target.value)}/></Field>}
@@ -43,7 +44,7 @@ export function OtherSales({round,query='',showAllocations=true}){
           if(confirm('この販売実績を取り消しますか？')&&await save(s=>voidOtherSale(s,editing,reason),'その他の販売を取消'))setDraft(null);
         }}>記録を取り消す</button>}</div>
     </div>}
-    {sales.map(x=><div className="other-sale-row" key={x.id}><span>{x.date} {x.name} ×{x.qty}<small>{x.paymentStatus==='paid'?'受取済み':'個人請求へ割当 '+(x.allocations||[]).reduce((n,a)=>n+a.qty,0)+'個 ／ 割当待ち '+(x.qty-(x.allocations||[]).reduce((n,a)=>n+a.qty,0))+'個'}</small></span>
+    {sales.map(x=><div className="other-sale-row" key={x.id}><span>{x.date} {x.name} ×{x.qty}<small>{x.paymentStatus==='paid'?'受取済み':`個人請求 ${(x.allocations||[]).reduce((n,a)=>n+a.qty,0)}個 ／ 支払い済み・外部販売 ${x.paidExternalQty||0}個 ／ 割当待ち ${x.qty-(x.allocations||[]).reduce((n,a)=>n+a.qty,0)-(x.paidExternalQty||0)}個`}</small></span>
       <strong>{yen(x.qty*(x.unitPrice-x.unitCost))}</strong><button type="button" className="text-action" onClick={()=>choose(x)}>編集 ›</button>
       {showAllocations&&x.paymentStatus==='unpaid'&&round&&<OtherAllocation key={x.id} sale={x} round={round}/>}</div>)}
   </details>;
@@ -54,18 +55,18 @@ function OtherAllocation({sale,round}){
   const [buyerId,setBuyerId]=useState(''),[qty,setQty]=useState(1),[reason,setReason]=useState(''),[error,setError]=useState(''),[saved,setSaved]=useState('');
   const count=rows.reduce((n,x)=>n+x.qty,0);
   return <details className="other-allocation"><summary>購入者へ割り当てる</summary>
-    <p>{sale.name}：割当済み {count}個 ／ 残り {sale.qty-count}個。売上は販売実績に一度だけ計上します。</p>
+    <p>{sale.name}：個人割当済み {count}個 ／ 外部販売 {sale.paidExternalQty||0}個 ／ 残り {sale.qty-count-(sale.paidExternalQty||0)}個。売上は販売実績に一度だけ計上します。</p>
     {rows.map(x=><div className="snack-billing-row" key={x.buyerId}>
       <span>{state.buyers.find(b=>b.id===x.buyerId)?.name}</span>
-      <Qty label={`${sale.name} ${state.buyers.find(b=>b.id===x.buyerId)?.name}の数量`} min={0} max={sale.qty} value={x.qty} onChange={n=>{setRows(n?rows.map(a=>a===x?{...a,qty:n}:a):rows.filter(a=>a!==x));setSaved('');}}/>
+      <Qty label={`${sale.name} ${state.buyers.find(b=>b.id===x.buyerId)?.name}の数量`} min={0} max={sale.qty-(sale.paidExternalQty||0)} value={x.qty} onChange={n=>{setRows(n?rows.map(a=>a===x?{...a,qty:n}:a):rows.filter(a=>a!==x));setSaved('');}}/>
     </div>)}
     <BuyerPicker key={rows.length} value={buyerId} onChange={setBuyerId} includeTest={round.test}/>
-    {buyerId&&<div className="snack-billing-row"><Qty label="追加する数量" min={1} max={sale.qty-count+(rows.find(x=>x.buyerId===buyerId)?.qty||0)} value={qty} onChange={setQty}/>
+    {buyerId&&<div className="snack-billing-row"><Qty label="追加する数量" min={1} max={sale.qty-count-(sale.paidExternalQty||0)+(rows.find(x=>x.buyerId===buyerId)?.qty||0)} value={qty} onChange={setQty}/>
       <Button secondary onClick={()=>{setRows([...rows.filter(x=>x.buyerId!==buyerId),{buyerId,qty,chargeRoundId:round.id}]);setBuyerId('');setQty(1);setSaved('');}}>この購入者を追加</Button></div>}
-    {count>sale.qty&&<p role="alert">販売済み数量を{count-sale.qty}個超えています。</p>}
+    {count+(sale.paidExternalQty||0)>sale.qty&&<p role="alert">販売済み数量を{count+(sale.paidExternalQty||0)-sale.qty}個超えています。</p>}
     {otherAllocationNeedsReason(sale,rows)&&<Field label="割当を訂正する理由"><input value={reason} onChange={e=>setReason(e.target.value)}/></Field>}
     {error&&<p className="notice" role="alert">{error}</p>}{saved&&<p role="status">{saved}</p>}
-    <Button disabled={count>sale.qty||otherAllocationNeedsReason(sale,rows)&&!reason.trim()||JSON.stringify(rows)===JSON.stringify(sale.allocations||[])} onClick={async()=>{
+    <Button disabled={count+(sale.paidExternalQty||0)>sale.qty||otherAllocationNeedsReason(sale,rows)&&!reason.trim()||JSON.stringify(rows)===JSON.stringify(sale.allocations||[])} onClick={async()=>{
       try{const probe=structuredClone(state);replaceOtherAllocations(probe,sale.id,rows,reason||'購入者へ割当');setError('');
         if(await save(s=>replaceOtherAllocations(s,sale.id,rows,reason||'購入者へ割当'),'その他商品を個人請求へ割当')){setSaved('個人請求への割当を保存しました。');setReason('');}}
       catch(e){setError(e.message);}

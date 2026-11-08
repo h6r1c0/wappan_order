@@ -330,6 +330,8 @@ export function addSale(s, stock, entry) {
   const destinationType = entry.destinationType || (entry.pending ? "unknown" : entry.paid ? "external" : "buyer");
   const paymentStatus = entry.paymentStatus || (entry.pending ? "unconfirmed" : entry.paid ? "paid" : "later");
   if (destinationType === "buyer" && !entry.buyerId) throw Error("購入者を選んでください");
+  if (destinationType === "buyer" && !s.rounds.some(r=>r.id===entry.chargeRoundId&&r.test===stock.test))
+    throw Error('請求先の注文回が一致しません。割当を保存していません');
   if (destinationType === "external" && !String(entry.destinationName || "").trim()) entry.destinationName = "外部販売（名称未入力）";
   const salePrice = entry.price ?? stock.price;
   integer(salePrice, "販売価格");
@@ -381,6 +383,7 @@ export function updateSaleDestination(s, saleId, entry) {
       if (!round || round.test !== stock.test)
         throw Error("集金する注文回のテスト区分が一致しません");
     }
+    if(!chargeRoundId)throw Error('請求先の注文回を選んでください');
     Object.assign(sale, {
       destinationType: 'buyer',
       paymentStatus: 'later',
@@ -912,12 +915,14 @@ export function validate(s) {
     integer(item.qty,'その他の販売数量');integer(item.unitPrice,'その他の販売単価');integer(item.unitCost,'その他の販売原価');
     if(item.qty<1||!['paid','unpaid'].includes(item.paymentStatus)||typeof item.test!=='boolean')throw Error('その他の販売数量・受取状況を確認してください');
     if(!Array.isArray(item.history))throw Error('その他の販売の変更履歴を確認してください');
+    if(item.paidExternalQty!=null&&(!Number.isSafeInteger(item.paidExternalQty)||item.paidExternalQty<0||item.paymentStatus!=='unpaid'))throw Error('その他商品の外部販売数を確認してください');
+    if(item.origin!=null&&!['unknown','wappan','non-wappan'].includes(item.origin))throw Error('商品由来を確認してください');
     if(item.allocations!=null){
       if(!Array.isArray(item.allocations)||item.paymentStatus!=='unpaid'||
         new Set(item.allocations.map(a=>a.buyerId)).size!==item.allocations.length||
         item.allocations.some(a=>!s.buyers.some(b=>b.id===a.buyerId)||!Number.isSafeInteger(a.qty)||a.qty<1||
           !s.rounds.some(r=>r.id===a.chargeRoundId&&r.date===item.date&&r.test===item.test))||
-        sum(item.allocations.map(a=>a.qty))>item.qty)throw Error('その他商品の個人請求先・数量を確認してください');
+        sum(item.allocations.map(a=>a.qty))+(item.paidExternalQty||0)>item.qty)throw Error('その他商品の個人請求先・数量を確認してください');
     }
   }
   for (const st of s.stocks) {

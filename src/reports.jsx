@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import {originBreakdown,roundSeries} from './report-series.js';
 import { uid, today, fiscalYear, report, collections, yen } from "./domain";
 import {
   useApp,
@@ -23,6 +24,7 @@ export function Reports() {
     [includeTest,setIncludeTest] = useState(false),
     [editor, setEditor] = useState(null),
     [goal, setGoal] = useState(false);
+  const [chartMetric,setChartMetric]=useState('profit'),[chartGroup,setChartGroup]=useState('origin'),[chartPoint,setChartPoint]=useState('');
   const start = custom ? from : `${year}-04-01`,
     end = custom ? to : `${year + 1}-03-31`,
     data = report(state, start, end, year, {includeTest}),
@@ -121,6 +123,8 @@ export function Reports() {
         onClick={()=>setTab(tab==='過去実績・調整'?'利益':'過去実績・調整')}>管理・補正：過去実績・調整 {tab==='過去実績・調整'?'▾':'›'}</button>
       {tab === "利益" && (
         <>
+          <OriginSummary rows={data.rows} state={state} totalRevenue={data.revenue} adjustment={data.adjustment}/>
+          <RoundLineChart points={roundSeries(data.rows,state.rounds.filter(r=>r.date>=start&&r.date<=end&&(includeTest||!r.test)),state,chartMetric,chartGroup)} metric={chartMetric} onMetric={setChartMetric} group={chartGroup} onGroup={setChartGroup} selected={chartPoint} onSelect={setChartPoint}/>
           <div className="report-totals">
             <Summary
               label={`販売額${data.unknownRevenue ? "（判明分）" : ""}`}
@@ -502,4 +506,31 @@ function GoalEditor({ year, value, onClose }) {
       </Button>
     </Modal>
   );
+}
+
+function OriginSummary({rows,state,totalRevenue,adjustment}){
+ const parts=originBreakdown(rows,state);
+ return <details className="origin-summary"><summary>商品由来別の売上・利益</summary>
+  {Object.entries(parts).map(([key,value])=><p key={key}>{key==='wappan'?'わっぱん商品':key==='non-wappan'?'わっぱん以外':'由来未確認'}：売上 {yen(value.revenue)} ／ 利益 {yen(value.profit)} ／ 売上構成 {totalRevenue?Math.round(100*value.revenue/totalRevenue):0}%</p>)}
+  {adjustment!==0&&<p>利益調整（商品由来外） {yen(adjustment)}</p>}
+  {parts.unknown.revenue>0&&<small>既存の「その他」カテゴリーは商品由来と別です。未確認の記録は推測して振り分けません。</small>}
+ </details>;
+}
+function RoundLineChart({points,metric,onMetric,group,onGroup,selected,onSelect}){
+ const values=points.flatMap(p=>[p.total,...Object.values(p.parts)]),low=Math.min(0,...values),high=Math.max(1,...values),
+  x=i=>24+(points.length<2?138:i*276/(points.length-1)),y=v=>142-(v-low)/(high-low)*115;
+ const groups=[...new Set(points.flatMap(p=>Object.keys(p.parts)))],colors=['#168060','#d07034','#6273a7','#ab6678','#7d7d7d'];
+ return <section className="round-chart" aria-label="注文回別の実績推移"><h3>注文回別の推移</h3>
+   <div className="round-chart-controls"><label>金額 <select value={metric} onChange={e=>onMetric(e.target.value)}><option value="profit">利益</option><option value="revenue">売上</option></select></label><label>内訳 <select value={group} onChange={e=>onGroup(e.target.value)}><option value="origin">商品由来別</option><option value="method">販売方法別</option></select></label></div>
+   <div className="round-chart-plot"><svg viewBox="0 0 324 172" role="img" aria-label={`${metric==='profit'?'利益':'売上'}の注文回別折れ線グラフ`}>
+    <line x1="24" x2="300" y1={y(0)} y2={y(0)} stroke="#bbc5bf"/>
+    {groups.map((g,n)=><polyline key={g} fill="none" stroke={colors[n%colors.length]} strokeWidth="1.3" points={points.map((p,i)=>`${x(i)},${y(p.parts[g]||0)}`).join(' ')}/>)}
+    <polyline fill="none" stroke="#273f51" strokeWidth="3.3" points={points.map((p,i)=>`${x(i)},${y(p.total)}`).join(' ')}/>
+    {points.map((p,i)=><circle key={p.date} cx={x(i)} cy={y(p.total)} r="4" fill="#273f51"/>)}
+   </svg></div>
+   <div className="round-chart-dates">{points.map(p=><button type="button" className={selected===p.date?'selected':''} key={p.date} onClick={()=>onSelect(p.date)}>{p.date.slice(5).replace('-','/')}</button>)}</div>
+   {points.find(p=>p.date===selected)&&<p role="status">{selected}　全体 {yen(points.find(p=>p.date===selected).total)}{points.find(p=>p.date===selected).unconfirmed?'（暫定・未確定を除く）':''}<br/>{Object.entries(points.find(p=>p.date===selected).parts).map(([name,value])=>`${name} ${yen(value)}`).join(' ／ ')}</p>}
+   {!points.length&&<small>対象の注文回はありません。</small>}
+   <small>分類できない実績は「由来未確認」に残します。日付のない調整額はこのグラフに含めません。</small>
+ </section>;
 }
