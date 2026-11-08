@@ -79,6 +79,20 @@ export function sortingPrintRows(state, round) {
     .sort((a,b) => a.buyer && b.buyer ? buyerCompare(a.buyer,b.buyer) || a.index-b.index : a.buyer ? -1 : b.buyer ? 1 : a.index-b.index);
 }
 
+// Envelope stickers use only this round's invoice, never the carried balance.
+export function envelopePrintRows(state,round){
+ const bills=new Map(collections(state,'','',round.id,round.test).map(x=>[x.id,x]));
+ const issues=new Map(billingAudit(state,round.id).buyers.map(x=>[x.buyerId,x.issues]));
+ return [...bills.values()].filter(b=>b.total||b.unpriced.length).map((bill,index)=>({
+   id:bill.id,index,name:bill.name,
+   billAmount:bill.total,billPending:!!(bill.unpriced.length||issues.get(bill.id)?.length),
+   normal:bill.normal+bill.onsite,snack:bill.snack,
+   lines:bill.lines.map(line=>({name:productDisplayName(line.description.replace(/^\d{4}-\d{2}-\d{2}\s*/u,'')),qty:Number(line.description.match(/×(\d+)/u)?.[1]||1),
+      printName:productDisplayName(line.description.replace(/^\d{4}-\d{2}-\d{2}\s*/u,'').replace(/\s*×\d+.*$/u,'')),
+      amount:line.amount,description:line.description})),
+ }));
+}
+
 // Only known, unambiguous names receive a shorter label on the cut-out sheet.
 // The full snapshot remains in the order and in the sales record sheet.
 const shortLabels = new Map([
