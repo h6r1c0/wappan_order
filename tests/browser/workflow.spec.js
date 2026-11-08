@@ -1493,7 +1493,7 @@ test('11/8レビュー：保留だけを除外して共有保存し、再読込�
 
 test('11/9レビュー：別注文回の未収を保ち、購入者への販売とレモン外部1個を保存・再読込・集金照合',async({page,context})=>{
  const s=preparedState();s.buyers.push({id:'kondo-qa-1109',name:'近藤',kana:'こんどう',active:true,fixed:[]});
- const old=newRound(s,'2026-10-16',true),r=newRound(s,'2026-10-30',true);r.status='納品済み';s.rounds.push(old,r);
+ const old=newRound(s,'2026-10-16',true),r=newRound(s,'2026-10-30',true);old.collectionLive=true;r.collectionLive=true;r.status='納品済み';s.rounds.push(old,r);
  s.receivableItems=[{id:'prior-2460',kind:'opening',buyerId:'kondo-qa-1109',date:old.date,roundId:old.id,amount:2460,reason:'過去未収',note:'前回分'}];
  const stock={id:'kondo-stock',roundId:r.id,date:r.date,name:'隔離パン',category:'パン',qty:3,price:450,cost:200,test:true};s.stocks.push(stock);r.stockIds.push(stock.id);
  const lemon=saveOtherSale(s,{name:'隔離レモン',date:r.date,qty:2,unitPrice:100,unitCost:0,paymentStatus:'unpaid',test:true});

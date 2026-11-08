@@ -109,7 +109,7 @@ export async function createPrintPdf(model,fontBytes) {
         const nameSize=Math.min(15,mm(40.65)/Math.max(1,font.widthOfTextAtSize(buyerLabel,15))*15);
         text(page,buyerLabel,x+2.8,y+(model.kind==='envelopes'?12:9), nameSize,{bold:true});
         if(row.billAmount!==undefined)text(page,row.billPending?'請求額 未確定':`${model.kind==='envelopes'?'':'請求額 '}${row.billAmount.toLocaleString('ja-JP')}円`,x+2.8,y+(model.kind==='envelopes'?18:14.2),9,{bold:true});
-        if(model.kind==='envelopes'&&row.snack>0)text(page,row.normal>0?`通常 ${row.normal}円 ＋ おやつ代 ${row.snack}円`:'おやつ代のみ',x+2.8,y+22.5,7.5);
+        if(model.kind==='envelopes'&&row.snack>0)text(page,row.billPending?'おやつ代を含む・請求未確定':row.normal>0?`通常 ${row.normal}円 ＋ おやつ代 ${row.snack}円`:'おやつ代のみ',x+2.8,y+22.5,7.5);
         let productTop=y+(model.kind==='envelopes'?(row.snack>0?25:21):(row.billAmount===undefined?12.8:18.5));
         for(const product of row.lines){
           const name=product.printName||product.name;

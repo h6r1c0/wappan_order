@@ -62,7 +62,7 @@ export function replaceOtherDistribution(state,id,assignments,paidExternalQty,re
   checked(paidExternalQty,'支払い済み・外部販売数');
   const previous=sale.paidExternalQty||0;
   if(previous!==paidExternalQty){
-    if(previous>0&&!String(reason).trim())throw Error('外部販売の訂正理由を入力してください');
+    if(previous>0&&(!String(reason).trim()||reason==='販売先への割当を登録'||reason==='新しい販売先への追加割当'))throw Error('外部販売の訂正理由を入力してください');
     sale.history.push({at:new Date().toISOString(),reason,previousPaidExternalQty:previous,paidExternalQty});
     sale.paidExternalQty=paidExternalQty;
   }

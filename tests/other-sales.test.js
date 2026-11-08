@@ -37,6 +37,8 @@ test('レモン2個の個人請求1個と外部販売1個は一度だけ売上�
  assert.equal(bill.onsite,100);
  const item=report(loaded,'2026-04-01','2027-03-31',2026,{includeTest:true}).rows.find(x=>x.id===lemon.id);
  assert.equal(item.revenue,200);assert.equal(item.profit,200);
+ assert.throws(()=>replaceOtherDistribution(loaded,lemon.id,[{buyerId:'hori',qty:1}],0),/理由/);
+ assert.equal(loaded.otherSales[0].paidExternalQty,1);
  assert.throws(()=>replaceOtherDistribution(loaded,lemon.id,[{buyerId:'hori',qty:2}],1,'過剰'),/数量/);
  assert.throws(()=>saveOtherSale(loaded,{...lemon,qty:1},{id:lemon.id,reason:'縮小'}),/割当/);
 });
