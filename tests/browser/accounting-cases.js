@@ -22,15 +22,15 @@ export function registerAccountingTests(browserName){
   const shared=fixture(),r=shared.round;shared.state.receivableItems.push({id:'old50',kind:'opening',buyerId:'sasaki',date:'2026-07-24',amount:50,reason:'不足',note:'前回分'});
   shared.state.collectionCredits=[{id:'credit100',roundId:r.id,buyerId:'nishio',date:'2026-07-24',amount:100,reason:'前回預かり'}];
   await openCollections(page,context,shared);
-  const sasaki=page.locator('[data-buyer="sasaki"]');await expect(sasaki.locator('.collection-amount')).toHaveText('1,070円');await expect(sasaki).toContainText('前回未収 50円を含む');
-  await sasaki.getByRole('button',{name:'今回分受取'}).click();expect(shared.state.collectionEntries.at(-1).received).toBe(1020);
-  await sasaki.getByRole('button',{name:'未収分受取'}).click();expect(shared.state.collectionEntries.at(-1).received).toBe(50);expect(collectionPosition(shared.state,r.id,'sasaki').balance).toBe(0);
+  const sasaki=page.locator('[data-buyer="sasaki"]');await expect(sasaki.locator('.collection-amount')).toHaveText('1,070円');await expect(sasaki).toContainText('未収分 50円 ／ 今回分 1,020円');
+  await sasaki.getByRole('button',{name:'今回分受取'}).click();await expect.poll(()=>shared.state.collectionEntries.at(-1)?.received).toBe(1020);
+  await sasaki.getByRole('button',{name:'未収分受取'}).click();await expect.poll(()=>shared.state.collectionEntries.at(-1)?.received).toBe(50);await expect.poll(()=>collectionPosition(shared.state,r.id,'sasaki').balance).toBe(0);
   await expect(sasaki.getByRole('button',{name:'全額受取'})).toHaveCount(0);
-  const nishio=page.locator('[data-buyer="nishio"]');await expect(nishio.locator('.collection-amount')).toHaveText('590円');await nishio.getByRole('button',{name:'全額受取'}).click();expect(shared.state.collectionEntries.at(-1).received).toBe(590);expect(collectionPosition(shared.state,r.id,'nishio').balance).toBe(0);
+  const nishio=page.locator('[data-buyer="nishio"]');await expect(nishio.locator('.collection-amount')).toHaveText('590円');await nishio.getByRole('button',{name:'全額受取'}).click();await expect.poll(()=>shared.state.collectionEntries.at(-1)?.received).toBe(590);await expect.poll(()=>collectionPosition(shared.state,r.id,'nishio').balance).toBe(0);
   const hori=page.locator('[data-buyer="hori"]');await expect(hori.getByRole('button',{name:'全額受取'})).toHaveCount(0);await expect(hori.locator('.collection-overview')).toContainText('2,510円');await expect(hori).toContainText('案内済み 2,130円');
   await expect(hori.locator('.collection-overview')).not.toContainText('現金は未受取');
   await person(page,'hori');await expect(hori).toContainText('現金は未受取');await hori.getByRole('button',{name:'案内した 2,130円 を受取額に入力 ›'}).click();await expect(hori.getByLabel('金額が違う理由')).toHaveValue('一部しか受け取っていない');await hori.getByRole('button',{name:'受取額を保存'}).click();
-  expect(shared.state.receivableItems.filter(x=>x.kind==='additional')).toHaveLength(1);expect(collectionPosition(shared.state,r.id,'hori').balance).toBe(380);expect(collectionPosition(shared.state,r.id,'hori').received).toBe(2130);
+  expect(shared.state.receivableItems.filter(x=>x.kind==='additional')).toHaveLength(1);await expect.poll(()=>collectionPosition(shared.state,r.id,'hori').balance).toBe(380);expect(collectionPosition(shared.state,r.id,'hori').received).toBe(2130);
   await widths(page,`quick-${browserName}`);
  });
  test('集金前の警告・商品選択・受取2130円と未収380円・確認だけでは受取を作らない',async({page,context})=>{
@@ -40,15 +40,15 @@ export function registerAccountingTests(browserName){
   await p.getByRole('button',{name:'この商品・数量を請求へ反映'}).click();expect(shared.state.receivableItems.filter(x=>x.kind==='additional')).toHaveLength(1);
   await p.getByLabel('実際受取額',{exact:true}).fill('2130');await expect(p.getByLabel('実際受取額',{exact:true})).toHaveAttribute('inputmode','numeric');
   await p.getByLabel('金額が違う理由').selectOption('一部しか受け取っていない');await closeToast(page);await p.getByRole('button',{name:'受取額を保存',exact:true}).click();
-  expect(collectionPosition(shared.state,shared.round.id,'hori').balance).toBe(380);expect(shared.state.collectionEntries[0].received).toBe(2130);
+  await expect.poll(()=>collectionPosition(shared.state,shared.round.id,'hori').balance).toBe(380);expect(shared.state.collectionEntries[0].received).toBe(2130);
   const h=page.locator('[data-buyer="hori"]');await expect(h.locator('.collection-open')).toHaveAttribute('aria-expanded','false');await h.locator('.collection-open').click();await expect(h.locator('.collection-open')).toHaveAttribute('aria-expanded','true');if(!await h.locator('.billing-confirm').evaluate(el=>el.open))await h.locator('.billing-confirm summary').click();await h.getByLabel('集金袋へ記載する金額').fill('2510');await h.getByRole('button',{name:'請求内容だけ確認'}).click();expect(shared.state.collectionEntries).toHaveLength(1);
   await h.locator('.collection-totals > details').first().locator(':scope > summary').click();await widths(page,`cash-${browserName}`);
-  await installPreviewProbe(page);await page.locator('.billing-audit-done > summary').click();await page.locator('.collection-print summary').click();await page.getByRole('button',{name:'金額一覧のPDFを開く ›'}).click();await expect.poll(()=>page.evaluate(()=>window.__previewUrls.length)).toBe(1);const bytes=await pdfBytes(page,await page.evaluate(()=>window.__previewUrls[0]));expect((await PDFDocument.load(bytes)).getTitle()).toBe('集金袋用請求表 2026-09-11');
+  await installPreviewProbe(page);await page.locator('.billing-audit-done > summary').click();await page.locator('.collection-print').click();await expect.poll(()=>page.evaluate(()=>window.__previewUrls.length)).toBe(1);const bytes=await pdfBytes(page,await page.evaluate(()=>window.__previewUrls[0]));expect((await PDFDocument.load(bytes)).getTitle()).toBe('集金袋用請求表 2026-09-11');
  });
  test('佐々木・西尾は受取額と理由で過去分を同時登録、余語は誤確認を明示して訂正',async({page,context})=>{
   const shared=fixture();await openCollections(page,context,shared);
-  const sasaki=await person(page,'sasaki');await sasaki.getByLabel('実際受取額',{exact:true}).fill('1070');await sasaki.getByLabel('金額が違う理由').selectOption('前回の不足分をまとめて受け取った');await sasaki.getByLabel('前回分の対象日').fill('2026-07-24');await sasaki.getByRole('button',{name:'受取額を保存'}).click();expect(collectionPosition(shared.state,shared.round.id,'sasaki').balance).toBe(0);
-  const nishio=await person(page,'nishio');await nishio.getByLabel('実際受取額',{exact:true}).fill('590');await nishio.getByLabel('金額が違う理由').selectOption('前回の預かり金を今回使った');await nishio.getByLabel('前回分の対象日').fill('2026-07-24');await closeToast(page);await nishio.getByRole('button',{name:'受取額を保存'}).click();expect(collectionPosition(shared.state,shared.round.id,'nishio').balance).toBe(0);expect(report(shared.state,'2026-04-01','2027-03-31',2026).revenue).toBe(0);
+  const sasaki=await person(page,'sasaki');await sasaki.getByLabel('実際受取額',{exact:true}).fill('1070');await sasaki.getByLabel('金額が違う理由').selectOption('前回の不足分をまとめて受け取った');await sasaki.getByLabel('前回分の対象日').fill('2026-07-24');await sasaki.getByRole('button',{name:'受取額を保存'}).click();await expect.poll(()=>collectionPosition(shared.state,shared.round.id,'sasaki').balance).toBe(0);
+  const nishio=await person(page,'nishio');await nishio.getByLabel('実際受取額',{exact:true}).fill('590');await nishio.getByLabel('金額が違う理由').selectOption('前回の預かり金を今回使った');await nishio.getByLabel('前回分の対象日').fill('2026-07-24');await closeToast(page);await nishio.getByRole('button',{name:'受取額を保存'}).click();await expect.poll(()=>collectionPosition(shared.state,shared.round.id,'nishio').balance).toBe(0);expect(report(shared.state,'2026-04-01','2027-03-31',2026).revenue).toBe(0);
   const yogo=await person(page,'yogo');await expect(yogo.locator('.collection-totals')).toContainText('過去未収・預かり 1,670円');await yogo.getByRole('button',{name:'請求・過去の履歴を調べる ›'}).click();await yogo.getByRole('button',{name:'この記録を確認・訂正 ›'}).click();await yogo.getByLabel('履歴の訂正理由').selectOption('支払済みの確認が誤っていた');await closeToast(page);await yogo.getByRole('button',{name:'対象記録の訂正を保存'}).click();expect(collectionPosition(shared.state,shared.round.id,'yogo').balance).toBe(3320);expect(shared.state.collectionReconciliations[0].id).toBe('wrong');
  });
  test('調査中の受取額を要確認で保存し、再読込・再開しても会計へ計上しない',async({page,context})=>{
