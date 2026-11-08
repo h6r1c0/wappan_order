@@ -308,6 +308,7 @@ export function BuyerPicker({
         <>
           {adding && (
             <div className="buyer-add">
+              <h3>新しい購入者</h3>
               {suggestedName && <p className="notice compact-notice">LINEから読み取った名前です。確認・修正してから追加してください。</p>}
               {exact.length > 0 && <div className="similar-buyers"><span>同じ名前の登録があります</span>
                 {exact.map(b=><Button secondary key={b.id} onClick={()=>{onChange(b.id,b);setAdding(false);}}>{b.name}を選ぶ{b.testOnly?'（テスト）':''}</Button>)}
@@ -325,7 +326,7 @@ export function BuyerPicker({
               )}
               <div className="inline">
                 <Field
-                  label="新しい購入者名"
+                  label="氏名"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
@@ -356,7 +357,7 @@ export function BuyerPicker({
                     }
                   }}
                 >
-                  追加して選ぶ
+                  保存
                 </Button>
               </div>
             </div>
