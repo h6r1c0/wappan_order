@@ -1,4 +1,4 @@
-import {candidates,looksLikePersonalName,samePack} from './line-import.js';
+import {candidates,productCandidates,looksLikePersonalName,samePack} from './line-import.js';
 import {salesOrderQuantities,setSalesOrderQuantities,snackOrderQuantities,setSnackOrderQuantities} from './commerce.js';
 import {uid,snapshot} from './domain.js';
 import {productDisplayName,productImportIdentity} from './product-names.js';
@@ -33,14 +33,16 @@ export function parseBatchOrder(text,state,round){
     if((kind==='personal'||!kind)&&people.length===1&&(!/\d/.test(name)||/^\w+$/.test(name))){kind='personal';buyerId=people[0].id;continue;}
     const match=line.match(/^(.+?)\s*(?:[×x✕*]\s*)?(\d+)\s*(?:個|袋|本|点)?\s*$/);
     const productName=match?.[1]?.replace(/[×x✕*]\s*$/,'').trim()||line;
-    const options=candidates(/\d+\s*個\s*$/.test(line)&&!/\d+\s*個/.test(productName)?line:productName,round.products,state.aliases?.products);
+    const productQuery=/\d+\s*個\s*$/.test(line)&&!/\d+\s*個/.test(productName)?line:productName;
+    const options=productCandidates(productQuery,round.products,state.aliases?.products);
+    const exact=candidates(productQuery,round.products,state.aliases?.products);
     if((kind==='personal'||!kind)&&!match&&!options.length&&looksLikePersonalName(name)){
       kind='personal';buyerId='';
       rows.push({raw:line,productName:line,kind:'personal',buyerId:'',productId:'',qty:0,options:[],ignored:false});
       continue;
     }
     const qty=match?Number(match[2]):1;
-    rows.push({raw:clean(rawLine),productName,kind:kind||'',buyerId:kind==='personal'?buyerId:'',productId:options.length===1?options[0].id:'',qty,options,ignored:false});
+    rows.push({raw:clean(rawLine),productName,kind:kind||'',buyerId:kind==='personal'?buyerId:'',productId:exact.length===1?exact[0].id:'',qty,options,ignored:false});
   }
   return rows;
 }
@@ -51,7 +53,9 @@ export function applyBatchOrder(state,roundId,rows){
   const signature=x=>JSON.stringify([x.raw,x.kind,x.buyerId||'',x.productId,x.qty]);
   const included=rows.filter(x=>!x.ignored&&!x.held&&!(round.pasteRows||[]).includes(signature(x)));
   const held=rows.filter(x=>x.held&&!x.ignored);
-  if(!included.length&&!held.length)throw Error('同じ注文内容は取込済みです');
+  const excluded=rows.filter(x=>x.ignored);
+  const pendingToRemove=excluded.filter(x=>x.pendingId&&round.pendingImports?.some(p=>p.id===x.pendingId));
+  if(!included.length&&!held.length&&!pendingToRemove.length)throw Error(excluded.length?'除外済みです。保存する保留行はありません':'同じ注文内容は取込済みです');
   for(const row of held)if(!String(row.raw||'').trim()||!Number.isSafeInteger(row.qty)||row.qty<0||row.qty>100000000)
     throw Error(`「${row.raw}」の保留内容を確認してください`);
   const totals=new Map();
