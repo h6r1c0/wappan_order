@@ -83,7 +83,7 @@ export function SnackBilling({event,onTransfer}){
   const changed={fiscal:JSON.stringify(draft.fiscal)!==JSON.stringify(stored.fiscal),
     direct:JSON.stringify(direct)!==JSON.stringify(stored.household.filter(x=>!x.groupId&&x.lineId)),
     common:JSON.stringify([groups,draft.household.filter(x=>x.groupId)])!==JSON.stringify([stored.groups||[],stored.household.filter(x=>x.groupId)])};
-  const sectionLabel=(title,key)=>`${title} ／ ${changed[key]?'編集中・未保存':event.snackDraft?'途中保存済み':'未保存'}`;
+  const sectionLabel=(title,key)=><>{title}<small className="snack-step-status">{changed[key]?'編集中・未保存':event.snackDraft?'途中保存済み':'未保存'}</small></>;
   const fiscalRow=l=><div className="snack-billing-row" key={l.id}><span>{l.name}<small>仕入単価 {yen(l.cost)}</small></span>
     <Qty label={`${l.name} 財政分`} value={amount(draft.fiscal,l.id)} max={receivedQuantity(l)} onChange={qty=>editFiscal(l.id,qty)}/></div>;
   const buyerRow=l=><div className="snack-billing-row" key={l.id}><span>{l.name}</span>
@@ -91,9 +91,9 @@ export function SnackBilling({event,onTransfer}){
     {(quantities[l.id]?.qty||0)>0&&<Money label={`${l.name} 請求単価`} value={quantities[l.id].unitPrice} onChange={unitPrice=>setQuantities({...quantities,[l.id]:{...quantities[l.id],unitPrice}})}/>}</div>;
   return <section className="snack-billing" data-unsaved={unsaved}>
     <div className="snack-billing-body">
-      <p className="snack-save-state" role="status">{event.billing?'おやつ請求確定済み・集金へ反映':event.snackDraft?'おやつの区分を途中保存済み・請求未確定':'おやつ請求未確定'}{unsaved?' ／ 編集中の値は未保存':''}<small>販売用の割当と振替は各操作で保存されます。おやつの区分保存は請求確定前の途中保存です。</small></p>
+      <p className="snack-save-state" role="status">{event.billing?'おやつ請求確定済み・集金へ反映':event.snackDraft?'おやつの区分を途中保存済み・請求未確定':'おやつ請求未確定'}{unsaved?' ／ 編集中の値は未保存':''}<small>区分の保存は途中保存です。請求確定後に家庭分が集金へ反映されます。</small></p>
       <details className="snack-label"><summary>おやつ名を付ける（任意）</summary><Field label="行事・おやつ名"><input value={draft.label||''} onChange={e=>change({...draft,label:e.target.value})}/></Field><button type="button" className="text-action" onClick={()=>savePart('label',draft.label)}>名前を保存</button></details>
-      <details className="snack-work-step" name={`snack-work-${event.id}`}><summary>販売用へ振替 ／ {status.some(x=>x.retail>0)?'振替保存済み':'未振替'}</summary>
+      <details className="snack-work-step" name={`snack-work-${event.id}`}><summary>販売用へ振替 <small className="snack-step-status">{status.some(x=>x.retail>0)?'振替保存済み':'未振替'}</small></summary>
       <p className="muted">請求先を決める前でも、販売用に回す数量だけ保存できます。</p>
       {status.filter(x=>!x.line.sourceStockId).map(x=>{
         const stocks=state.stocks.filter(st=>st.eventLineId===x.line.id&&st.qty>0);
