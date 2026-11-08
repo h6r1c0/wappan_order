@@ -1,5 +1,14 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import {PGlite} from '@electric-sql/pglite';
-import {initialState,newRound} from '../src/domain.js';import {receiveCollection,saveCollectionCase,confirmBilling,correctCollectionRecord,recordCollectionAllocation,recordHistoricalCredit} from '../src/collection-workflow.js';
+import {initialState,newRound} from '../src/domain.js';import {receiveCollection,receiveDueItem,saveCollectionCase,confirmBilling,correctCollectionRecord,recordCollectionAllocation,recordHistoricalCredit} from '../src/collection-workflow.js';
+test('DB：請求先を指定した受取は検証を通り、不正な請求先は拒否される',async()=>{
+ const db=new PGlite();await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key,email text unique);create function auth.uid() returns uuid language sql stable as $$select null::uuid$$;");
+ const folder=new URL('../supabase/migrations/',import.meta.url);for(const f of (await fs.readdir(folder)).filter(x=>x.endsWith('.sql')).sort())await db.exec(await fs.readFile(new URL(f,folder),'utf8'));
+ const s=initialState(),r=newRound(s,'2026-10-16');s.rounds.push(r);r.orders.hori={name:'堀',quantities:{brown:1}};r.products.find(p=>p.id==='brown').price=690;
+ receiveDueItem(s,r.id,'hori',`round:${r.id}:hori`);
+ await db.query('select public.wappan_validate($1)',[s]);
+ s.collectionEntries[0].itemId='round:missing:hori';await assert.rejects(()=>db.query('select public.wappan_validate($1)',[s]),/Invalid collection target/);
+ await db.close();
+});
 test('DB：元の受取日不明の預かりは指定請求へだけ充当でき、誤った参照と二重登録を拒否',async()=>{
  const db=new PGlite();await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key,email text unique);create function auth.uid() returns uuid language sql stable as $$select null::uuid$$;");
  const folder=new URL('../supabase/migrations/',import.meta.url);for(const f of (await fs.readdir(folder)).filter(x=>x.endsWith('.sql')).sort())await db.exec(await fs.readFile(new URL(f,folder),'utf8'));
