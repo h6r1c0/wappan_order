@@ -31,7 +31,6 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
  const {state,save}=useApp(),busy=useRef(false),round=state.rounds.find(r=>r.id===roundId);
  const [buyerId,setBuyerId]=useState(''),[category,setCategory]=useState('ALL'),[query,setQuery]=useState('');
  const [destinationType,setDestinationType]=useState('buyer'),[destinationName,setDestinationName]=useState(''),[externalQty,setExternalQty]=useState(0);
- const [productDestination,setProductDestination]=useState('buyer');
  const [picked,setPicked]=useState(''),[buyerDrafts,setBuyerDrafts]=useState({}),[grids,setGrids]=useState({});
  const [reason,setReason]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[saving,setSaving]=useState(false);
  const [date,setDate]=useState(round?.date||today()),[prices,setPrices]=useState({});
@@ -74,10 +73,10 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
  const commit=async(product,external=false)=>{
   if(busy.current)return;
   const selection=shown.filter(x=>buyerDraft[x.key]>0);
-  if(product?(!current||external&&(!current.stock||!externalQty||externalQty>current.left)||!external&&current.stock&&!total||!external&&current.other&&!otherChanged||!external&&current.stock&&total>current.left||!external&&current.other&&total>current.other.qty||correction&&!reason.trim()):((destinationType==='buyer'&&!buyerId)||!selection.length||destinationType==='external'&&selection.some(x=>x.other)))return;
+  if(product?(!current||external&&(!current.stock||!externalQty||externalQty>current.left)||!external&&current.stock&&!(total+externalQty)||!external&&current.other&&!otherChanged||!external&&current.stock&&total+externalQty>current.left||!external&&current.other&&total>current.other.qty||correction&&!reason.trim()):((destinationType==='buyer'&&!buyerId)||!selection.length||destinationType==='external'&&selection.some(x=>x.other)))return;
   const action=next=>{
    if(product){if(external)applyStock(next,current.stock,externalQty,null);
-    else if(current.stock){for(const [id,qty] of Object.entries(grid))if(qty>0)applyStock(next,current.stock,qty,id);}
+    else if(current.stock){for(const [id,qty] of Object.entries(grid))if(qty>0)applyStock(next,current.stock,qty,id);if(externalQty)applyStock(next,current.stock,externalQty,null);}
     else applyOther(next,current.other,rows,true);
    }else for(const x of selection){const qty=buyerDraft[x.key];if(qty>x.left)throw Error(x.name+'の残数が変わりました');
     if(x.stock)applyStock(next,x.stock,qty,destinationType==='buyer'?buyerId:null);else applyOther(next,x.other,[{buyerId,qty}],false);}
@@ -85,6 +84,7 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
   busy.current=true;setSaving(true);setError('');
   try{action(structuredClone(state));if(await save(action,'販売先と数量をまとめて割り当て')){
    if(product){if(external)setExternalQty(0);else {
+    if(current.stock)setExternalQty(0);
     setGrids(v=>({...v,[picked]:current.other?Object.fromEntries(rows.map(x=>[x.buyerId,x.qty])):{}}));
     if(current.other)setBuyerDrafts(v=>Object.fromEntries(Object.entries(v).map(([id,d])=>[id,{...d,[picked]:0}])));
    }}else{
@@ -99,18 +99,18 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
  };
  const productEditor=current&&<section className="product-buyer-assignment">
      <p>割当済み {current.other?(current.other.qty-current.left):stockAllocation(state,current.stock).assigned}個 ／ 未割当 {current.left}個</p>
-     {current.stock&&<div className="choice-grid" role="group" aria-label="販売先区分"><Button secondary={productDestination!=='buyer'} onClick={()=>setProductDestination('buyer')}>個人に請求</Button><Button secondary={productDestination!=='external'} onClick={()=>setProductDestination('external')}>支払い済み・外部販売</Button></div>}
-     {productDestination==='buyer'||current.other?<>
+     <>
        <BuyerQuantityGrid buyers={state.buyers} test={round?.test} value={grid} onChange={v=>{setGrids({...grids,[picked]:v});setNotice('');}} name={current.name} max={current.other?current.other.qty:current.left}/>
-       <p>今回の入力 {total}個 ／ 保存後の残り {current.other?current.other.qty-total:current.left-total}個</p>
+       {current.stock&&<div className="external-in-product"><Qty label="支払い済み・外部販売" value={externalQty} min={0} max={Math.max(0,current.left-total)} onChange={setExternalQty}/><Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field></div>}
+       <p>今回の入力 {total+ (current.stock?externalQty:0)}個 ／ 保存後の残り {current.other?current.other.qty-total:current.left-total-externalQty}個</p>
        {correction&&<Field label="保存済みの割当を訂正・取消する理由"><input value={reason} onChange={e=>setReason(e.target.value)}/></Field>}
-       {(current.stock&&total>current.left||current.other&&total>current.other.qty)&&<p role="alert">在庫・販売数量を超えています。</p>}
-       <Button disabled={saving||current.stock&&!total||current.other&&!otherChanged||current.stock&&total>current.left||current.other&&total>current.other.qty||correction&&!reason.trim()} onClick={()=>commit(true)}>この商品の割当をまとめて保存</Button>
-     </>:<><Qty label={current.name+' 支払い済み数量'} value={externalQty} max={current.left} onChange={setExternalQty}/><Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field><Button disabled={saving||!externalQty} onClick={()=>commit(true,true)}>支払い済みの割当を保存</Button></>}
+       {(current.stock&&total+externalQty>current.left||current.other&&total>current.other.qty)&&<p role="alert">在庫・販売数量を超えています。</p>}
+       <Button disabled={saving||current.stock&&!(total+externalQty)||current.other&&!otherChanged||current.stock&&total+externalQty>current.left||current.other&&total>current.other.qty||correction&&!reason.trim()} onClick={()=>commit(true)}>この商品の割当をまとめて保存</Button>
+     </>
      {current.stock&&<details><summary>販売日と単価（任意）</summary><Field label="販売日" type="date" value={date} onChange={e=>setDate(e.target.value)}/><Money label="この販売だけの単価" value={prices[picked]??current.stock.price} onChange={v=>setPrices({...prices,[picked]:v})}/></details>}
      {current.stock&&<button type="button" className="text-action" onClick={()=>onHistory(current.stock)}>保存済みの割当・履歴</button>}
     </section>;
- return <section className={'sales-workspace sales-workspace-'+mode} data-unsaved={Object.values(buyerDrafts).some(d=>Object.values(d).some(Boolean))||Object.entries(grids).some(([key,v])=>key.startsWith('other:')?(()=>{const sale=others.find(x=>'other:'+x.id===key);return sale&&Object.entries(v).some(([id,qty])=>qty!==((sale.allocations||[]).find(a=>a.buyerId===id)?.qty||0))})():Object.values(v).some(Boolean))}>
+ return <section className={'sales-workspace sales-workspace-'+mode} data-unsaved={externalQty>0||Object.values(buyerDrafts).some(d=>Object.values(d).some(Boolean))||Object.entries(grids).some(([key,v])=>key.startsWith('other:')?(()=>{const sale=others.find(x=>'other:'+x.id===key);return sale&&Object.entries(v).some(([id,qty])=>qty!==((sale.allocations||[]).find(a=>a.buyerId===id)?.qty||0))})():Object.values(v).some(Boolean))}>
   {notice&&<p role="status">{notice}</p>}
   {mode==='buyer'&&<><h3>販売先から割当</h3><div className="choice-grid" aria-label="販売先種別"><Button secondary={destinationType!=='buyer'} onClick={()=>setDestinationType('buyer')}>個人に請求</Button><Button secondary={destinationType!=='external'} onClick={()=>setDestinationType('external')}>支払い済み</Button></div>{destinationType==='buyer'?<BuyerPicker value={buyerId} onChange={setBuyerId} includeTest={round?.test}/>:<Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field>}</>}
   {(mode==='product'||buyerId||destinationType==='external')&&<>

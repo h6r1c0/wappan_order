@@ -66,12 +66,20 @@ async function backend(context, shared) {
       });
     if (url.pathname.includes("/rest/v1/rpc/wappan_save")) {
       const b = route.request().postDataJSON();
+      if(shared.saveMode==='reject-once'){
+        shared.saveMode='';
+        return json({code:'42702',message:'column reference y is ambiguous'},400);
+      }
       if (b.expected_revision !== shared.revision)
         return json({ code: "40001", message: "CONFLICT" }, 409);
       try {
         validate(b.payload);
         shared.state = b.payload;
         shared.revision++;
+        if(shared.saveMode==='lost-once'){
+          shared.saveMode='';
+          return json({code:'PGRST500',message:'response lost after commit'},502);
+        }
         return json(shared.revision);
       } catch (e) {
         return json({ message: e.message }, 400);
@@ -281,11 +289,8 @@ test('納品後: 未確認2個を購入者と名称なし外部へ分割', async
   const work=page.locator('.sales-workspace:visible');
   await work.getByRole('button',{name:/くるみパン 未割当 2個/}).click();
   await setQty(work,'くるみパン ホリの数量',1);
+  await setQty(work,'支払い済み・外部販売',1);
   await work.getByRole('button',{name:'この商品の割当をまとめて保存'}).click();
-  await expect(work.locator('.product-buyer-assignment')).toContainText('未割当 1個');
-  await work.getByRole('button',{name:'支払い済み・外部販売'}).click();
-  await setQty(work,'くるみパン 支払い済み数量',1);
-  await work.getByRole('button',{name:'支払い済みの割当を保存'}).click();
   await expect(work.locator('.product-buyer-assignment')).toContainText('未割当 0個');
   expect(shared.state.sales.reduce((n,s)=>n+s.qty,0)).toBe(2);
   expect(collections(shared.state,'','',r.id,true).find(x=>x.id==='hori').onsite).toBe(st.price);
@@ -338,7 +343,7 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
   await person.getByLabel('金額が違う理由').selectOption('返金がある');
   await person.getByLabel('返金額',{exact:true}).fill('10');
   await person.getByRole('button',{name:'返金を保存'}).click();
-  expect(shared.state.collectionEntries).toHaveLength(2);
+  await expect.poll(()=>shared.state.collectionEntries.length).toBe(2);
   expect(shared.state.collectionEntries[1].received).toBe(-10);
   expect(shared.state.rounds[0].invoice).toBe(100);
 });
@@ -602,9 +607,9 @@ test('購入者検索からの追加は氏名を引き継ぎ、読みを修正�
   await backend(context,shared);await login(page);await openRound(page);
   await page.getByPlaceholder('名前を検索').fill('満保');
   await page.getByRole('button',{name:'＋ 追加'}).click();
-  await expect(page.getByLabel('新しい購入者名')).toHaveValue('満保');
+  await expect(page.getByLabel('氏名',{exact:true})).toHaveValue('満保');
   await page.getByLabel('よみがな').fill('まんぼ');
-  await page.getByRole('button',{name:'追加して選ぶ'}).click();
+  await page.getByRole('button',{name:'保存',exact:true}).click();
   await expect(page.locator('.order-editor h2')).toContainText('満保');
   expect(shared.state.buyers.find(b=>b.name==='満保')?.kana).toBe('まんぼ');
   await mobileShots(page,'new-buyer');
@@ -617,9 +622,9 @@ test('佐藤の新規登録は別名や非表示重複商品で阻まれず、�
   await backend(context,shared);await login(page);await openRound(page);
   await page.getByPlaceholder('名前を検索').fill('佐藤');
   await page.getByRole('button',{name:'＋ 追加'}).click();
-  await expect(page.getByLabel('新しい購入者名')).toHaveValue('佐藤');
+  await expect(page.getByLabel('氏名',{exact:true})).toHaveValue('佐藤');
   await page.getByLabel('よみがな').fill('さとう');
-  await page.getByRole('button',{name:'追加して選ぶ'}).click();
+  await page.getByRole('button',{name:'保存',exact:true}).click();
   await expect(page.locator('.order-editor h2')).toContainText('佐藤');
   expect(shared.state.buyers.find(b=>b.name==='佐藤')?.kana).toBe('さとう');
 });
@@ -901,7 +906,7 @@ test('納品前の販売記録表と個人仕分け表をA4で印刷し、注文
   const sorting=await pdfBytes(page,sortingUrl);
   const sortingDoc=await PDFDocument.load(sorting);
   expect(sortingDoc.getPageCount()).toBe(1);
-  expect(sortingDoc.getTitle()).toBe('個人注文仕分け表 2026-09-11');
+  expect(sortingDoc.getTitle()).toBe('個人仕分け・集金袋用 2026-09-11');
   await fs.writeFile('test-results/sorting-print-a4.pdf',sorting);
   expect(await page.evaluate(()=>[window.__prints,window.__dialogs])).toEqual([0,0]);
   await page.evaluate(()=>{window.open=window.__nativeOpen;});
@@ -1167,14 +1172,14 @@ test('11/6レビュー：過去回の受取と今回の未受取を分け、氏�
   shared.state.collectionEntries.push({id:'old-cash',roundId:old.id,buyerId:'asano',date:'2026-10-23',received:1234,adjustment:0,note:'全額受取'});
   await backend(context,shared);await login(page);await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();await page.locator('.stage-4 > .stage-trigger').click();
   const row=page.locator('.collection-entry[data-buyer="asano"]');await expect(row.locator('.collection-buyer-name')).toHaveText('検証用の長い姓名');
-  await expect(row.locator('.collection-context')).toContainText('前回未収 56円');
+  await expect(row.locator('.collection-context')).toHaveText('未収分 56円 ／ 今回分 430円');
   await expect(row.getByRole('button',{name:'今回分受取'})).toBeVisible();
   await row.locator('.collection-open').click();
   await row.getByRole('button',{name:'請求・過去の履歴を調べる'}).click();
   await expect(row.locator('.collection-expanded')).toContainText('2026-09-11 請求分未収 56円');
   await expect(row.locator('.collection-history')).toContainText('2026-10-23 実際受取 1,234円');
   await row.locator('.collection-open').click();
-  await expect(row.locator('.collection-context')).toContainText('前回未収 56円');
+  await expect(row.locator('.collection-context')).toHaveText('未収分 56円 ／ 今回分 430円');
   await page.locator('.collection-completed > summary').click();
   for(const width of [320,375,430]){await page.setViewportSize({width,height:812});
     expect(await row.locator('.collection-buyer-name').evaluate(el=>getComputedStyle(el).textOverflow)).not.toBe('ellipsis');
@@ -1346,8 +1351,9 @@ test('11/7レビュー：実ログイン背景・ロゴ・フォームを3幅と
   for(const name of ['メールアドレス','パスワード']){const box=await page.getByLabel(name,{exact:true}).boundingBox();expect(box.width).toBeGreaterThan(200);expect(box.height).toBeGreaterThanOrEqual(40);}
   await expect(page.locator('.school-logo')).toHaveAttribute('src',/ohisama_header_logo/);await expect(page.locator('.login-brand')).toHaveAttribute('src',/wappan_title_logo_display/);
   const brand=await page.locator('.login-brand').boundingBox();
-  // The corner flourishes extend lower than the bread; the centered brand can occupy the cream middle.
-  const topBread=width<=500?width*350/864:500*350/864;
+  // The bread illustration occupies the top 220px of the 864px source;
+  // later corner flourishes can sit beside the logo in the cream middle.
+  const topBread=(width<=500?width:500)*220/864;
   await page.screenshot({path:`test-results/nov7-login-${width}.png`,fullPage:true});
   expect(topBread).toBeLessThanOrEqual(brand.y+1);
   const dimensions=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth,decoration:getComputedStyle(document.getElementById('root'),'::before').width}));
@@ -1392,7 +1398,7 @@ test('11/7集金再確認：旧受取を二重未収にせず終了、次回は�
    const button=page.locator('.collection-pay.'+pay).first();
    expect(await button.evaluate(x=>getComputedStyle(x).color)).toBe('rgb(255, 255, 255)');
    expect(await button.evaluate(x=>getComputedStyle(x).backgroundImage)).toContain('red-deep');
-   expect(await button.evaluate(x=>getComputedStyle(x).backgroundSize)).toContain('300%');
+   expect(await button.evaluate(x=>getComputedStyle(x).backgroundSize)).toContain('100% 100%');
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:`test-results/nov7-collection-repair-${width}.png`});
@@ -1423,4 +1429,64 @@ test('11/7おやつ再確認：5工程の切替えは編集中数量を保持し
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:`test-results/nov7-snack-folds-${width}.png`});
  }
+});
+
+test('11/8レビュー：過去未収と今回分を表示し、失敗と応答喪失後も受取を二重登録しない',async({page,context})=>{
+ const shared={state:preparedState(),revision:0};
+ shared.state.buyers.push({id:'kondo-qa',name:'近藤',kana:'こんどう',active:true,fixed:[]});
+ const old=newRound(shared.state,'2026-09-11');shared.state.rounds.push(old);
+ const current=newRound(shared.state,'2026-10-16');current.products.find(p=>p.id==='brown').price=2460;
+ current.orders['kondo-qa']={name:'近藤',quantities:{brown:1}};shared.state.rounds.push(current);
+ current.orders.asano={name:'浅野',quantities:{milk:1}};
+ shared.state.receivableItems=[{id:'old-claim',kind:'opening',buyerId:'kondo-qa',date:old.date,roundId:old.id,amount:2720,reason:'過去未収',note:'過去の未収'}];
+ await backend(context,shared);await login(page);
+ await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
+ await page.locator('.stage-4 > .stage-trigger').click();
+ const row=page.locator('.collection-entry').filter({hasText:'近藤'});
+ await expect(row.locator('.collection-split')).toHaveText('未収分 2,720円 ／ 今回分 2,460円');
+ for(const width of [320,375,430]){
+  await page.setViewportSize({width,height:812});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const textures=[];
+  for(const button of [row.locator('.collection-pay.pay-past'),row.locator('.collection-pay.pay-current'),page.locator('.collection-pay.pay-full').first()]){
+   expect(await button.evaluate(e=>getComputedStyle(e).backgroundImage)).toContain('red-deep');
+   expect(await button.evaluate(e=>getComputedStyle(e).color)).toBe('rgb(255, 255, 255)');
+   textures.push(await button.evaluate(e=>getComputedStyle(e).backgroundImage));
+  }
+  expect(new Set(textures).size).toBe(3);
+  await page.screenshot({path:`test-results/nov8-collection-${width}.png`});
+ }
+ shared.saveMode='reject-once';
+ await row.getByRole('button',{name:'未収分受取'}).click();
+ await expect(page.getByRole('alert').filter({hasText:'2,720円は保存されていません'})).toBeVisible();
+ expect(shared.state.collectionEntries).toHaveLength(0);
+ shared.saveMode='lost-once';
+ await row.getByRole('button',{name:'未収分受取'}).click();
+ await expect(row.locator('.collection-split')).toHaveCount(0);
+ expect(shared.state.collectionEntries).toHaveLength(1);
+ expect(shared.state.collectionEntries[0].received).toBe(2720);
+ await page.reload();await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();await page.locator('.stage-4 > .stage-trigger').click();
+ await expect(page.locator('.collection-entry').filter({hasText:'近藤'})).toContainText('2,460円');
+ expect(shared.state.collectionEntries).toHaveLength(1);
+});
+
+test('11/8レビュー：保留だけを除外して共有保存し、再読込後も件数が消える',async({page,context})=>{
+ const shared={state:preparedState(),revision:0};
+ const round=newRound(shared.state,'2026-10-30');
+ round.pendingImports=[{id:'held-asano',raw:'浅野',productName:'浅野',qty:0,kind:'personal',buyerId:'',at:'2026-10-30T00:00:00Z'}];
+ shared.state.rounds.push(round);
+ await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
+ await page.getByRole('button',{name:'保留中の注文 1行を確認'}).click();
+ await page.getByRole('button',{name:'保留行を確認'}).click();
+ await expect(page.locator('.batch-held-summary')).toContainText('保留 1行');
+ await page.getByRole('button',{name:'浅野を編集'}).click();
+ await page.getByLabel('扱い').selectOption('ignore');
+ await expect(page.locator('.batch-held-summary')).toHaveCount(0);
+ await expect(page.getByText('保存対象 0行／保留 0行')).toBeVisible();
+ await page.getByRole('button',{name:'保存',exact:true}).click();
+ expect(shared.state.rounds[0].pendingImports).toHaveLength(0);
+ await page.reload();await page.locator('.round-list-item').click();
+ await page.locator('.stage-1 > .stage-trigger').click();
+ await page.getByRole('button',{name:'注文内容を貼り付け'}).click();
+ await expect(page.getByRole('button',{name:'保留行を確認'})).toHaveCount(0);
 });

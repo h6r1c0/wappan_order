@@ -13,7 +13,7 @@ export async function createPrintPdf(model,fontBytes) {
   const doc=await PDFDocument.create();
   doc.registerFontkit(fontkit);
   const font=await doc.embedFont(fontBytes,{subset:false});
-  const title=model.kind==='collections'?(model.pending?'集金袋用請求表（未確定）':'集金袋用請求表'):model.kind==='sales'?'販売記録表':'個人注文仕分け表';
+  const title=model.kind==='collections'?(model.pending?'集金袋用請求表（未確定）':'集金袋用請求表'):model.kind==='sales'?'販売記録表':'個人仕分け・集金袋用';
   doc.setTitle(`${title} ${model.date}`);doc.setCreator('わっぱん');
   const text=(page,value,x,baseline,size=10,{right=false,bold=false}={})=>{
     const label=String(value);
@@ -107,7 +107,8 @@ export async function createPrintPdf(model,fontBytes) {
         const buyerLabel=`${row.name.replace(/様$/u,'')}様`;
         const nameSize=Math.min(15,mm(40.65)/Math.max(1,font.widthOfTextAtSize(buyerLabel,15))*15);
         text(page,buyerLabel,x+2.8,y+9, nameSize,{bold:true});
-        let productTop=y+12.8;
+        if(row.billAmount!==undefined)text(page,row.billPending?'請求額 未確定':`請求額 ${row.billAmount.toLocaleString('ja-JP')}円`,x+2.8,y+14.2,9,{bold:true});
+        let productTop=y+(row.billAmount===undefined?12.8:18.5);
         for(const product of row.lines){
           const name=product.printName||product.name;
           const size=product.pdfSize;

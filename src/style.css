@@ -2776,6 +2776,52 @@ header small {
   .sales-workspace .field,.sales-workspace .field input,.sales-workspace .field select {min-width:0;max-width:100%;}
 }
 
+/* Current work: preserve the tapered pencil stroke while matching its stage. */
+@media screen {
+  .stage-1,.stage-2 { --link-pencil:url('./assets/pencil/blue-light.png'); }
+  .stage-3 { --link-pencil:url('./assets/pencil/orange-light.png'); }
+  .stage-4 { --link-pencil:url('./assets/pencil/red-light.png'); }
+  .stage-content .text-action::after { background-image:var(--link-pencil); }
+  .round-list-menu summary::after,.round-list-menu .text-action::after {opacity:.95;}
+  .stage-content .purpose-next .text-action::after,.stage-content .purpose-grid .purpose::after {content:none;}
+  .purpose-next .text-action.selected,.purpose-grid .purpose.selected {font-weight:700;}
+  .purpose-next .text-action.selected::before,.purpose-grid .purpose.selected>span::before {
+    content:'✓';display:inline-block;margin-right:3px;color:#326e9d;font-family:cursive;
+    font-size:1.1em;font-weight:500;transform:rotate(-17deg) skew(-6deg);
+  }
+  .stage-content .purpose-grid .purpose.selected,.stage-content .purpose-grid .purpose.selected>span {background:transparent;color:#2b5f8e;}
+  .buyer-add h3 {margin:0 0 6px;white-space:nowrap;font-size:.95rem;}
+  .buyer-add .inline {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;align-items:end;}
+  .buyer-add .inline .field {min-width:0;}
+  .buyer-add .inline .field input {width:100%;min-width:0;}
+  .buyer-add .inline .button {grid-column:2;justify-self:end;min-width:88px;width:auto;min-height:40px;padding:5px 14px;}
+  .tag.tag-繰越,.round-list-item .tag.tag-繰越 {border-radius:999px;background:#fff1b9;color:#705011;padding:2px 9px;}
+  .collection-total {align-items:center;padding:10px 3px;}
+  .collection-total strong {font-size:1.35rem;line-height:1.2;}
+  .collection-external {border-bottom:1px solid #ecdde1;margin:0 0 7px;padding:4px 2px 8px;font-size:.83rem;}
+  .collection-external summary {cursor:pointer;min-height:36px;display:flex;justify-content:space-between;align-items:center;}
+  .collection-external summary strong {font-size:1.08rem;}
+  .collection-external>div {display:flex;justify-content:space-between;gap:8px;padding:3px 8px;}
+  .collection-external small {display:block;color:#746b68;}
+  .collection-split {font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .collection-print {min-height:42px;text-align:left;}
+  .external-in-product {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:7px;align-items:end;padding:7px 0;border-top:1px solid #eedbca;}
+  .external-in-product .field {min-width:0;}
+  .snack-work-step>summary::before,.snack-stock-facts>summary::before,.snack-past-transfers>summary::before,
+  .snack-billing details:not(.snack-work-step)>summary::before {content:'⌄';display:inline-block;margin-right:7px;transform:rotate(-90deg);color:#ad6a2c;}
+  .snack-work-step[open]>summary::before,.snack-stock-facts[open]>summary::before,.snack-past-transfers[open]>summary::before,
+  .snack-billing details[open]:not(.snack-work-step)>summary::before {transform:none;}
+  .snack-work-step>summary {justify-content:flex-start;gap:5px;color:#935620;}
+  .snack-step-status {font-size:.72rem;color:#86532f;border-radius:999px;background:#fff0de;padding:2px 8px;font-weight:500;margin-left:auto;white-space:nowrap;}
+  .snack-save-state {background:#fffaf1;border:1px solid #e7d6bd;border-left:0;border-radius:7px;color:#6c5235;}
+  .snack-billing-preview thead th {background:#fff0db;color:#845016;}
+  .sales-steps>summary,.after-work>summary {border-left-color:#e9a247;}
+  #root > header.login-header {padding-top:calc(var(--login-canvas-width) * .27);min-height:calc(110px + var(--login-canvas-width) * .27);gap:1px;}
+  #root > header.login-header .school-logo {margin-left:clamp(26px,13vw,65px);}
+  #root:has(> .login-header) .login {padding-top:0;}
+}
+@media(max-width:350px){.collection-split {font-size:.67rem;}.buyer-add .inline {grid-template-columns:1fr;}.buyer-add .inline .button {grid-column:1;}}
+
 @media screen {
   .product-assignment-destination>.field {display:flex;flex-direction:row;align-items:center;gap:8px;min-height:44px;margin:0;}
   .product-assignment-destination>.field>span {flex:0 0 auto;font-size:.82rem;}
@@ -2848,14 +2894,14 @@ header small {
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-full:not(.secondary):not(.danger),
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-current:not(.secondary):not(.danger),
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-past:not(.secondary):not(.danger) {
-    color:#fff; background-image:linear-gradient(rgba(185,0,85,.70),rgba(185,0,85,.70)),url('./assets/pencil/red-deep.png');
-    background-size:100% 100%,auto 300%; background-position:center; background-repeat:no-repeat; border:0; text-shadow:0 1px 1px #71304a;
+    color:#fff; background-image:linear-gradient(rgba(162,0,103,.55),rgba(162,0,103,.55)),url('./assets/pencil/red-deep.png');
+    background-size:100% 100%,100% 100%; background-position:center; background-repeat:no-repeat; border:0; text-shadow:0 1px 1px #71304a;
   }
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-current:not(.secondary):not(.danger) {
-    background-image:linear-gradient(rgba(180,0,88,.65),rgba(180,0,88,.65)),url('./assets/pencil/red-deep.png');
+    background-image:linear-gradient(rgba(158,0,103,.45),rgba(158,0,103,.45)),url('./assets/pencil/red-deep.png');
   }
   .stage-content .collection-overview .collection-quick-actions .collection-pay.pay-past:not(.secondary):not(.danger) {
-    background-image:linear-gradient(rgba(165,0,84,.61),rgba(165,0,84,.61)),url('./assets/pencil/red-deep.png');
+    background-image:linear-gradient(rgba(153,0,103,.35),rgba(153,0,103,.35)),url('./assets/pencil/red-deep.png');
   }
   .snack-billing-preview:after { content:none; }
   .snack-scroll-hint { text-align:left; margin:10px 0 3px; }
@@ -2867,4 +2913,11 @@ header small {
   .snack-final-note { font-size:.85rem; color:#395344; }
   .snack-transfer-entry .qty { margin:0; }
   .snack-past-transfers { margin-top:10px; }
+}
+
+@media screen {
+  #root > header.login-header {padding-top:calc(var(--login-canvas-width) * .27);min-height:calc(110px + var(--login-canvas-width) * .27);gap:1px;}
+  #root > header.login-header .school-logo {margin-left:clamp(26px,13vw,65px);}
+  .snack-save-state {background:#fffaf1;border:1px solid #e7d6bd;border-left:0;border-radius:7px;color:#6c5235;}
+  .snack-billing-preview thead th {background:#fff0db;color:#845016;}
 }

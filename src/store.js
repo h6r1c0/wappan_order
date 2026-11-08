@@ -32,8 +32,10 @@ export async function writeWorkspace(revision, state, description) {
     if(error.code==='42501')throw Error('係としての利用登録が必要です。ログインし直して確認してください。');
     if(/Unknown (event|stock) cost/.test(error.message))throw Error('対象商品の仕入原価が未確定です。納品・精算の原価を確認してください。');
     if(/Missing invoice/.test(error.message))throw Error('納品書の税込合計を入力してください。');
+    if(error.code==='42702')throw Error('共有保存の検証処理で失敗しました。受取は保存されていません。管理者へ知らせてください。');
     if(error.code?.startsWith('P0')||error.code==='23514')throw Error(`保存内容を確認してください：${error.message}`);
-    throw Error('共有データへ保存できませんでした。入力は画面に残っています。通信状態を確認してください。');
+    if(error.code==='PGRST301'||error.code==='401')throw Error('ログイン状態を確認してから再試行してください。');
+    throw Error(`共有データへ保存できませんでした（${error.code||'接続エラー'}）。保存結果を確認してから再試行してください。`);
   }
   return data;
 }

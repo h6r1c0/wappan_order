@@ -1,7 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {Modal,Field,Button,useApp} from './ui.jsx';
 import {parseBatchOrder,applyBatchOrder,addSpecialProduct,specialSaleReference} from './batch-import.js';
-import {candidates,relatedProducts,samePack} from './line-import.js';
+import {candidates,productCandidates,relatedProducts,samePack} from './line-import.js';
 import {productDisplayName} from './product-names.js';
 
 const labels={personal:'個人注文',sales:'販売用',snack:'おやつ用'};
@@ -16,14 +16,19 @@ export function BatchImport({round,onClose}){
   const [special,setSpecial]=useState({});
   const [allProducts,setAllProducts]=useState({});
   const pending=(round.pendingImports||[]).map(x=>{
-    const options=candidates(x.productName,round.products,state.aliases?.products);
-    return {...x,pendingId:x.id,productId:options.length===1?options[0].id:'',options,held:options.length!==1,ignored:false};
+    const options=productCandidates(x.productName,round.products,state.aliases?.products);
+    const exact=candidates(x.productName,round.products,state.aliases?.products);
+    return {...x,pendingId:x.id,productId:exact.length===1?exact[0].id:'',options,held:exact.length!==1,ignored:false};
   });
   useEffect(()=>{if(rows?.length||text)sessionStorage.setItem(draftKey,JSON.stringify({text,rows}));else sessionStorage.removeItem(draftKey);},[text,rows,draftKey]);
-  const edit=(i,patch)=>setRows(rows.map((x,j)=>i===j?{...x,...patch}:x));
+  const edit=(i,patch)=>setRows(rows.map((x,j)=>{
+    if(i===j)return {...x,...patch};
+    if(patch.productId&&x.productId===''&&x.productName===rows[i].productName&&samePack(x.productName,round.products.find(p=>p.id===patch.productId)))return {...x,productId:patch.productId,held:false};
+    return x;
+  }));
   const showPending=()=>{setText('');setRows(pending);setEditing({});};
   const buyerless=rows?.filter(x=>!x.ignored&&!x.held&&x.kind==='personal'&&!x.buyerId)||[];
-  const ready=rows?.some(x=>!x.ignored)&&rows.every(x=>x.ignored||x.held||complete(x));
+  const ready=rows?.some(x=>!x.ignored||x.pendingId)&&rows.every(x=>x.ignored||x.held||complete(x));
   const group=x=>`${x.kind||'?'}:${x.buyerId||''}`;
   return <Modal title="注文内容を貼り付け" onClose={onClose}>
     {(round.pendingImports||[]).length>0&&<p className="notice">保留中 {round.pendingImports.length}行。商品を追加した後、この行だけ登録できます。 <button type="button" className="text-action" onClick={showPending}>保留行を確認</button></p>}
@@ -54,10 +59,10 @@ export function BatchImport({round,onClose}){
             </div>
             {(editing[i]||!row.held&&!row.ignored&&!complete(row))&&<div className="batch-import-fields">
               <small className="batch-import-original">元の文章：{row.raw}</small>
+              <Field label="商品"><select value={row.productId} onChange={e=>edit(i,{productId:e.target.value,held:!e.target.value,ignored:false})}><option value="">未登録・未確認</option>{options.map(p=><option key={p.id} value={p.id} disabled={!samePack(specialName(row),p)}>{productDisplayName(p.name)}{!samePack(specialName(row),p)?'（販売単位が異なります）':''}</option>)}</select></Field>
               <Field label="扱い"><select value={row.ignored?'ignore':row.held?'hold':'save'} onChange={e=>edit(i,{ignored:e.target.value==='ignore',held:e.target.value==='hold'})}><option value="save">注文として保存</option><option value="hold">保留</option><option value="ignore">除外</option></select></Field>
               <Field label="区分"><select value={row.kind} onChange={e=>edit(i,{kind:e.target.value,buyerId:e.target.value==='personal'?row.buyerId:''})}><option value="">未確認</option>{Object.entries(labels).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></Field>
               {row.kind==='personal'&&<Field label="購入者"><select value={row.buyerId} onChange={e=>edit(i,{buyerId:e.target.value})}><option value="">未確認</option>{state.buyers.filter(b=>!b.testOnly||round.test).map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></Field>}
-              <Field label="商品"><select value={row.productId} onChange={e=>edit(i,{productId:e.target.value,held:!e.target.value})}><option value="">未登録・未確認</option>{options.map(p=><option key={p.id} value={p.id} disabled={!samePack(specialName(row),p)}>{productDisplayName(p.name)}{!samePack(specialName(row),p)?'（販売単位が異なります）':''}</option>)}</select></Field>
               {!allProducts[i]&&<button type="button" className="text-action batch-all-products" onClick={()=>setAllProducts({...allProducts,[i]:true})}>すべての商品から探す</button>}
               <Field label="数量"><input className="batch-import-quantity-input" type="number" inputMode="numeric" min="1" step="1" value={row.qty} onChange={e=>edit(i,{qty:Number(e.target.value)})}/></Field>
               {!row.productId&&<div className="batch-import-special"><button type="button" className="text-action" onClick={()=>setSpecial({...special,[i]:!special[i]})}>商品表にない販売単位を追加</button>

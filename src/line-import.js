@@ -1,5 +1,5 @@
 const norm=s=>String(s).normalize('NFKC').replace(/(\d+)個入り/g,'$1個').replace(/[\s　・･]/g,'').toLowerCase();
-const pack=s=>String(s).normalize('NFKC').match(/(\d+)\s*個(?:入り)?/)?.[1]||'';
+const pack=s=>String(s).normalize('NFKC').match(/(\d+)\s*個(?:入り)?|[（(](\d+)[）)]/)?.slice(1).find(Boolean)||'';
 export const samePack=(raw,product)=>!pack(raw)||!(pack(product.sourceName)||pack(product.name))||(pack(product.sourceName)||pack(product.name))===pack(raw);
 export function relatedProducts(raw,items){
  const name=norm(raw).replace(/\d+個/g,'').replace(/[\d×x✕*]+$/g,'');
@@ -8,6 +8,25 @@ export function relatedProducts(raw,items){
   const candidate=norm(p.name).replace(/\d+個/g,'');
   return candidate.includes(name)||name.includes(candidate)&&candidate.length>=3;
  }).sort((a,b)=>Number(samePack(raw,b))-Number(samePack(raw,a)));
+}
+const productKey=s=>norm(s).replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-96))
+ .replace(/湯種|湯だね|ゆだね/g,'ゆだね').replace(/りんご|林檎/g,'りん')
+ .replace(/[（(]\d+[）)]|\d+個(?:入り)?/g,'').replace(/[^぀-ヿ㐀-鿿\w]/g,'');
+function editDistance(a,b){
+ let row=Array.from({length:b.length+1},(_,i)=>i);
+ for(let i=1;i<=a.length;i++){const next=[i];for(let j=1;j<=b.length;j++)next[j]=Math.min(next[j-1]+1,row[j]+1,row[j-1]+(a[i-1]===b[j-1]?0:1));row=next;}
+ return row[b.length];
+}
+export function productCandidates(raw,items,aliases={}){
+ const exact=candidates(raw,items,aliases);
+ const key=productKey(raw);
+ const ranked=items.filter(p=>samePack(raw,p)).map(p=>{
+   const candidate=productKey(p.name),distance=editDistance(key,candidate);
+   const shared=key.length>=3&&(candidate.includes(key)||key.includes(candidate));
+   return {p,score:key===candidate?0:shared?1:distance};
+ }).filter(x=>key.length>=2&&x.score<=Math.max(2,Math.floor(key.length*.45)))
+   .sort((a,b)=>a.score-b.score||a.p.name.localeCompare(b.p.name,'ja'));
+ return [...new Map([...exact,...ranked.map(x=>x.p)].map(p=>[p.id,p])).values()].slice(0,5);
 }
 export function candidates(raw,items,aliases={}){
  const key=norm(raw), alias=aliases[key];

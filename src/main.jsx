@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { client, configured, readWorkspace, writeWorkspace } from "./store";
 import { validate } from "./domain";
 import { upgrade } from "./commerce";
+import { receiptIntent, savedReceipt } from "./save-recovery";
 import { AppContext, Button, Field } from "./ui";
 import { Orders } from "./orders";
 import { Reports } from "./reports";
@@ -99,19 +100,42 @@ function App() {
     if (lock.current) return false;
     lock.current = true;
     setSaving(true);
+    let intent;
     try {
       const next = structuredClone(state);
       change(next);
       upgrade(next);
       validate(next);
+      intent=receiptIntent(state,next);
+      if(intent){
+        // Check the server before a receipt attempt. A previous response may
+        // have been lost, and local revision alone cannot settle that case.
+        const latest=await readWorkspace();
+        if(savedReceipt(latest.state,intent)){
+          setState(latest.state);setRevision(latest.revision);revisionRef.current=latest.revision;
+          notify("受取は保存済みです。残高と履歴を更新しました");return {receiptId:(latest.state.collectionEntries||[]).find(e=>e.requestId===intent.requestId)?.id};
+        }
+        if(latest.revision!==revision)throw Error('別の係が先に保存しました。受取は登録していません。入力を保持したまま最新データとの照合が必要です。');
+      }
       const rev = await writeWorkspace(revision, next, description);
       setState(next);
       setRevision(rev);
       revisionRef.current = rev;
-      notify("保存しました");
+      notify(intent?"受取を保存しました。残高と履歴を更新しました":"保存しました");
       return true;
     } catch (e) {
-      notify(e.message);
+      if(intent){
+        try{
+          const latest=await readWorkspace();
+          if(savedReceipt(latest.state,intent)){
+            setState(latest.state);setRevision(latest.revision);revisionRef.current=latest.revision;
+            notify("受取は保存済みです。残高と履歴を更新しました");return {receiptId:(latest.state.collectionEntries||[]).find(e=>e.requestId===intent.requestId)?.id};
+          }
+          notify(`${description}：${intent.received.toLocaleString('ja-JP')}円は保存されていません。${e.message}`);
+        }catch{
+          notify(`${description}：${intent.received.toLocaleString('ja-JP')}円の保存結果を確認できません。通信回復後、最新の記録を確認してから再試行してください。`);
+        }
+      }else notify(e.message);
       return false;
     } finally {
       lock.current = false;
