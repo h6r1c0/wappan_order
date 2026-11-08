@@ -27,7 +27,7 @@ test('集金一覧は通常の12人を少ないスクロールで探せ、受取
  }
  if(process.env.UX_CAPTURE_DIR)await fs.writeFile(`${process.env.UX_CAPTURE_DIR}/measurements.json`,JSON.stringify(output,null,2));
  const first=rows.first();await first.getByRole('button',{name:'全額受取'}).click();
- expect(collectionPosition(shared.state,r.id,'buyer-0').balance).toBe(0);
+ await expect.poll(()=>collectionPosition(shared.state,r.id,'buyer-0').balance).toBe(0);
  await expect(page.locator('.collection-list > .collection-entry')).toHaveCount(11);
  await expect(page.locator('.collection-list > .collection-entry').first().locator('.collection-open')).toHaveAttribute('aria-expanded','false');
  await page.locator('.collection-completed summary').click();await expect(page.locator('.collection-completed [data-buyer="buyer-0"]')).toBeVisible();
