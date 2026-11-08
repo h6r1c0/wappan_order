@@ -1,0 +1,163 @@
+{
+  "source": "2026-11-08 Work4 利用者「実機確認で見つかった不具合・操作・デザインの総合修正依頼」全文",
+  "purpose": "集金保存のDB検証エラーを修復し、結果不明時の二重受取を防ぐ。既存業務を保持しつつ指定画面の必要差分だけ改善する。",
+  "targets": [
+    {
+      "id": "WAP-0004",
+      "ledgerRef": "WAP-0004",
+      "ledgerDigest": "71421c5f68193e4ff423897c93b215ac0340af30710fee1b9be07f2c115c19a5"
+    },
+    {
+      "id": "WAP-0006",
+      "ledgerRef": "WAP-0006",
+      "ledgerDigest": "f96fed501debb9d70476211f045909678610d513f220d2337d9509f12d491eef"
+    },
+    {
+      "id": "WAP-0008",
+      "ledgerRef": "WAP-0008",
+      "ledgerDigest": "6e42bf60b8af2b90a46c3f380ab8ca5e3817f2f5a2e23fdecc7ce88891cbf819"
+    },
+    {
+      "id": "WAP-0012",
+      "ledgerRef": "WAP-0012",
+      "ledgerDigest": "b55cf18513ccc950f265b00c9cab34cc658fb45b8be3892b6d69dcdbb541953b"
+    },
+    {
+      "id": "WAP-0014",
+      "ledgerRef": "WAP-0014",
+      "ledgerDigest": "74408d0e85dcd43ee92fcd10d2539bfab871ee080374b49737ad6db2bfa88209"
+    },
+    {
+      "id": "WAP-0015",
+      "ledgerRef": "WAP-0015",
+      "ledgerDigest": "ad8ee1be9f6442b4bf8d48a2f3e77773be2cb10120d3d3e3802c9250704f8239"
+    },
+    {
+      "id": "WAP-0017",
+      "ledgerRef": "WAP-0017",
+      "ledgerDigest": "b719e81f294bfaa8ea612e8aa2cf595f18188dda1fc49bb795585755ad191524"
+    },
+    {
+      "id": "WAP-0031",
+      "ledgerRef": "WAP-0031",
+      "ledgerDigest": "e354f942684bebafa971516b29f94ea88a736a75451854c6d0924a94b0603ef1"
+    },
+    {
+      "id": "WAP-0034",
+      "ledgerRef": "WAP-0034",
+      "ledgerDigest": "5d978361b79cf517a5a7304e07fac5bcaf267a561304848d0ea0f5c4680552d8"
+    },
+    {
+      "id": "WAP-0041",
+      "ledgerRef": "WAP-0041",
+      "ledgerDigest": "b8d1ed68472b6ac2575dae1ede09143551ca0dfd6cb71ff6fd3001bb4c00a34e"
+    },
+    {
+      "id": "WAP-0042",
+      "ledgerRef": "WAP-0042",
+      "ledgerDigest": "17655091d3927bcdb346de69d8aac1f8af0e377c3fd1fa568901ad2a3ca74c91"
+    },
+    {
+      "id": "WAP-0043",
+      "ledgerRef": "WAP-0043",
+      "ledgerDigest": "0708f99cee314e59970f9bd279903a0087162c2227432b14d3e6a8eb54d809d2"
+    },
+    {
+      "id": "WAP-0044",
+      "ledgerRef": "WAP-0044",
+      "ledgerDigest": "08fe99e238f19d4aaa87330c21dfd2853ea8a40621a3e8a63864cae10a0b5afc"
+    },
+    {
+      "id": "WAP-0046",
+      "ledgerRef": "WAP-0046",
+      "ledgerDigest": "cd512acb5643912045c67a9fef475331c0cc817ee3dd92d7c5b8a511020a8ce3"
+    },
+    {
+      "id": "WAP-0047",
+      "ledgerRef": "WAP-0047",
+      "ledgerDigest": "faccfc211845050914f6c6bc15816f59fa3598d164ecd244d775579c0d7dea15"
+    },
+    {
+      "id": "WAP-0048",
+      "ledgerRef": "WAP-0048",
+      "ledgerDigest": "b148bb05cab62d31057ac951a433d3296009ca15ffdca5a68aa57c0d37ada269"
+    },
+    {
+      "id": "WAP-0057",
+      "ledgerRef": "WAP-0057",
+      "ledgerDigest": "c4b56c8f973deee847a024b695bea75ebab0243f8c0337f3bac15896771f59b4"
+    },
+    {
+      "id": "WAP-0060",
+      "ledgerRef": "WAP-0060",
+      "ledgerDigest": "598d41a30a71a12f9bea9fe42e4b07b262a2ca9fa5f15f37ae8cfa44cecc4aed"
+    },
+    {
+      "id": "WAP-0074",
+      "ledgerRef": "WAP-0074",
+      "ledgerDigest": "94416a57294f509a0df73f57c815fff624a1097b88625bd3fe0f7c56f08d7413"
+    },
+    {
+      "id": "WAP-0077",
+      "ledgerRef": "WAP-0077",
+      "ledgerDigest": "69c8c7612ae8b7b6a2614a0226919b1699e9e8bb22021c5e74f57d0010fe8955"
+    }
+  ],
+  "deferred": [
+    {
+      "id": "WAP-0002",
+      "reason": "今回の直接変更対象外。既存の状態・実機結果を維持する。",
+      "next": "台帳の未解決事項として継続し、本人の次回実機結果に従う。"
+    },
+    {
+      "id": "WAP-0035",
+      "reason": "今回の直接変更対象外。既存の状態・実機結果を維持する。",
+      "next": "台帳の未解決事項として継続し、本人の次回実機結果に従う。"
+    },
+    {
+      "id": "WAP-0054",
+      "reason": "今回の直接変更対象外。既存の状態・実機結果を維持する。",
+      "next": "台帳の未解決事項として継続し、本人の次回実機結果に従う。"
+    },
+    {
+      "id": "WAP-0068",
+      "reason": "今回の直接変更対象外。既存の状態・実機結果を維持する。",
+      "next": "台帳の未解決事項として継続し、本人の次回実機結果に従う。"
+    },
+    {
+      "id": "WAP-0069",
+      "reason": "今回の直接変更対象外。既存の状態・実機結果を維持する。",
+      "next": "台帳の未解決事項として継続し、本人の次回実機結果に従う。"
+    },
+    {
+      "id": "WAP-0072",
+      "reason": "今回の直接変更対象外。既存の状態・実機結果を維持する。",
+      "next": "台帳の未解決事項として継続し、本人の次回実機結果に従う。"
+    },
+    {
+      "id": "WAP-0071",
+      "reason": "今回の直接変更対象外。既存の状態・実機結果を維持する。",
+      "next": "台帳の未解決事項として継続し、本人の次回実機結果に従う。"
+    },
+    {
+      "id": "WAP-0070",
+      "reason": "今回の直接変更対象外。既存の状態・実機結果を維持する。",
+      "next": "台帳の未解決事項として継続し、本人の次回実機結果に従う。"
+    },
+    {
+      "id": "WAP-0073",
+      "reason": "今回の直接変更対象外。既存の状態・実機結果を維持する。",
+      "next": "台帳の未解決事項として継続し、本人の次回実機結果に従う。"
+    },
+    {
+      "id": "WAP-0075",
+      "reason": "今回の直接変更対象外。既存の状態・実機結果を維持する。",
+      "next": "台帳の未解決事項として継続し、本人の次回実機結果に従う。"
+    },
+    {
+      "id": "WAP-0076",
+      "reason": "今回の直接変更対象外。既存の状態・実機結果を維持する。",
+      "next": "台帳の未解決事項として継続し、本人の次回実機結果に従う。"
+    }
+  ]
+}
