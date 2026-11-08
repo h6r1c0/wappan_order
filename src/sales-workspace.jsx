@@ -36,6 +36,8 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
  const [date,setDate]=useState(round?.date||today()),[prices,setPrices]=useState({});
  const others=(state.otherSales||[]).filter(s=>!s.void&&s.paymentStatus==='unpaid'&&round&&s.date===round.date&&s.test===round.test);
  const bills=new Map(collections(state,'','',roundId,!!round?.test).map(b=>[b.id,b]));
+ const savedSales=[...state.sales.filter(s=>!s.void&&(s.destinationType||(!s.paid&&!s.pending?'buyer':'external'))==='buyer'&&s.chargeRoundId===roundId).map(s=>({buyerId:s.buyerId,name:state.stocks.find(st=>st.id===s.stockId)?.name||'販売用商品',qty:s.qty,price:s.price})),
+  ...others.flatMap(s=>(s.allocations||[]).filter(a=>a.chargeRoundId===roundId).map(a=>({buyerId:a.buyerId,name:s.name,qty:a.qty,price:s.unitPrice})))];
  const items=[...stocks.map(s=>({key:'stock:'+s.id,name:s.name,category:s.category||'パン',stock:s,left:available(state,s)})),
   ...others.map(s=>({key:'other:'+s.id,name:s.name,category:'その他',other:s,left:otherRemaining(s)}))];
  const buyerKey=destinationType==='external'?'external':buyerId,personalDraft=buyerDrafts[buyerKey]||{};
@@ -129,7 +131,7 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory}){
      {shown.some(x=>buyerDraft[x.key]>0)&&<Button disabled={saving} onClick={()=>commit(false)}>選んだ商品をまとめて保存</Button>}</div>}
    {error&&<p role="alert" className="notice">{error}。入力済みの数量は保持しています。</p>}
    <details className="saved-buyer-sales"><summary>保存済みの購入者別・商品別の請求内訳</summary>
-    {[...bills.values()].filter(b=>b.onsite>0).map(b=><p key={b.id}><strong>{b.name}　販売分 {yen(b.onsite)}</strong><br/>{b.lines.filter(l=>l.category!=='おやつ'&&l.description.includes(round?.date||'')).map((l,i)=><span key={i}>{l.description}：{yen(l.amount)}<br/></span>)}</p>)}
+    {[...bills.values()].filter(b=>b.onsite>0).map(b=><p key={b.id}><strong>{b.name}　販売分 {yen(b.onsite)}</strong><br/>{savedSales.filter(s=>s.buyerId===b.id).map((s,i)=><span key={i}>{productDisplayName(s.name)} {s.qty}個 × 単価 {yen(s.price)} ＝ {yen(s.qty*s.price)}<br/></span>)}</p>)}
    </details>
    {!shown.length&&!current&&<p>未割当の商品はありません。</p>}
   </>}
