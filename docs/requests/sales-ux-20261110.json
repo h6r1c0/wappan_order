@@ -1,0 +1,15 @@
+{
+  "source": "2026-11-10 利用者 PR #41公開後 iPhone SE実機確認に基づくUI・操作性改善",
+  "purpose": "保存済み販売割当の確認・訂正を短い動線にし、工程移動、状態と操作の区別、画面内テーマと手描き筆跡を整える。本番取引は読み取りのみ。",
+  "targets": [
+    {"id":"WAP-0004","ledgerRef":"WAP-0004","ledgerDigest":"71421c5f68193e4ff423897c93b215ac0340af30710fee1b9be07f2c115c19a5"},
+    {"id":"WAP-0041","ledgerRef":"WAP-0041","ledgerDigest":"b8d1ed68472b6ac2575dae1ede09143551ca0dfd6cb71ff6fd3001bb4c00a34e"},
+    {"id":"WAP-0042","ledgerRef":"WAP-0042","ledgerDigest":"17655091d3927bcdb346de69d8aac1f8af0e377c3fd1fa568901ad2a3ca74c91"},
+    {"id":"WAP-0074","ledgerRef":"WAP-0074","ledgerDigest":"94416a57294f509a0df73f57c815fff624a1097b88625bd3fe0f7c56f08d7413"},
+    {"id":"WAP-0078","ledgerRef":"WAP-0078","ledgerDigest":"7f6aad4cd5c4c760653e3eca9a20776f588a30145975cd238a974ba9ef91c757"},
+    {"id":"WAP-0084","ledgerRef":"WAP-0084","ledgerDigest":"25a675df0a6883faa860115a05bb5f89c3e73103e867bf22ac63e6d4e8f228d3"},
+    {"id":"WAP-0085","ledgerRef":"WAP-0085","ledgerDigest":"aad3a0992f15b2e3af88c1bd5c7c7ea4a4adc8a597ba5e029a3253e8948a7a55"},
+    {"id":"WAP-0086","ledgerRef":"WAP-0086","ledgerDigest":"9f77a41c61e118c116c1bc0c74c8390948aca32469235acf1898b8b27f663dcc"}
+  ],
+  "deferred": []
+}

@@ -245,6 +245,11 @@ function Round({ round: r, initialTab = null, back }) {
         {recent?.length===activityLimit&&activityLimit<20&&<button type="button" className="text-action" onClick={()=>setActivityLimit(20)}>もっと見る ›</button>}
       </details>
       {r.note && <details className="round-note"><summary>この注文回のメモ</summary><p>{r.note}</p></details>}
+      <div className="round-stage-jump" role="navigation" aria-label="この注文回の工程へ移動">
+        {[['注文',lastPurpose],['発注','発注'],['納品・精算','納品・精算'],['集金','集金']].map(([label,target])=><button type="button" key={label}
+          className={activeStage===label?'selected':''} aria-current={activeStage===label?'step':undefined}
+          onClick={()=>moveTo(activeStage===label?null:target)}>{label}</button>)}
+      </div>
       <div className="stage-list" aria-label="注文の工程">
         {["注文", "発注", "納品・精算", "集金"].map((stage, index) => (
           <section className={`stage stage-${index + 1} ${activeStage === stage ? "active" : ""}`} key={stage}>

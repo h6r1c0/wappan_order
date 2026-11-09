@@ -249,7 +249,7 @@ function App() {
           </div>
           {state ? (
             <>
-              <main key={epoch} aria-busy={saving}>
+              <main key={epoch} data-page={page} aria-busy={saving}>
                 <fieldset disabled={saving} className="workspace">
                   {page === "業務" ? (
                     <Orders />

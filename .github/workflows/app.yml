@@ -31,6 +31,8 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium webkit
         timeout-minutes: 6
+      - run: npx playwright test --browser chromium tests/browser/workflow.spec.js -g '11/10レビュー'
+      - run: npx playwright test --browser webkit tests/browser/workflow.spec.js -g '11/10レビュー'
       - run: npx playwright test --browser chromium tests/browser/workflow.spec.js -g '11/7レビュー'
       - run: npx playwright test --browser webkit tests/browser/workflow.spec.js -g '11/7レビュー'
       - run: npx playwright test tests/browser/workflow.spec.js -g '11/4レビュー'
