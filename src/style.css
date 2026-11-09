@@ -2997,6 +2997,7 @@ nav button.active:nth-child(4) {background:#f3ecfa;color:#724296;}
   main[data-page='ヘルプ'] .usage-guide h1 {color:#633d85;}
   main[data-page='ヘルプ'] .usage-guide details[open],main[data-page='ヘルプ'] .usage-guide summary {border-color:#dfcbe9;color:#633d85;}
   main[data-page='集計'] .text-action::after {background-image:url('./assets/pencil/blue-deep.png');}
+  main[data-page='集計'] .hero .text-action::after {background-image:url('./assets/pencil/blue-light.png');filter:brightness(1.65);mask-image:linear-gradient(to right,#000 0%,#000 70%,transparent 100%);opacity:1;}
   main[data-page='設定'] .text-action::after {background-image:url('./assets/pencil/green-deep.png');}
   main[data-page='ヘルプ'] .text-action::after {background-image:url('./assets/pencil/blue-deep.png');filter:hue-rotate(48deg);}
   .round-list-menu summary::after,.round-list-menu .text-action::after {background-image:url('./assets/pencil/green-deep.png');opacity:.95;mask-image:linear-gradient(to right,#000 0%,#000 65%,transparent 100%);}
