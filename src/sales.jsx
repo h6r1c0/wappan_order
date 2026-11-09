@@ -44,6 +44,8 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
   const [mode, setMode] = useState(phase === 'order' ? 'order' : null);
   const [inputMode, setInputMode] = useState('buyer');
   const [edit, setEdit] = useState(null);
+  const [editSale, setEditSale] = useState(null);
+  const [editNotice, setEditNotice] = useState('');
   const [selling, setSelling] = useState(null);
   const [batchSelling, setBatchSelling] = useState(false);
   const [unconfirmedOpen, setUnconfirmedOpen] = useState(false);
@@ -123,11 +125,12 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
         {!reviewing && onManageProducts && <Button secondary onClick={onManageProducts}>商品を追加・変更</Button>}
       </section>}
       {phase !== 'order' && <section className="work-section sales-step-body">
+        {editNotice&&<p role="status" className="sale-saved">{editNotice}</p>}
         <div className="sales-mode-grid assignment-modes" role="group" aria-label="販売先割当の入力方法">
           <button type="button" className={`assignment-mode ${inputMode==='buyer'?'selected':''}`} aria-pressed={inputMode==='buyer'} onClick={()=>setInputMode('buyer')}>購入者からまとめて割当</button>
           <button type="button" className={`assignment-mode ${inputMode==='product'?'selected':''}`} aria-pressed={inputMode==='product'} onClick={()=>setInputMode('product')}>商品から複数人へ割当</button>
         </div>
-        <SalesWorkspace stocks={stocks} roundId={roundId} mode={inputMode} onHistory={st=>setEdit(st)}/>
+        <SalesWorkspace stocks={stocks} roundId={roundId} mode={inputMode} onHistory={st=>setEdit(st)} onEditSale={sale=>{setEditNotice('');setEditSale(sale);}}/>
       </section>}
     </div>
     {phase !== 'order' && !round && <OtherSales round={round}/>}
@@ -136,6 +139,9 @@ export function Sales({roundId=null,marketId=null,onManageProducts=null,phase='a
     {edit && <StockEditor roundId={roundId} marketId={marketId} stock={edit.id ? edit : null}
       onClose={() => setEdit(null)} onSale={() => { setSelling(edit); setEdit(null); }}/>}
     {selling && <SaleEditor stock={state.stocks.find((s) => s.id === selling.id)} onClose={() => setSelling(null)}/>}
+    {editSale && <SaleResolution sale={editSale} onClose={()=>setEditSale(null)} onSaved={(before,after,qty)=>{
+      setEditSale(null);setEditNotice(`${state.stocks.find(s=>s.id===before.stockId)?.name||'商品'} ${qty}個：${before.buyerName||'販売先未確認'}から${after}へ変更しました。保存済みの割当と請求額に反映されます。`);
+    }}/>}
   </>;
 }
 function UnconfirmedSalesEditor({ stocks, roundId, onClose }) {
@@ -556,11 +562,13 @@ function StockSaleHistory({ stock, sold, onResolve }) {
     </section>
   );
 }
-function SaleResolution({sale,onClose}){
+function SaleResolution({sale,onClose,onSaved}){
  const {state,save}=useApp();const stock=state.stocks.find(st=>st.id===sale.stockId);
  const [qty,setQty]=useState(sale.qty);
  const [v,set]=useState({destinationType:sale.destinationType||(sale.pending?'unknown':sale.paid?'external':'buyer'),paymentStatus:sale.paymentStatus||(sale.pending?'unconfirmed':sale.paid?'paid':'later'),destinationName:sale.destinationName||(sale.destinationType==='external'?sale.buyerName:''),buyerId:sale.buyerId||'',chargeRoundId:sale.chargeRoundId||stock.roundId});
- return <Modal title="販売先・支払状態を確認" onClose={onClose}><div className="sale-resolution-summary"><strong>{stock.name} ×{sale.qty}</strong><span>{yen(sale.qty*sale.price)}</span></div><Qty label="変更する販売数量" min={1} max={sale.qty} value={qty} onChange={setQty}/><div className="choice-grid"><Button secondary={v.destinationType!=='buyer'} onClick={()=>set({...v,destinationType:'buyer',paymentStatus:'later'})}>個人に請求</Button><Button secondary={v.destinationType!=='external'} onClick={()=>set({...v,destinationType:'external',paymentStatus:'paid'})}>支払い済み</Button><Button secondary={v.destinationType!=='unknown'} onClick={()=>set({...v,destinationType:'unknown',paymentStatus:'unconfirmed'})}>未確認</Button></div>{v.destinationType==='buyer'&&<BuyerPicker includeTest={stock.test} value={v.buyerId} onChange={buyerId=>set({...v,buyerId})}/>} {v.destinationType==='external'&&<><Field label="販売先・団体名（任意）"><input list="external-destinations-resolve" value={v.destinationName==='外部販売（名称未入力）'?'':v.destinationName} onChange={e=>set({...v,destinationName:e.target.value})}/></Field><datalist id="external-destinations-resolve">{state.externalDestinations.map(x=><option key={x} value={x}/>)}</datalist>{sale.destinationType==='external'&&sale.paymentStatus==='unconfirmed'&&v.paymentStatus==='unconfirmed'&&<p className="notice">既存の入金未確認記録です。支払いを確認してから変更してください。</p>}</>}<Button disabled={v.destinationType==='buyer'&&!v.buyerId} onClick={async()=>{if(await save(s=>reassignSale(s,sale.id,qty,v),'販売先・数量・支払状態を更新'))onClose();}}>確認内容を保存</Button></Modal>;
+ const currentName=sale.destinationType==='buyer'?(state.buyers.find(b=>b.id===sale.buyerId)?.name||sale.buyerName):sale.destinationName||'外部販売';
+ const nextName=v.destinationType==='buyer'?state.buyers.find(b=>b.id===v.buyerId)?.name:v.destinationType==='external'?v.destinationName||'外部販売':'未確認';
+ return <Modal title={`${stock.name}の販売先を訂正`} onClose={onClose}><div className="sale-resolution-summary"><strong>{stock.name}　{sale.qty}個 ／ 現在：{currentName}</strong><span>{yen(sale.qty*sale.price)}</span></div><Qty label="変更する販売数量" min={1} max={sale.qty} value={qty} onChange={setQty}/><div className="choice-grid"><Button secondary={v.destinationType!=='buyer'} onClick={()=>set({...v,destinationType:'buyer',paymentStatus:'later'})}>個人に請求</Button><Button secondary={v.destinationType!=='external'} onClick={()=>set({...v,destinationType:'external',paymentStatus:'paid'})}>支払い済み</Button><Button secondary={v.destinationType!=='unknown'} onClick={()=>set({...v,destinationType:'unknown',paymentStatus:'unconfirmed'})}>未確認</Button></div>{v.destinationType==='buyer'&&<BuyerPicker includeTest={stock.test} value={v.buyerId} onChange={buyerId=>set({...v,buyerId})}/>} {v.destinationType==='external'&&<><Field label="販売先・団体名（任意）"><input list="external-destinations-resolve" value={v.destinationName==='外部販売（名称未入力）'?'':v.destinationName} onChange={e=>set({...v,destinationName:e.target.value})}/></Field><datalist id="external-destinations-resolve">{state.externalDestinations.map(x=><option key={x} value={x}/>)}</datalist>{sale.destinationType==='external'&&sale.paymentStatus==='unconfirmed'&&v.paymentStatus==='unconfirmed'&&<p className="notice">既存の入金未確認記録です。支払いを確認してから変更してください。</p>}</>}<p className="sale-change-preview">{currentName} {qty}個 → {nextName||'変更先を選ぶ'} {qty}個{qty<sale.qty&&`（残り${sale.qty-qty}個は${currentName}）`}</p><Button disabled={v.destinationType==='buyer'&&!v.buyerId} onClick={async()=>{if(await save(s=>reassignSale(s,sale.id,qty,v),'販売先・数量・支払状態を更新')){onSaved?.(sale,nextName,qty);onClose();}}}>変更を保存</Button></Modal>;
 }
 export function SaleEditor({ stock, onClose }) {
   const { state, save } = useApp();

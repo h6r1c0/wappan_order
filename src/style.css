@@ -2944,3 +2944,65 @@ nav button.active:nth-child(4) {background:#f3ecfa;color:#724296;}
   #root > header.login-header {padding-top:calc(var(--login-canvas-width) * .215);min-height:calc(95px + var(--login-canvas-width) * .215);}
   #root > header.login-header .school-logo {margin-left:clamp(24px,12vw,61px);}
 }
+
+/* Saved allocations are a compact review surface; the zero-based grid is for new work. */
+@media screen {
+  .assignment-product-choice {flex-wrap:wrap;}
+  .completed-stocks .assignment-product-choice {display:block;}
+  .completed-stocks .assignment-product-choice span {display:block;font-weight:650;}
+  .completed-stocks .assignment-product-choice small {display:block;white-space:normal;overflow-wrap:anywhere;margin-top:2px;line-height:1.4;}
+  .allocation-editor-heading {display:flex;justify-content:space-between;gap:8px;align-items:center;}
+  .allocation-editor-heading strong {min-width:0;overflow-wrap:anywhere;}
+  .allocation-editor-heading .text-action {flex:none;min-height:40px;}
+  .saved-assignment-list {border-top:1px solid #e6d6c4;margin-top:7px;}
+  .saved-assignment-row {display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;min-height:44px;padding:7px 3px;border:0;border-bottom:1px solid #e6d6c4;background:transparent;color:#473c31;text-align:left;font:inherit;cursor:pointer;}
+  .saved-assignment-row span {min-width:0;overflow-wrap:anywhere;font-weight:650;}
+  .saved-assignment-row small {flex:none;color:#8a481b;font-size:.73rem;}
+  .saved-assignment-row:focus-visible {outline:2px solid #965216;outline-offset:-2px;}
+  .saved-assignment-summary {overflow-wrap:anywhere;}
+  .new-allocation-toggle {min-height:44px;margin-top:5px;color:#965216;}
+  .sale-change-preview {padding:9px;border-radius:8px;background:#fff5e9;color:#663a20;overflow-wrap:anywhere;}
+  .sale-resolution-summary strong {overflow-wrap:anywhere;}
+  .round-stage-jump {position:sticky;top:0;z-index:9;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;padding:5px 1px;background:#fffdf8ef;border-bottom:1px solid #eadfd0;backdrop-filter:blur(8px);}
+  .round-stage-jump button {min-height:43px;border:0;border-radius:8px;background:transparent;color:#5e615b;font:inherit;font-size:clamp(.68rem,2.7vw,.83rem);font-weight:650;white-space:nowrap;cursor:pointer;}
+  .round-stage-jump button.selected {background:#fff0de url('./assets/pencil/orange-light.png') center/100% 100% no-repeat;color:#844514;}
+  .round-stage-jump button:focus-visible {outline:2px solid #965216;}
+  .tag.tag-テスト::before,.tag.tag-繰越::before {border-radius:999px;}
+  .tag.tag-繰越,.round-list-item .tag.tag-繰越 {border-radius:999px!important;}
+}
+
+/* Main page palette sits above the existing work-stage palette. */
+@media screen {
+  main[data-page='集計'] {--work-accent:#285f96;--work-tint:#edf4fb;--link-pencil:url('./assets/pencil/blue-light.png');}
+  main[data-page='集計'] .report-mode button.selected,
+  main[data-page='集計'] .report-tabs .button:not(.secondary) {color:#245b90;border-color:#4278a7;background:#eaf3fd url('./assets/pencil/blue-light.png') center/100% 100% no-repeat;}
+  main[data-page='集計'] .hero {background:#326f9f url('./assets/pencil/blue-deep.png') center/100% 100% no-repeat;color:#fff;}
+  main[data-page='集計'] .hero progress {accent-color:#a8d8f4;}
+  main[data-page='集計'] .hero .text-action {color:#fff;}
+  main[data-page='集計'] .summary {position:relative;background:#eff5fc;color:#21476b;border-left:0;padding-left:16px;}
+  main[data-page='集計'] .summary::before {content:'';position:absolute;left:5px;top:7px;bottom:7px;width:5px;background:#477da9 url('./assets/pencil/blue-deep.png') center/100% 100% no-repeat;clip-path:polygon(0 0,95% 2%,100% 96%,22% 100%);}
+  main[data-page='集計'] .report-totals .summary:first-child::before {background-color:#3774aa;}
+  main[data-page='集計'] .report-totals .summary:last-child {background:#f2f7fc;}
+  main[data-page='集計'] .report-totals .summary:last-child::before {background-color:#80a6c8;background-image:url('./assets/pencil/blue-light.png');}
+  main[data-page='集計'] .report-mode button.selected {position:relative;border-bottom-color:transparent;}
+  main[data-page='集計'] .report-mode button.selected::after {content:'';position:absolute;left:8px;right:8px;bottom:1px;height:4px;background:url('./assets/pencil/blue-deep.png') center/100% 100% no-repeat;clip-path:polygon(0 30%,100% 0,99% 38%,0 100%);}
+  main[data-page='集計'] .hero+.text-action,main[data-page='集計'] .text-action {color:#245b90;}
+  main[data-page='集計'] .hero .text-action {color:#fff;}
+  main[data-page='集計'] .origin-summary,main[data-page='集計'] .round-chart {border-color:#c8ddef;}
+  main[data-page='設定'] {--work-accent:#286b49;--work-tint:#ecf6ef;--link-pencil:url('./assets/pencil/green-light.png');}
+  main[data-page='設定'] .settings-nav button[aria-selected='true'] {color:#225940;border-bottom-color:#347951;background:#edf7ef url('./assets/pencil/green-light.png') center/100% 100% no-repeat;}
+  main[data-page='ヘルプ'] {--work-accent:#714494;--work-tint:#f4edfa;--link-pencil:url('./assets/pencil/blue-light.png');}
+  main[data-page='ヘルプ'] .usage-guide h1 {color:#633d85;}
+  main[data-page='ヘルプ'] .usage-guide details[open],main[data-page='ヘルプ'] .usage-guide summary {border-color:#dfcbe9;color:#633d85;}
+  main[data-page='集計'] .text-action::after {background-image:url('./assets/pencil/blue-deep.png');}
+  main[data-page='設定'] .text-action::after {background-image:url('./assets/pencil/green-deep.png');}
+  main[data-page='ヘルプ'] .text-action::after {background-image:url('./assets/pencil/blue-deep.png');filter:hue-rotate(48deg);}
+  .round-list-menu summary::after,.round-list-menu .text-action::after {background-image:url('./assets/pencil/green-deep.png');opacity:.95;mask-image:linear-gradient(to right,#000 0%,#000 65%,transparent 100%);}
+  #root:has(> .login-header) .login-reset {position:relative;text-decoration:none!important;color:#46584b;}
+  #root:has(> .login-header) .login-reset::after {content:'';position:absolute;left:7px;right:7px;bottom:4px;height:4px;background:url('./assets/pencil/green-deep.png') center/100% 100% no-repeat;clip-path:polygon(0 20%,100% 0,100% 35%,0 100%);}
+  nav[aria-label='主な業務'] button.active {background-image:var(--nav-pencil);background-size:100% 100%;background-repeat:no-repeat;}
+  nav[aria-label='主な業務'] button.active:nth-child(1) {--nav-pencil:url('./assets/pencil/orange-light.png');}
+  nav[aria-label='主な業務'] button.active:nth-child(2) {--nav-pencil:url('./assets/pencil/blue-light.png');}
+  nav[aria-label='主な業務'] button.active:nth-child(3) {--nav-pencil:url('./assets/pencil/green-light.png');}
+  nav[aria-label='主な業務'] button.active:nth-child(4) {--nav-pencil:url('./assets/pencil/blue-light.png');background-color:#f3ecfa;}
+}
