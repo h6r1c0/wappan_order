@@ -1522,7 +1522,7 @@ test('11/9レビュー：別注文回の未収を保ち、購入者への販売�
 test('11/10レビュー：保存済み商品から販売先を直接訂正し、同じ商品・販売数のまま請求先だけが移る',async({page,context})=>{
  const s=preparedState();s.buyers.push({id:'nishio-edit',name:'西尾',kana:'にしお',active:true,fixed:[]},{id:'kondo-edit',name:'近藤',kana:'こんどう',active:true,fixed:[]});
  const old=newRound(s,'2026-10-16',true),r=newRound(s,'2026-10-30',true);old.collectionLive=true;r.collectionLive=true;r.status='納品済み';r.shortageConfirmation='none';r.shortageReviewComplete=true;s.rounds.push(old,r);
- s.receivableItems=[{id:'prior-edit',kind:'opening',buyerId:'kondo-edit',date:old.date,roundId:old.id,amount:2460,reason:'過去未収'}];
+ s.receivableItems=[{id:'prior-edit',kind:'opening',buyerId:'kondo-edit',date:old.date,roundId:old.id,amount:2460,reason:'過去未収',note:'前回分'}];
  const stock={id:'edit-stock',roundId:r.id,date:r.date,name:'とても長い名前のりんごデニッシュ',category:'パン',qty:3,price:450,cost:200,test:true};s.stocks.push(stock);r.stockIds.push(stock.id);
  const otherStock={id:'other-edit-stock',roundId:r.id,date:r.date,name:'レーズンスティック',category:'パン',qty:1,price:270,cost:100,test:true};s.stocks.push(otherStock);r.stockIds.push(otherStock.id);
  addSale(s,stock,{qty:3,date:r.date,price:450,buyerId:'nishio-edit',chargeRoundId:r.id,destinationType:'buyer',paymentStatus:'later'});
