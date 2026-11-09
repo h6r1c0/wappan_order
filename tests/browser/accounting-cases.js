@@ -71,7 +71,8 @@ export function registerAccountingTests(browserName){
   await expect(work.locator('.product-buyer-assignment')).toContainText('未割当 1個');
   await setQty(work,'ライ麦くるみレーズン 西尾の数量',1);
   await closeToast(page);await work.getByRole('button',{name:'この商品の割当をまとめて保存'}).click();
-  await work.locator('.completed-stocks > summary').click();
+  const completed=work.locator('.completed-stocks');
+  if(!await completed.evaluate(el=>el.open))await completed.locator('summary').click();
   await expect(work.locator('.product-buyer-assignment')).toContainText('割当済み 2個');
   await widths(page,`assignment-${browserName}`);
   await work.getByRole('button',{name:'販売履歴と商品情報'}).click();
