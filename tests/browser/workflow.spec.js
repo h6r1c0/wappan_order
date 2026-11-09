@@ -1537,7 +1537,7 @@ test('11/10レビュー：保存済み商品から販売先を直接訂正し、
  await expect(page.locator('.allocation-editor-heading')).toContainText('とても長い名前のりんごデニッシュ');
  await expect(page.getByLabel('とても長い名前のりんごデニッシュ 近藤の数量')).toHaveCount(0);
  await mobileShots(page,'saved-assignment-review');
- await page.getByRole('button',{name:/西尾　3個.*販売先を訂正/}).click();
+ await page.locator('.product-buyer-assignment .saved-assignment-row').filter({hasText:'西尾'}).click();
  await expect(page.getByText('とても長い名前のりんごデニッシュ　3個 ／ 現在：西尾')).toBeVisible();
  await page.locator('.modal').getByPlaceholder('名前を検索').fill('近藤');
  await page.locator('.modal .buyer-grid').getByRole('button',{name:'近藤',exact:true}).click();
