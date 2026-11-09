@@ -2961,6 +2961,7 @@ nav button.active:nth-child(4) {background:#f3ecfa;color:#724296;}
   .saved-assignment-row:focus-visible {outline:2px solid #965216;outline-offset:-2px;}
   .saved-assignment-summary {overflow-wrap:anywhere;}
   .new-allocation-toggle {min-height:44px;margin-top:5px;color:#965216;}
+  .new-allocation-heading {font-size:.82rem;color:#80501f;margin:8px 0 2px;}
   .sale-change-preview {padding:9px;border-radius:8px;background:#fff5e9;color:#663a20;overflow-wrap:anywhere;}
   .sale-resolution-summary strong {overflow-wrap:anywhere;}
   .round-stage-jump {position:sticky;top:0;z-index:9;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;padding:5px 1px;background:#fffdf8ef;border-bottom:1px solid #eadfd0;backdrop-filter:blur(8px);}

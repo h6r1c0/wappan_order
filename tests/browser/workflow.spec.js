@@ -1524,13 +1524,17 @@ test('11/10レビュー：保存済み商品から販売先を直接訂正し、
  const old=newRound(s,'2026-10-16',true),r=newRound(s,'2026-10-30',true);old.collectionLive=true;r.collectionLive=true;r.status='納品済み';s.rounds.push(old,r);
  s.receivableItems=[{id:'prior-edit',kind:'opening',buyerId:'kondo-edit',date:old.date,roundId:old.id,amount:2460,reason:'過去未収'}];
  const stock={id:'edit-stock',roundId:r.id,date:r.date,name:'とても長い名前のりんごデニッシュ',category:'パン',qty:3,price:450,cost:200,test:true};s.stocks.push(stock);r.stockIds.push(stock.id);
+ const otherStock={id:'other-edit-stock',roundId:r.id,date:r.date,name:'レーズンスティック',category:'パン',qty:1,price:270,cost:100,test:true};s.stocks.push(otherStock);r.stockIds.push(otherStock.id);
  addSale(s,stock,{qty:3,date:r.date,price:450,buyerId:'nishio-edit',chargeRoundId:r.id,destinationType:'buyer',paymentStatus:'later'});
  const shared={state:s,revision:0};await backend(context,shared);await login(page);
  await page.locator('.round-list-item').filter({hasText:'2026/10/30'}).click();await openAfter(page,'販売用の仕分け');
  await page.getByRole('button',{name:'商品から複数人へ割当'}).click();
+ await page.getByRole('button',{name:/レーズンスティック 未割当 1個/}).click();
+ await expect(page.locator('.allocation-editor-heading')).toContainText('レーズンスティック');
  await page.locator('.completed-stocks > summary').click();
  const choice=page.locator('.completed-stocks .assignment-product-choice').filter({hasText:'とても長い名前のりんごデニッシュ'});
  await expect(choice).toContainText('西尾 3個');await choice.click();
+ await expect(page.locator('.allocation-editor-heading')).toContainText('とても長い名前のりんごデニッシュ');
  await expect(page.getByLabel('とても長い名前のりんごデニッシュ 近藤の数量')).toHaveCount(0);
  await mobileShots(page,'saved-assignment-review');
  await page.getByRole('button',{name:/西尾　3個.*販売先を訂正/}).click();

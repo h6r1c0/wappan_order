@@ -60,9 +60,8 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory,onEditSale}){
  const choose=key=>{const previous=items.find(x=>x.key===picked);
   if(picked&&(previous?.stock?externalQty>0:previous?.other&&externalQty!==(previous.other.paidExternalQty||0))&&
     !confirm('入力中の外部販売数量はまだ保存されていません。閉じますか？'))return;
-  const x=items.find(item=>item.key===key),hasSaved=x?.stock?state.sales.some(s=>s.stockId===x.stock.id&&!s.void&&!s.pending&&s.destinationType!=='unknown'):
-   !!(x?.other?.allocations?.length||x?.other?.paidExternalQty);
-  setPicked(key===picked?'':key);setNewAllocation(!!(x?.left>0&&!hasSaved));setError('');setNotice('');
+  const x=items.find(item=>item.key===key);
+  setPicked(key===picked?'':key);setNewAllocation(!!(x?.left>0));setError('');setNotice('');
   if(x?.other){setExternalQty(x.other.paidExternalQty||0);if(!grids[key])setGrids(prev=>({...prev,[key]:Object.fromEntries([
    ...(x.other.allocations||[]).map(a=>[a.buyerId,a.qty]),
    ...Object.entries(buyerDrafts).filter(([id,v])=>id!=='external'&&v[key]>0).map(([id,v])=>[id,(x.other.allocations||[]).find(a=>a.buyerId===id)?.qty+v[key]||v[key]])
@@ -112,7 +111,7 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory,onEditSale}){
  const recorded=current?.stock?state.sales.filter(s=>s.stockId===current.stock.id&&!s.void&&!s.pending&&s.destinationType!=='unknown'):[];
  const productEditor=current&&<section className="product-buyer-assignment" aria-label={`${current.name}の保存済み割当と新規割当`}>
      <div className="allocation-editor-heading"><strong>{productDisplayName(current.name)}</strong><button type="button" className="text-action" onClick={()=>choose(current.key)}>閉じる</button></div>
-     <p>保存済み {current.other?(current.other.qty-current.left):stockAllocation(state,current.stock).assigned}個 ／ 未割当 {current.left}個</p>
+     <p>割当済み {current.other?(current.other.qty-current.left):stockAllocation(state,current.stock).assigned}個 ／ 未割当 {current.left}個</p>
      {current.stock&&!!recorded.length&&<div className="saved-assignment-list" aria-label={`${current.name}の保存済み割当`}>
        {recorded.map(s=><button type="button" key={s.id} className="saved-assignment-row" onClick={()=>onEditSale(s)}>
          <span>{s.destinationType==='buyer'?(state.buyers.find(b=>b.id===s.buyerId)?.name||s.buyerName):s.destinationName||'外部販売'}　{s.qty}個</span><small>販売先を訂正 ›</small>
@@ -123,7 +122,7 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory,onEditSale}){
        ...(current.other.paidExternalQty?[`外部販売 ${current.other.paidExternalQty}個`]:[])
      ].join(' ／ ')}</p>}
      {current.left>0||current.other?<button type="button" className="text-action new-allocation-toggle" onClick={()=>setNewAllocation(v=>!v)} aria-expanded={newAllocation}>{current.other&&current.left===0?'保存済みの数量を訂正':newAllocation?'新規割当を閉じる':'新たに割り当てる'} {newAllocation?'⌄':'›'}</button>:null}
-     {newAllocation&&<>
+     {newAllocation&&<><h4 className="new-allocation-heading">{current.other&&current.left===0?'保存済みの割当を訂正':'新しい割当（未保存）'}</h4>
        <BuyerQuantityGrid buyers={state.buyers} test={round?.test} value={grid} onChange={v=>{setGrids({...grids,[picked]:v});setNotice('');}} name={current.name} max={current.other?current.other.qty:current.left}/>
        <div className="external-in-product"><Qty label="支払い済み・外部販売" value={externalQty} min={0} max={Math.max(0,current.other?current.other.qty-total:current.left-total)} onChange={setExternalQty}/>{current.stock&&<Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field>}</div>
        <p>今回の入力 {total+externalQty}個 ／ 保存後の残り {current.other?current.other.qty-total-externalQty:current.left-total-externalQty}個</p>
