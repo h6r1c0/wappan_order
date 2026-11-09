@@ -74,7 +74,7 @@ export function registerAccountingTests(browserName){
   await work.locator('.completed-stocks > summary').click();
   await expect(work.locator('.product-buyer-assignment')).toContainText('割当済み 2個');
   await widths(page,`assignment-${browserName}`);
-  await work.getByRole('button',{name:'保存済みの割当・履歴'}).click();
+  await work.getByRole('button',{name:'販売履歴と商品情報'}).click();
   await expect(page.locator('.stock-history-first')).not.toContainText(imported.note);
   expect(shared.state.sales.find(x=>x.id===imported.id)?.note).toBe(imported.note);
   await page.getByRole('button',{name:'閉じる',exact:true}).last().click();
