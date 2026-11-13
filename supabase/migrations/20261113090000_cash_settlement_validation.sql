@@ -6,6 +6,18 @@ language plpgsql set search_path='' as $$
 declare k text; x jsonb; source text;
 begin
  perform public.wappan_validate_before_cash_settlement(d);
+ if d ? 'supplierLegacyPaid' then
+  if jsonb_typeof(d->'supplierLegacyPaid') is distinct from 'array' or
+    exists(select 1 from jsonb_array_elements(d->'supplierLegacyPaid') v group by v->>'roundId' having count(*)>1)
+    then raise exception 'Invalid prior supplier payments'; end if;
+  for x in select value from jsonb_array_elements(d->'supplierLegacyPaid') loop
+   if nullif(btrim(x->>'source'),'') is null or x->'transferDate' is distinct from 'null'::jsonb or
+     x->'actualAmount' is distinct from 'null'::jsonb or
+     not exists(select 1 from jsonb_array_elements(d->'rounds') r
+       where r->>'id'=x->>'roundId' and r->>'date'<='2026-10-16')
+     then raise exception 'Invalid prior supplier payment fact'; end if;
+  end loop;
+ end if;
  foreach k in array array['externalCashReceipts','externalCashCorrections','supplierPlans','supplierPayments','supplierPaymentCorrections'] loop
   if not d ? k then continue; end if;
   if jsonb_typeof(d->k) is distinct from 'array' then raise exception 'Invalid cash settlement array'; end if;

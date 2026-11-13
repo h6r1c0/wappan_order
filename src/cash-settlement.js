@@ -10,6 +10,13 @@ export function provisionalSupplierDue(deliveryDate){
  const [year,month]=deliveryDate.split('-').map(Number);
  return new Date(Date.UTC(year,month+1,0)).toISOString().slice(0,10);
 }
+export function initializeSupplierLegacyPaid(state){
+ state.supplierLegacyPaid??=[];
+ for(const round of state.rounds||[])if(round.date<=legacyPaidThrough&&
+   !state.supplierLegacyPaid.some(x=>x.roundId===round.id))
+   state.supplierLegacyPaid.push({roundId:round.id,source:'2026-11-13 本人確認',transferDate:null,actualAmount:null});
+ return state;
+}
 export function externalCashPosition(state,round){
  const sales=externalSalesSummary(state,round).total;
  const voids=new Set((state.externalCashCorrections||[]).map(x=>x.targetId));
@@ -34,7 +41,7 @@ export function supplierPosition(state,round){
  const plan=(state.supplierPlans||[]).find(x=>x.roundId===round.id);
  const voids=new Set((state.supplierPaymentCorrections||[]).map(x=>x.targetId));
  const payments=(state.supplierPayments||[]).filter(x=>x.roundId===round.id&&!voids.has(x.id));
- const paid=payments.reduce((n,x)=>n+x.amount,0),legacy=round.date<=legacyPaidThrough;
+ const paid=payments.reduce((n,x)=>n+x.amount,0),legacy=(state.supplierLegacyPaid||[]).some(x=>x.roundId===round.id)||round.date<=legacyPaidThrough;
  const planned=plan?.amount??null,dueDate=plan?.dueDate||provisionalSupplierDue(round.date);
  const complete=legacy||planned!=null&&paid>=planned;
  return {plan,planned,reference:round.invoice??null,dueDate,provisional:!plan?.dueDate,
@@ -83,6 +90,10 @@ export function supplierCashEstimate(state,round){
    ready:!position.complete&&position.remaining!=null&&!uncertain&&!refunds&&!held&&external.excess===0&&known>=position.remaining};
 }
 export function validateCashSettlement(state){
+ if(state.supplierLegacyPaid!=null&&(!Array.isArray(state.supplierLegacyPaid)||
+   !unique(state.supplierLegacyPaid,x=>x.roundId)||state.supplierLegacyPaid.some(x=>
+    !state.rounds.some(r=>r.id===x.roundId&&r.date<=legacyPaidThrough)||
+    x.transferDate!==null||x.actualAmount!==null||!x.source)))throw Error('過去の仕入代金支払済みの確認記録が不正です');
  const keys=['externalCashReceipts','externalCashCorrections','supplierPlans','supplierPayments','supplierPaymentCorrections'];
  for(const key of keys)if(state[key]!=null&&(!Array.isArray(state[key])||!unique(state[key],x=>x.id)))throw Error('現金・振込履歴が不正です');
  const rounds=new Set(state.rounds.map(x=>x.id));

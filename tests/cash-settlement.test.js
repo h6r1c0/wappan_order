@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {initialState,newRound,validate,collectionPosition,collectionDueItems,report} from '../src/domain.js';
 import {receiveDueItem,receiveCollection} from '../src/collection-workflow.js';
 import {saveOtherSale} from '../src/other-sales.js';
+import {upgrade} from '../src/commerce.js';
 import fs from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {externalCashPosition,recordExternalCash,correctExternalCash,provisionalSupplierDue,supplierPosition,supplierCashEstimate,saveSupplierPlan,recordSupplierPayment,correctSupplierPayment} from '../src/cash-settlement.js';
@@ -21,6 +22,9 @@ test('過去の仕入先支払済みを日付・金額の捏造なしで保持�
  assert.equal(supplierPosition(s,old).payments.length,0);
  assert.equal(supplierPosition(s,now).complete,false);
  assert.equal(provisionalSupplierDue(now.date),'2026-11-30');
+ upgrade(s);upgrade(s);
+ assert.deepEqual(s.supplierLegacyPaid.map(x=>x.roundId),[old.id]);
+ assert.equal(s.supplierLegacyPaid[0].actualAmount,null);
  assert.equal(supplierPosition(JSON.parse(JSON.stringify(s)),old).complete,true);
 });
 test('外部売上と係への一部引渡しは別履歴。訂正後再受取しても売上・個人未収は不変',()=>{

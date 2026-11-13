@@ -104,7 +104,7 @@ export function initialState() {
     history: [],
     adjustments: [],
     collectionEntries: [], receivableItems: [], collectionReconciliations: [],
-    externalCashReceipts: [], externalCashCorrections: [], supplierPlans: [], supplierPayments: [], supplierPaymentCorrections: [],
+    externalCashReceipts: [], externalCashCorrections: [], supplierLegacyPaid: [], supplierPlans: [], supplierPayments: [], supplierPaymentCorrections: [],
     goals: { 2026: 50000 },
   };
 }
