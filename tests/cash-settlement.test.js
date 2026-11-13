@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {initialState,newRound,validate,collectionPosition,collectionDueItems,report} from '../src/domain.js';
 import {receiveDueItem,receiveCollection} from '../src/collection-workflow.js';
 import {saveOtherSale} from '../src/other-sales.js';
+import fs from 'node:fs/promises';
+import {PGlite} from '@electric-sql/pglite';
 import {externalCashPosition,recordExternalCash,correctExternalCash,provisionalSupplierDue,supplierPosition,supplierCashEstimate,saveSupplierPlan,recordSupplierPayment,correctSupplierPayment} from '../src/cash-settlement.js';
 
 function fixture(){
@@ -75,4 +77,22 @@ test('過払いの預かりから実際の受取を再登録せず返金でき�
  receiveCollection(s,{roundId:old.id,buyerId:'hori',received:-1050,reason:'返金がある'});
  assert.equal(collectionPosition(s,old.id,'hori').availableCredit,0);
  assert.equal(s.collectionEntries.filter(x=>x.received>0).length,1);
+});
+test('DB: 現金引渡しと振込は旧JSONと両立し、重複・無効参照を拒否する',async()=>{
+ const db=new PGlite();
+ await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key,email text unique);create function auth.uid() returns uuid language sql stable as $$select null::uuid$$;");
+ const folder=new URL('../supabase/migrations/',import.meta.url);
+ for(const name of (await fs.readdir(folder)).filter(x=>x.endsWith('.sql')).sort())await db.exec(await fs.readFile(new URL(name,folder),'utf8'));
+ const {s,now}=fixture();
+ recordExternalCash(s,now.id,150,'販売担当','2026-11-13','db-cash');
+ saveSupplierPlan(s,now.id,{amount:200,dueDate:'2026-11-30'},'納品書を確認');
+ recordSupplierPayment(s,now.id,200,'2026-11-13','振込済','db-bank');
+ await db.query('select public.wappan_validate($1)',[s]);
+ const old=structuredClone(s);for(const key of ['externalCashReceipts','externalCashCorrections','supplierPlans','supplierPayments','supplierPaymentCorrections'])delete old[key];
+ await db.query('select public.wappan_validate($1)',[old]);
+ const invalid=structuredClone(s);invalid.supplierPayments[0].roundId='unknown';
+ await assert.rejects(()=>db.query('select public.wappan_validate($1)',[invalid]),/Invalid cash settlement entry/);
+ invalid.supplierPayments[0].roundId=now.id;invalid.supplierPayments.push({...invalid.supplierPayments[0],id:'another'});
+ await assert.rejects(()=>db.query('select public.wappan_validate($1)',[invalid]),/Duplicate cash settlement record/);
+ await db.close();
 });
