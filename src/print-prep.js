@@ -83,12 +83,13 @@ export function sortingPrintRows(state, round) {
 export function envelopePrintRows(state,round){
  const bills=new Map(collections(state,'','',round.id,round.test).map(x=>[x.id,x]));
  const issues=new Map(billingAudit(state,round.id).buyers.map(x=>[x.buyerId,x.issues]));
+ const sourceNames=[...round.products,...state.stocks.filter(x=>x.roundId===round.id),...state.otherSales.filter(x=>x.date===round.date&&x.test===round.test)];
  return [...bills.values()].filter(b=>b.total||b.unpriced.length).map((bill,index)=>({
    id:bill.id,index,name:bill.name,
    billAmount:bill.total,billPending:!!(bill.unpriced.length||issues.get(bill.id)?.length),
    normal:bill.normal+bill.onsite,snack:bill.snack,
    lines:bill.lines.map(line=>({name:productDisplayName(line.description.replace(/^\d{4}-\d{2}-\d{2}\s*/u,'')),qty:Number(line.description.match(/×(\d+)/u)?.[1]||1),
-      printName:productDisplayName(line.description.replace(/^\d{4}-\d{2}-\d{2}\s*/u,'').replace(/\s*×\d+.*$/u,'')),
+      printName:sortingPrintName(line.description.replace(/^\d{4}-\d{2}-\d{2}\s*/u,'').replace(/\s*×\d+.*$/u,''),sourceNames),
       amount:line.amount,description:line.description})),
  }));
 }
@@ -118,10 +119,14 @@ const shortLabels = new Map([
   ['ライ麦くるみレーズン　1個','ライ麦くるみレーズン'],
 ]);
 export function sortingPrintName(name, products) {
-  const candidate=shortLabels.get(name);
-  if (!candidate) return productDisplayName(name);
+  const stripped=String(name).replace(/\s*[（(](?:リーン[,、]?\s*)?(?:冷|涼)[）)]/gu,'')
+    .replace(/\s*約\s*\d+(?:g|ｇ|㎝|cm).*/u,'').replace(/\s+/gu,' ').trim();
+  let candidate=shortLabels.get(name)||stripped;
+  if(/^バジルとチーズのフォカッチャ$/u.test(candidate))candidate='フォカッチャ';
+  if(!candidate||candidate===name) return productDisplayName(name);
   // When two products would read the same, retain the full name and its specification.
-  return products.some(p => p.name!==name && (p.name===candidate || shortLabels.get(p.name)===candidate))
+  return products.some(p => p.name!==name && (p.name===candidate || shortLabels.get(p.name)===candidate ||
+    (p.name||'').replace(/\s*[（(](?:リーン[,、]?\s*)?(?:冷|涼)[）)]/gu,'').replace(/\s*約\s*\d+(?:g|ｇ|㎝|cm).*/u,'').trim()===candidate))
     ? productDisplayName(name) : productDisplayName(candidate);
 }
 

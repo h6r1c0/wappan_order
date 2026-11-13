@@ -104,22 +104,26 @@ export async function createPrintPdf(model,fontBytes) {
         const x=12+(row.col-1)*46.25,y=22+(row.top-1)*cellHeight,h=row.span*cellHeight;
         line(page,x,y,x+46.25,y,{dashed:true,gray:.47});line(page,x,y+h,x+46.25,y+h,{dashed:true,gray:.47});
         line(page,x,y,x,y+h,{dashed:true,gray:.47});line(page,x+46.25,y,x+46.25,y+h,{dashed:true,gray:.47});
-        if(model.kind==='envelopes')text(page,`わっぱん ${Number(model.date.slice(5,7))}/${Number(model.date.slice(8))}分`,x+2.8,y+5.2,8.5,{bold:true});
-        const buyerLabel=`${row.name.replace(/様$/u,'')}様`;
+        if(model.kind==='envelopes')text(page,`わっぱん${Number(model.date.slice(5,7))}/${Number(model.date.slice(8))}分`,x+43.45,y+5.2,7.5,{right:true});
+        const buyerName=row.name.replace(/様$/u,'');
+        const buyerLabel=`${buyerName}様`;
         const nameSize=Math.min(15,mm(40.65)/Math.max(1,font.widthOfTextAtSize(buyerLabel,15))*15);
-        text(page,buyerLabel,x+2.8,y+(model.kind==='envelopes'?12:9), nameSize,{bold:true});
-        if(row.billAmount!==undefined)text(page,row.billPending?'請求額 未確定':`${model.kind==='envelopes'?'':'請求額 '}${row.billAmount.toLocaleString('ja-JP')}円`,x+2.8,y+(model.kind==='envelopes'?18:14.2),9,{bold:true});
+        if(model.kind==='envelopes'){
+          text(page,buyerName,x+2.8,y+12,nameSize,{bold:true});
+          text(page,'様',x+2.8+font.widthOfTextAtSize(buyerName,nameSize)/mm(1)+.7,y+10.5,9);
+        }else text(page,buyerLabel,x+2.8,y+9,nameSize,{bold:true});
+        if(row.billAmount!==undefined)text(page,row.billPending?'請求額 未確定':`請求額 ${row.billAmount.toLocaleString('ja-JP')}円`,x+2.8,y+(model.kind==='envelopes'?18:14.2),9,{bold:true});
         if(model.kind==='envelopes'&&row.snack>0)text(page,row.billPending?'おやつ代を含む・請求未確定':row.normal>0?`通常 ${row.normal}円 ＋ おやつ代 ${row.snack}円`:'おやつ代のみ',x+2.8,y+22.5,7.5);
         let productTop=y+(model.kind==='envelopes'?(row.snack>0?25:21):(row.billAmount===undefined?12.8:18.5));
         for(const product of row.lines){
           const name=product.printName||product.name;
-          const size=product.pdfSize;
-          const parts=wrap(name,size,32.65);
+          const size=model.kind==='envelopes'?Math.min(8.3,product.pdfSize):product.pdfSize;
+          const parts=wrap(name,size,model.kind==='envelopes'?28.5:32.65);
           parts.forEach((part,i)=>text(page,part,x+2.8,productTop+3.8+i*4.5,size));
-          text(page,`×${product.qty}`,x+43.45,productTop+3.8,9.5,{right:true,bold:true});
+          text(page,model.kind==='envelopes'?`×${product.qty} ${product.amount==null?'未確定':`${product.amount}円`}`:`×${product.qty}`,x+43.45,productTop+3.8,model.kind==='envelopes'?7:9.5,{right:true,bold:true});
           productTop+=parts.length*4.5+1;
         }
-        if(model.kind==='envelopes')text(page,`${model.staff||'担当者'}まで`,x+2.8,Math.min(y+h-3,productTop+5),8);
+        if(model.kind==='envelopes')text(page,`${model.staff||'担当者'}まで`,x+43.45,Math.min(y+h-3,productTop+6),8,{right:true});
       }
     }
   }

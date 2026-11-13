@@ -1,5 +1,6 @@
 import {receivedQuantity} from './shortages.js';
 import {snackPurposeQuantity} from './snack-billing.js';
+import {initializeSupplierLegacyPaid} from './cash-settlement.js';
 // Shared delivery identity; transfers retain origin, never purchase twice.
 const sum = xs => xs.reduce((a,b)=>a+b,0);
 const requireInt = (v,label,positive=false) => { if(!Number.isSafeInteger(v)||v<(positive?1:0)||v>100000000) throw Error(`${label}を確認してください`); };
@@ -27,7 +28,7 @@ export function upgrade(s) {
     st.roundId??=linked?.id||s.events.find(e=>e.id===st.eventId)?.roundId||delivery(s,st.date,st.test).id;
     st.channel??='onsite';st.depth??=0;
   }
-  syncDeliveryLinks(s);s.schema=2;return s;
+  syncDeliveryLinks(s);initializeSupplierLegacyPaid(s);s.schema=2;return s;
 }
 export function syncDeliveryLinks(s){
   for(const r of s.rounds){

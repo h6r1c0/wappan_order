@@ -17,6 +17,7 @@ import {PrintPrep} from './print-prep.jsx';
 import {productDisplayName} from './product-names.js';
 import {estimatePrice} from './price-estimate.js';
 import {externalSalesSummary} from './external-sales-summary.js';
+import {ExternalCash,SupplierPayment} from './cash-settlement.jsx';
 import {
   newRound,
   productAvailable,
@@ -383,6 +384,8 @@ function Round({ round: r, initialTab = null, back }) {
             {external.lines.length?external.lines.map((line,i)=><div key={i}>{productDisplayName(line.name)} {line.qty}個 × {yen(line.unitPrice)}{line.place?` ／ ${line.place}`:''}<strong>{yen(line.amount)}</strong></div>):<small>登録された外部販売はありません。</small>}
             <small>登録売上です。実際の受取現金と照合してください。個人未収には含みません。</small>
           </details>})()}
+          <ExternalCash key={`external-cash:${r.id}`} round={r}/>
+          <SupplierPayment key={`supplier:${r.id}`} round={r}/>
           <RoundCollections round={r} rows={rows} sessions={collectionSessions} initialFocus={collectionReturn}
             onDraft={(id,draft)=>setCollectionSessions(s=>({...s,[id]:draft}))}
             onSource={(kind,id)=>{

@@ -64,3 +64,30 @@ test('後から発生した開始時未収を古い受取へ混ぜない',()=>{
  assert.equal(currentRoundDue(s,sep).total,0);
  assert.equal(collectionPosition(s,oct.id,'asano').carry,200);
 });
+test('10月30日に指定して受け取った10月16日分は元の回でも消し込まれ、別請求は残る',()=>{
+ const {s,sep,oct}=rounds(),late=newRound(s,'2026-10-30',true);
+ s.rounds.push(late);
+ for(const r of [sep,oct,late]) {r.orders.hori={name:'堀',quantities:{bread:1}};r.products=[{id:'bread',name:'白パン',price:790,cost:200}];}
+ const target=`round:${oct.id}:hori`;
+ const receipt=receiveDueItem(s,late.id,'hori',target);
+ assert.equal(receipt.roundId,late.id);
+ assert.equal(receipt.itemId,target);
+ assert.equal(collectionDueItems(s,oct.id,'hori').items.find(i=>i.id===target).balance,0);
+ assert.equal(collectionPosition(s,oct.id,'hori').balance,790);
+ assert.equal(collectionPosition(s,late.id,'hori').carry,790);
+ assert.equal(currentRoundDue(s,oct).total,0);
+ const loaded=JSON.parse(JSON.stringify(s));
+ assert.equal(collectionPosition(loaded,oct.id,'hori').balance,790);
+ assert.equal(loaded.collectionEntries.length,1);
+});
+test('後日回から全額受け取った元請求は再度受取できず、訂正時には復活する',()=>{
+ const {s,sep,oct}=rounds(),late=newRound(s,'2026-10-30',true);s.rounds.push(late);
+ oct.orders.hori={name:'堀',quantities:{bread:1}};
+ const claim=`round:${oct.id}:hori`;
+ receiveDueItem(s,late.id,'hori',claim);
+ assert.equal(collectionPosition(s,oct.id,'hori').balance,0);
+ assert.equal(collectionDueItems(s,oct.id,'hori').items.find(i=>i.id===claim).balance,0);
+ assert.throws(()=>receiveDueItem(s,oct.id,'hori',claim),/未収/);
+ s.collectionCorrections=[{id:'correction',kind:'collectionEntries',targetId:s.collectionEntries[0].id,roundId:late.id,buyerId:'hori',reason:'重複して登録した'}];
+ assert.equal(collectionPosition(s,oct.id,'hori').balance,790);
+});
