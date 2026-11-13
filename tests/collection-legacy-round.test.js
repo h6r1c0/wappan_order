@@ -91,3 +91,23 @@ test('後日回から全額受け取った元請求は再度受取できず、�
  s.collectionCorrections=[{id:'correction',kind:'collectionEntries',targetId:s.collectionEntries[0].id,roundId:late.id,buyerId:'hori',reason:'重複して登録した'}];
  assert.equal(collectionPosition(s,oct.id,'hori').balance,790);
 });
+test('取消された100円と後日回の預かり1150円を元請求へ推測充当しない',()=>{
+ const {s,sep,oct}=rounds(),late=newRound(s,'2026-10-30',true);s.rounds.push(late);
+ oct.products=[{id:'bread',name:'白パン',price:100,cost:50}];
+ oct.orders.hori={name:'堀',quantities:{bread:1}};
+ const claim=`round:${oct.id}:hori`;
+ const mistaken=receiveDueItem(s,late.id,'hori',claim);
+ (s.collectionCorrections??=[]).push({id:'void-100',kind:'collectionEntries',targetId:mistaken.id,roundId:late.id,buyerId:'hori',reason:'受取額を訂正'});
+ // No new claim is inferred from the later screen's cash entry.
+ s.collectionEntries.push({id:'held-1150',roundId:late.id,buyerId:'hori',date:late.date,received:1150,adjustment:0,reason:'多く受け取ったので次回へ預かる'});
+ assert.equal(collectionDueItems(s,oct.id,'hori').items.find(i=>i.id===claim).balance,100);
+ assert.equal(collectionPosition(s,oct.id,'hori').balance,100);
+ const later=collectionDueItems(s,late.id,'hori');
+ assert.equal(later.items.find(i=>i.id===claim).balance,100);
+ assert.equal(later.held,1150);
+ assert.equal(collectionPosition(s,late.id,'hori').balance,100);
+ assert.equal(collectionPosition(s,late.id,'hori').availableCredit,1150);
+ assert.equal(s.collectionEntries.length,2);
+ const reloaded=JSON.parse(JSON.stringify(s));
+ assert.equal(collectionDueItems(reloaded,late.id,'hori').items.find(i=>i.id===claim).balance,100);
+});

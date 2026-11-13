@@ -582,11 +582,13 @@ export function collectionDueItems(s, roundId, buyerId) {
     )
   ));
   let unallocated=0;
+  let held=0;
   const unallocatedEntryIds=[];
   for(const entry of entries){
     let amount=entry.received+entry.adjustment;
     if(amount<0){
-      let refund=-amount;const fromCredit=Math.min(credit,refund);credit-=fromCredit;refund-=fromCredit;
+      let refund=-amount;const fromHeld=Math.min(held,refund);held-=fromHeld;refund-=fromHeld;
+      const fromCredit=Math.min(credit,refund);credit-=fromCredit;refund-=fromCredit;
       for(const item of [...items].reverse()){const reopen=Math.min(refund,item.amount-item.balance);item.balance+=reopen;refund-=reopen;if(!refund)break;}
       if(refund)items.push({id:`refund:${entry.id}`,kind:'refund',roundId:entry.roundId,date:entry.date,amount:refund,balance:refund,reason:'返金',note:'受取訂正後に確認が必要な返金分'});
       continue;
@@ -605,6 +607,16 @@ export function collectionDueItems(s, roundId, buyerId) {
     if(!eligibleIds.has(entry.roundId)){
       const chosen=items.find(x=>x.id===entry.itemId);
       if(chosen)chosen.balance-=Math.min(amount,chosen.balance);
+      continue;
+    }
+    // An overpayment explicitly kept for a future decision is not permission
+    // to settle a different, older invoice. Apply only a uniquely identifiable
+    // claim in the receipt's own round; keep the rest available for refund or
+    // a later, explicit allocation.
+    if(entry.reason==='多く受け取ったので次回へ預かる'&&!entry.itemId){
+      const own=items.filter(x=>x.roundId===entry.roundId&&x.balance>0);
+      if(own.length===1){const used=Math.min(amount,own[0].balance);own[0].balance-=used;amount-=used;}
+      held+=amount;
       continue;
     }
     // An older receipt cannot become ambiguous merely because a later round
@@ -629,7 +641,7 @@ export function collectionDueItems(s, roundId, buyerId) {
     credit+=amount;
   }
   if(credit) for(const item of items){const used=Math.min(credit,item.balance);item.balance-=used;credit-=used;if(!credit)break;}
-  return {items,credit,unallocated,unallocatedEntryIds};
+  return {items,credit:credit+held,held,unallocated,unallocatedEntryIds};
 }
 export function collectionPosition(s, roundId, buyerId) {
   s=effectiveCollectionState(s);
@@ -674,9 +686,13 @@ export function collectionPosition(s, roundId, buyerId) {
   const refunded=sum((s.collectionEntries||[]).filter(x=>x.buyerId===buyerId&&x.received<0&&
     (x.roundId===roundId||earlier.some(r=>r.id===x.roundId))).map(x=>-x.received));
   const refundableCredit=Math.max(dueState.credit,legacyCredit-refunded);
-  return { carry:carry-laterForPrior-currentForPrior, current, received:received+laterForCurrent-currentForPrior, adjusted, confirmedHistorical,
-    balance: carry + current - received - adjusted - confirmedHistorical - laterForPrior - laterForCurrent,
-    credits, availableCredit:refundableCredit, entries, unallocated:dueState.unallocated, due:dueState.items.filter(x=>x.balance>0) };
+  const outstanding=sum(dueState.items.map(x=>x.balance));
+  const rawBalance=carry+current-received-adjusted-confirmedHistorical-laterForPrior-laterForCurrent;
+  const priorDue=dueState.items.filter(x=>x.roundId!==roundId).reduce((n,x)=>n+x.balance,0);
+  const priorBalance=carry-laterForPrior-currentForPrior;
+  return { carry:dueState.held&&priorDue>0?priorDue:priorBalance, current, received:received+laterForCurrent-currentForPrior, adjusted, confirmedHistorical,
+    balance:outstanding>0?rawBalance+dueState.held:rawBalance,
+    credits, availableCredit:refundableCredit, held:dueState.held, entries, unallocated:dueState.unallocated, due:dueState.items.filter(x=>x.balance>0) };
 }
 export function report(s, from, to, year, {includeTest=false} = {}) {
   const inRange = (d) => from <= d && d <= to;
