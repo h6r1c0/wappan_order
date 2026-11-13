@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {PDFDocument,PDFName,decodePDFRawStream} from 'pdf-lib';
 import {initialState,newRound,collections,report} from '../src/domain.js';
 import {saveOtherSale,replaceOtherDistribution} from '../src/other-sales.js';
-import {envelopePrintRows,sortingPages} from '../src/print-prep.js';
+import {envelopePrintRows,sortingPages,sortingPrintName} from '../src/print-prep.js';
 import {createPrintPdf} from '../src/print-pdf.js';
 import {originBreakdown,roundSeries} from '../src/report-series.js';
 
@@ -23,4 +23,13 @@ test('当該回の個人請求だけをラベルへ印刷し、商品由来と�
  const pdf=await PDFDocument.load(await createPrintPdf({kind:'envelopes',date:r.date,staff:'係',pages:sortingPages(rows)},font));
  assert.equal(pdf.getTitle(),'集金袋用個別ラベル 2026-10-30');
  assert.equal(pdf.getPageCount(),1);assert.equal(pdf.catalog.has(PDFName.of('OpenAction')),false);
+});
+test('集金袋と仕分け表の短い商品名は規格違いを混同しない',()=>{
+ const names=['りんごデニッシュ(涼)','甘夏ゼリー(冷) 約60g','じゃがいも食パン(リーン、涼) 約410g','バジルとチーズのフォカッチャ(涼)'];
+ const products=names.map(name=>({name}));
+ assert.equal(sortingPrintName(names[0],products),'りんごデニッシュ');
+ assert.equal(sortingPrintName(names[1],products),'甘夏ゼリー');
+ assert.equal(sortingPrintName(names[2],products),'じゃがいも食パン');
+ assert.equal(sortingPrintName(names[3],products),'フォカッチャ');
+ assert.equal(sortingPrintName('甘夏ゼリー(冷) 約60g',[...products,{name:'甘夏ゼリー(冷) 約80g'}]),'甘夏ゼリー(冷) 約60g');
 });
