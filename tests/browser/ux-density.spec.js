@@ -146,7 +146,7 @@ test('預かり金の返金は候補を選ぶだけでは受取を作らず、�
  await page.locator('.round-list-item').click();await page.locator('.stage-4 > .stage-trigger').click();
  await expect(page.locator('[data-buyer="nishio"] .collection-amount')).toContainText('590円');
  await page.locator('[data-buyer="nishio"] .collection-open').click();
- await page.getByRole('button',{name:/預かり金を返金した場合/}).click();
+ await page.getByRole('button',{name:/預かりから返金を記録/}).click();
  await expect(page.getByLabel('返金額')).toHaveValue('100');
  expect(shared.state.collectionEntries).toHaveLength(0);
  await page.getByRole('button',{name:'返金を保存'}).click();
