@@ -1,4 +1,5 @@
 import {validateCollectionWorkflow} from './collection-validation.js';
+import {validateCashSettlement} from './cash-settlement.js';
 import { deliveredQuantity, receivedQuantity, validateFulfillment } from './shortages.js';
 import { permanentProduct } from "./excel.js";
 import { bundleUsed, movedOut, bundleCost, validateCommerce } from "./commerce.js";
@@ -103,6 +104,7 @@ export function initialState() {
     history: [],
     adjustments: [],
     collectionEntries: [], receivableItems: [], collectionReconciliations: [],
+    externalCashReceipts: [], externalCashCorrections: [], supplierPlans: [], supplierPayments: [], supplierPaymentCorrections: [],
     goals: { 2026: 50000 },
   };
 }
@@ -571,7 +573,14 @@ export function collectionDueItems(s, roundId, buyerId) {
     const item=items.find(i=>i.id===x.appliedTo);
     if(item)item.balance=Math.max(0,item.balance-x.amount);
   }
-  const entries=(s.collectionEntries||[]).filter(e=>e.buyerId===buyerId&&eligible.some(r=>r.id===e.roundId));
+  const eligibleIds=new Set(eligible.map(r=>r.id));
+  const claimIds=new Set(items.map(i=>i.id));
+  const entries=(s.collectionEntries||[]).filter(e=>e.buyerId===buyerId&&(
+    eligibleIds.has(e.roundId)||e.received>0&&(
+      claimIds.has(e.itemId)||
+      (s.collectionAllocations||[]).some(a=>a.entryId===e.id&&a.parts.some(p=>claimIds.has(p.itemId)))
+    )
+  ));
   let unallocated=0;
   const unallocatedEntryIds=[];
   for(const entry of entries){
@@ -588,6 +597,14 @@ export function collectionDueItems(s, roundId, buyerId) {
         const chosen=items.find(x=>x.id===part.itemId);
         if(chosen) chosen.balance-=Math.min(part.amount,chosen.balance);
       }
+      continue;
+    }
+    // A later screen can collect a specifically chosen older claim. When
+    // revisiting that claim, apply only its explicit destination, never the
+    // remainder to a different invoice or an inferred credit.
+    if(!eligibleIds.has(entry.roundId)){
+      const chosen=items.find(x=>x.id===entry.itemId);
+      if(chosen)chosen.balance-=Math.min(amount,chosen.balance);
       continue;
     }
     // An older receipt cannot become ambiguous merely because a later round
@@ -637,6 +654,19 @@ export function collectionPosition(s, roundId, buyerId) {
   const carry = billedBefore + opening - receivedBefore - reconciled - credits;
   const confirmedHistorical=sum((s.collectionReconciliations||[]).filter(x=>x.buyerId===buyerId&&x.roundId===roundId).map(x=>x.amount));
   const dueState=collectionDueItems(s,roundId,buyerId);
+  const eligibleIds=new Set([...earlier.map(r=>r.id),roundId]);
+  const targetedLater=(s.collectionEntries||[]).filter(e=>e.buyerId===buyerId&&e.received>0&&!eligibleIds.has(e.roundId)).flatMap(e=>{
+    const parts=(s.collectionAllocations||[]).find(a=>a.entryId===e.id)?.parts||
+      (e.itemId?[{itemId:e.itemId,amount:e.received}]:[]);
+    return parts.filter(p=>dueState.items.some(i=>i.id===p.itemId)).map(p=>({...p,entry:e}));
+  });
+  const laterForPrior=sum(targetedLater.filter(p=>dueState.items.some(i=>i.id===p.itemId&&i.roundId!==roundId)).map(p=>p.amount));
+  const laterForCurrent=sum(targetedLater.filter(p=>dueState.items.some(i=>i.id===p.itemId&&i.roundId===roundId)).map(p=>p.amount));
+  const currentForPrior=sum(entries.filter(e=>e.received>0).flatMap(e=>{
+    const parts=(s.collectionAllocations||[]).find(a=>a.entryId===e.id)?.parts||
+      (e.itemId?[{itemId:e.itemId,amount:e.received}]:[]);
+    return parts.filter(p=>dueState.items.some(i=>i.id===p.itemId&&i.roundId!==roundId)).map(p=>p.amount);
+  }));
   // Older credits implicitly reduced the invoice. A refund reverses that use;
   // a newly targeted credit is already committed and cannot be refunded too.
   const legacyCredit=sum((s.collectionCredits||[]).filter(x=>x.buyerId===buyerId&&!x.appliedTo&&
@@ -644,7 +674,8 @@ export function collectionPosition(s, roundId, buyerId) {
   const refunded=sum((s.collectionEntries||[]).filter(x=>x.buyerId===buyerId&&x.received<0&&
     (x.roundId===roundId||earlier.some(r=>r.id===x.roundId))).map(x=>-x.received));
   const refundableCredit=Math.max(dueState.credit,legacyCredit-refunded);
-  return { carry, current, received, adjusted, confirmedHistorical, balance: carry + current - received - adjusted - confirmedHistorical,
+  return { carry:carry-laterForPrior-currentForPrior, current, received:received+laterForCurrent-currentForPrior, adjusted, confirmedHistorical,
+    balance: carry + current - received - adjusted - confirmedHistorical - laterForPrior - laterForCurrent,
     credits, availableCredit:refundableCredit, entries, unallocated:dueState.unallocated, due:dueState.items.filter(x=>x.balance>0) };
 }
 export function report(s, from, to, year, {includeTest=false} = {}) {
@@ -1008,6 +1039,7 @@ export function validate(s) {
     if(!x.amount||!s.buyers.some(b=>b.id===x.buyerId)||!s.rounds.some(r=>r.id===x.roundId)||!String(x.note||'').trim())throw Error('過去の受取確認を確認してください');
   }
   validateCollectionWorkflow(s);
+  validateCashSettlement(s);
   validateFulfillment(s);
   validateCommerce(s);
   if (s.schema===2 && (!Array.isArray(s.externalDestinations) || new Set(s.externalDestinations).size !== s.externalDestinations.length || s.externalDestinations.some(x=>!String(x).trim()))) throw Error("外部販売先候補を確認してください");

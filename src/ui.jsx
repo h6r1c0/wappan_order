@@ -58,6 +58,7 @@ export function Money({
         step="1"
         value={value ?? ""}
         required={required}
+        onFocus={(e) => e.currentTarget.select()}
         onChange={(e) =>
           onChange(e.target.value === "" ? null : Number(e.target.value))
         }

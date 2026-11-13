@@ -1,0 +1,78 @@
+{
+  "source": "2026-11-13 本人「集金整合性・仕入代金振込管理・操作性・帳票・デザインの総合改善」全文",
+  "purpose": "後日回からの元請求消込、預かり返金、外部売上金の引渡し、仕入先振込管理、集金動線、ラベルと色を差分修正。取引原本は読み取り専用。",
+  "targets": [
+    {
+      "id": "WAP-0031",
+      "ledgerRef": "WAP-0031",
+      "ledgerDigest": "e354f942684bebafa971516b29f94ea88a736a75451854c6d0924a94b0603ef1"
+    },
+    {
+      "id": "WAP-0034",
+      "ledgerRef": "WAP-0034",
+      "ledgerDigest": "5d978361b79cf517a5a7304e07fac5bcaf267a561304848d0ea0f5c4680552d8"
+    },
+    {
+      "id": "WAP-0041",
+      "ledgerRef": "WAP-0041",
+      "ledgerDigest": "b8d1ed68472b6ac2575dae1ede09143551ca0dfd6cb71ff6fd3001bb4c00a34e"
+    },
+    {
+      "id": "WAP-0042",
+      "ledgerRef": "WAP-0042",
+      "ledgerDigest": "17655091d3927bcdb346de69d8aac1f8af0e377c3fd1fa568901ad2a3ca74c91"
+    },
+    {
+      "id": "WAP-0080",
+      "ledgerRef": "WAP-0080",
+      "ledgerDigest": "f98320c90e20d3d737908f0ae89ef6f1e5089b73e6a2eaa513c5d790379b6791"
+    },
+    {
+      "id": "WAP-0084",
+      "ledgerRef": "WAP-0084",
+      "ledgerDigest": "25a675df0a6883faa860115a05bb5f89c3e73103e867bf22ac63e6d4e8f228d3"
+    },
+    {
+      "id": "WAP-0085",
+      "ledgerRef": "WAP-0085",
+      "ledgerDigest": "aad3a0992f15b2e3af88c1bd5c7c7ea4a4adc8a597ba5e029a3253e8948a7a55"
+    },
+    {
+      "id": "WAP-0086",
+      "ledgerRef": "WAP-0086",
+      "ledgerDigest": "9f77a41c61e118c116c1bc0c74c8390948aca32469235acf1898b8b27f663dcc"
+    },
+    {
+      "id": "WAP-0087",
+      "ledgerRef": "WAP-0087",
+      "ledgerDigest": "5965d75f9892b65fe032b35ddf42bc18e07d8fbf44df258fe5724e4f75f3c076"
+    },
+    {
+      "id": "WAP-0088",
+      "ledgerRef": "WAP-0088",
+      "ledgerDigest": "ac7ab4dc89cae8a8e8bba75ed7e0bfae47fc32657cf2107885bce2e39c3bf859"
+    },
+    {
+      "id": "WAP-0089",
+      "ledgerRef": "WAP-0089",
+      "ledgerDigest": "afc6d229451cec49da76a25a2fc3cbe74f6f1c725ae1c53fd5b260ced79e58c3"
+    },
+    {
+      "id": "WAP-0090",
+      "ledgerRef": "WAP-0090",
+      "ledgerDigest": "e7b90d07ee4f56ebd7427277d07896e31de5b835dbc96e0d2626af3c049b2a31"
+    },
+    {
+      "id": "WAP-0092",
+      "ledgerRef": "WAP-0092",
+      "ledgerDigest": "beb0e3e7c3c685429b00f450cb0ed54794b59a77ce45d598efb7b76fab5a0370"
+    }
+  ],
+  "deferred": [
+    {
+      "id": "WAP-0091",
+      "reason": "今回の明示的な次回独立作業。送付先・通知などの実物が未確定。",
+      "next": "ヘルプのフォーム、通知、回答履歴と権限を一体で設計する。"
+    }
+  ]
+}

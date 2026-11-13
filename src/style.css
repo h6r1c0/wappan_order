@@ -3010,3 +3010,27 @@ nav button.active:nth-child(4) {background:#f3ecfa;color:#724296;}
   nav[aria-label='主な業務'] button.active:nth-child(4) {--nav-pencil:url('./assets/pencil/blue-light.png');background-color:#f3ecfa;}
   .collection-state.is-paid,.collection-state.is-due {border-radius:999px;}
 }
+.cash-work-section{border:1px solid #e7d5c3;border-radius:13px;padding:.65rem .85rem;background:#fffaf4;margin:.65rem 0;color:#503d31}
+.cash-work-section>summary{cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:.4rem;flex-wrap:wrap}
+.cash-work-section .status-pill{display:inline-flex;align-items:center;border-radius:999px;padding:.16rem .62rem;background:#f6eadf;color:#754f37;font-size:.79rem;line-height:1.5}
+.cash-work-section .status-pill.ready{background:#fcdfbd;color:#874013}
+.cash-work-section>details{margin:.7rem 0;padding:.45rem;border-top:1px solid #e9dac7}
+.cash-work-section .cash-work-form{margin-top:.7rem}
+.cash-work-section .cash-history{padding:.45rem 0;border-bottom:1px dashed #d8c9bc}
+.cash-work-section .cash-work-estimate{font-size:.88rem}
+.collection-entry .collection-undo{margin:.35rem .4rem .65rem;padding:.4rem .65rem;border-radius:10px;background:#fff1ef;display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
+.collection-credit{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem}
+@media screen {
+  .stage-1 {--link-pencil:url('./assets/pencil/green-deep.png');--work-accent:#28734a;}
+  .stage-1 .purpose-next .selected,.stage-1 .purpose-grid .purpose.selected,.stage-1 .purpose-grid .purpose.selected>span {color:#286c47;border-color:#286c47;}
+  .stage-1 .purpose-next .selected::before,.stage-1 .purpose-grid .purpose.selected>span::before {color:#286c47;}
+  .round-stage-jump button:nth-child(1).selected {background:#ecf6ed url('./assets/pencil/green-light.png') center/100% 100% no-repeat;color:#286c47;}
+  .round-stage-jump button:nth-child(2).selected {background:#edf5fb url('./assets/pencil/blue-light.png') center/100% 100% no-repeat;color:#285e8d;}
+  .round-stage-jump button:nth-child(3).selected {background:#fff1df url('./assets/pencil/orange-light.png') center/100% 100% no-repeat;color:#87501e;}
+  .round-stage-jump button:nth-child(4).selected {background:#fff0ef url('./assets/pencil/red-light.png') center/100% 100% no-repeat;color:#9c3945;}
+  .text-action::after,.round-list-menu summary::after {height:4px;opacity:.95;clip-path:polygon(0 31%,8% 6%,22% 27%,36% 2%,49% 19%,63% 3%,75% 19%,88% 4%,100% 35%,99% 85%,84% 63%,70% 96%,54% 69%,42% 100%,29% 74%,14% 97%,0 69%);}
+  main[data-page='集計'] .hero progress {appearance:none;-webkit-appearance:none;height:12px;border-radius:999px;background:#d7e5ed;border:1px solid #b8d0de;overflow:hidden;}
+  main[data-page='集計'] .hero progress::-webkit-progress-bar {background:#d7e5ed;}
+  main[data-page='集計'] .hero progress::-webkit-progress-value {background:#65c7f2;border-radius:999px;}
+  main[data-page='集計'] .hero progress::-moz-progress-bar {background:#65c7f2;border-radius:999px;}
+}
