@@ -110,7 +110,7 @@ export async function createPrintPdf(model,fontBytes) {
         const nameSize=Math.min(15,mm(40.65)/Math.max(1,font.widthOfTextAtSize(buyerLabel,15))*15);
         if(model.kind==='envelopes'){
           text(page,buyerName,x+2.8,y+12,nameSize,{bold:true});
-          text(page,'様',x+2.8+font.widthOfTextAtSize(buyerName,nameSize)/mm(1)+.7,y+10.5,9);
+          text(page,'様',x+2.8+font.widthOfTextAtSize(buyerName,nameSize)/mm(1)+.7,y+12,9);
         }else text(page,buyerLabel,x+2.8,y+9,nameSize,{bold:true});
         if(row.billAmount!==undefined)text(page,row.billPending?'請求額 未確定':`請求額 ${row.billAmount.toLocaleString('ja-JP')}円`,x+2.8,y+(model.kind==='envelopes'?18:14.2),9,{bold:true});
         if(model.kind==='envelopes'&&row.snack>0)text(page,row.billPending?'おやつ代を含む・請求未確定':row.normal>0?`通常 ${row.normal}円 ＋ おやつ代 ${row.snack}円`:'おやつ代のみ',x+2.8,y+22.5,7.5);
@@ -123,7 +123,12 @@ export async function createPrintPdf(model,fontBytes) {
           text(page,model.kind==='envelopes'?`×${product.qty} ${product.amount==null?'未確定':`${product.amount}円`}`:`×${product.qty}`,x+43.45,productTop+3.8,model.kind==='envelopes'?7:9.5,{right:true,bold:true});
           productTop+=parts.length*4.5+1;
         }
-        if(model.kind==='envelopes')text(page,`${model.staff||'担当者'}まで`,x+43.45,Math.min(y+h-3,productTop+6),8,{right:true});
+        if(model.kind==='envelopes'){
+          const staff=model.staff||'担当者',end=x+43.45-font.widthOfTextAtSize('まで',8)/mm(1);
+          const staffY=Math.min(y+h-3,productTop+6);
+          text(page,`${staff}まで`,x+43.45,staffY,8,{right:true});
+          line(page,end-font.widthOfTextAtSize(staff,8)/mm(1),staffY+1,end,staffY+1,{gray:.45,width:.31});
+        }
       }
     }
   }

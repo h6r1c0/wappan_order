@@ -25,11 +25,11 @@ export function externalCashPosition(state,round){
  return {sales,received,remaining:Math.max(0,sales-received),excess:Math.max(0,received-sales),entries};
 }
 export function recordExternalCash(state,roundId,value,note,receivedDate,requestId=id()){
- if(!state.rounds.some(r=>r.id===roundId)||!amount(value)||!date(receivedDate)||!String(note||'').trim())throw Error('外部販売の受取額・受取日・受渡者を確認してください');
+ if(!state.rounds.some(r=>r.id===roundId)||!amount(value)||!date(receivedDate))throw Error('外部販売の受取額と受取日を確認してください');
  if((state.externalCashReceipts||[]).some(x=>x.requestId===requestId))throw Error('この受渡しは登録済みです');
  const round=state.rounds.find(r=>r.id===roundId),position=externalCashPosition(state,round);
  if(value>position.remaining)throw Error(`回収予定の残り ${position.remaining}円を超えています。販売記録を確認してください`);
- const entry={id:id(),requestId,roundId,date:receivedDate,amount:value,note:String(note).trim(),at:new Date().toISOString()};
+ const entry={id:id(),requestId,roundId,date:receivedDate,amount:value,note:String(note||'').trim()||'外部販売の現金引渡し',at:new Date().toISOString()};
  (state.externalCashReceipts??=[]).push(entry);return entry;
 }
 export function correctExternalCash(state,targetId,reason){

@@ -1,0 +1,47 @@
+{
+  "source": "2026-11-13 本人 PR #45後の実機修正・質問受付・Muse基盤と、同日アカウント選択保留の追記",
+  "purpose": "受取の明示充当と預かりを分離し、外部現金入力・下線・帳票を修正。受付はアカウント選択まで新規作成・共有を保留し、非公開の準備だけ残す。",
+  "targets": [
+    {
+      "id": "WAP-0087",
+      "ledgerRef": "WAP-0087",
+      "ledgerDigest": "5965d75f9892b65fe032b35ddf42bc18e07d8fbf44df258fe5724e4f75f3c076"
+    },
+    {
+      "id": "WAP-0088",
+      "ledgerRef": "WAP-0088",
+      "ledgerDigest": "ac7ab4dc89cae8a8e8bba75ed7e0bfae47fc32657cf2107885bce2e39c3bf859"
+    },
+    {
+      "id": "WAP-0089",
+      "ledgerRef": "WAP-0089",
+      "ledgerDigest": "afc6d229451cec49da76a25a2fc3cbe74f6f1c725ae1c53fd5b260ced79e58c3"
+    },
+    {
+      "id": "WAP-0042",
+      "ledgerRef": "WAP-0042",
+      "ledgerDigest": "17655091d3927bcdb346de69d8aac1f8af0e377c3fd1fa568901ad2a3ca74c91"
+    },
+    {
+      "id": "WAP-0080",
+      "ledgerRef": "WAP-0080",
+      "ledgerDigest": "f98320c90e20d3d737908f0ae89ef6f1e5089b73e6a2eaa513c5d790379b6791"
+    },
+    {
+      "id": "WAP-0046",
+      "ledgerRef": "WAP-0046",
+      "ledgerDigest": "cd512acb5643912045c67a9fef475331c0cc817ee3dd92d7c5b8a511020a8ce3"
+    },
+    {
+      "id": "WAP-0091",
+      "ledgerRef": "WAP-0091",
+      "ledgerDigest": "bd84d1acb11c9843918a990c2b029506cc27ea04de3de9abc026f446ffa52474"
+    },
+    {
+      "id": "WAP-0093",
+      "ledgerRef": "WAP-0093",
+      "ledgerDigest": "cdec0e49e36a8add7ed3ad851c0faced46a7e8b415840b10f50bb521e280b545"
+    }
+  ],
+  "deferred": []
+}
