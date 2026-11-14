@@ -1,0 +1,18 @@
+{
+  "source": "2026-11-15 本人の中断作業再開・おやつ確定訂正・財政精算・過去実績グラフ・受付保留",
+  "purpose": "PR #46を検証して引き継ぎ、おやつと財政の実機不合格を隔離データで修正し、手入力の過去売上を推移へ表示する。Googleの新規作成・共有は本人のアカウント選択まで保留する。",
+  "targets": [
+    {"id":"WAP-0087","ledgerRef":"WAP-0087","ledgerDigest":"5965d75f9892b65fe032b35ddf42bc18e07d8fbf44df258fe5724e4f75f3c076"},
+    {"id":"WAP-0088","ledgerRef":"WAP-0088","ledgerDigest":"ac7ab4dc89cae8a8e8bba75ed7e0bfae47fc32657cf2107885bce2e39c3bf859"},
+    {"id":"WAP-0089","ledgerRef":"WAP-0089","ledgerDigest":"afc6d229451cec49da76a25a2fc3cbe74f6f1c725ae1c53fd5b260ced79e58c3"},
+    {"id":"WAP-0042","ledgerRef":"WAP-0042","ledgerDigest":"17655091d3927bcdb346de69d8aac1f8af0e377c3fd1fa568901ad2a3ca74c91"},
+    {"id":"WAP-0080","ledgerRef":"WAP-0080","ledgerDigest":"f98320c90e20d3d737908f0ae89ef6f1e5089b73e6a2eaa513c5d790379b6791"},
+    {"id":"WAP-0046","ledgerRef":"WAP-0046","ledgerDigest":"cd512acb5643912045c67a9fef475331c0cc817ee3dd92d7c5b8a511020a8ce3"},
+    {"id":"WAP-0091","ledgerRef":"WAP-0091","ledgerDigest":"bd84d1acb11c9843918a990c2b029506cc27ea04de3de9abc026f446ffa52474"},
+    {"id":"WAP-0093","ledgerRef":"WAP-0093","ledgerDigest":"cdec0e49e36a8add7ed3ad851c0faced46a7e8b415840b10f50bb521e280b545"},
+    {"id":"WAP-0094","ledgerRef":"WAP-0094","ledgerDigest":"aae2a1dd0c934bdd8e15229f69ed51585bed91dd2923b02292a6d6553fa0b976"},
+    {"id":"WAP-0095","ledgerRef":"WAP-0095","ledgerDigest":"09707ee876cc44c49628c7c041439b34ef3f5aa496aa090855695f8f47afaae4"},
+    {"id":"WAP-0096","ledgerRef":"WAP-0096","ledgerDigest":"51b7d3ccf1bf3b43cee387c338d1de72473dc3fd04b9f8c09411d922f306d43d"}
+  ],
+  "deferred": []
+}

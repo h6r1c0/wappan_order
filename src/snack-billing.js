@@ -142,6 +142,39 @@ export function correctFiscalReceipt(state,eventId,targetId,reason){
   event.fiscalReceiptCorrections.push({targetId,reason,at:new Date().toISOString()});
 }
 
+// A final-settlement adjustment is not a rewrite of the billed quantity or a
+// new cash receipt. Keep its amount and later settlement as distinct facts.
+export function activeFiscalAdjustments(event){
+  const cancelled=new Set((event.fiscalAdjustmentCorrections||[]).map(x=>x.targetId));
+  return (event.fiscalAdjustments||[]).filter(x=>!cancelled.has(x.id));
+}
+export function recordFiscalAdjustment(state,eventId,{id,lineId,qty,reason}){
+  const event=state.events.find(e=>e.id===eventId),line=event?.lines.find(l=>l.id===lineId);
+  const billed=(event?.billing?.fiscal||[]).find(x=>x.lineId===lineId)?.qty||0;
+  const existing=activeFiscalAdjustments(event||{}).filter(x=>x.lineId===lineId).reduce((n,x)=>n+x.qty,0);
+  if(!event?.billing||!line||!String(id||'').trim()||!Number.isSafeInteger(qty)||qty<1||
+    !Number.isSafeInteger(line.cost)||existing+qty>billed||!String(reason||'').trim())
+    throw Error('財政への元の請求数、調整する数量・理由と仕入単価を確認してください');
+  event.fiscalAdjustments??=[];
+  if(event.fiscalAdjustments.some(x=>x.id===id))throw Error('この調整は保存済みです');
+  const item={id,lineId,qty,amount:qty*line.cost,reason,at:new Date().toISOString()};
+  event.fiscalAdjustments.push(item);return item;
+}
+export function correctFiscalAdjustment(state,eventId,targetId,reason){
+  const event=state.events.find(e=>e.id===eventId),item=event?.fiscalAdjustments?.find(x=>x.id===targetId);
+  if(!item||!String(reason||'').trim()||activeFiscalAdjustments(event).every(x=>x.id!==targetId))throw Error('訂正する調整と理由を確認してください');
+  if(item.settlement)throw Error('精算済みの調整は取り消せません。実際の返金・相殺履歴を確認してください');
+  event.fiscalAdjustmentCorrections??=[];
+  event.fiscalAdjustmentCorrections.push({targetId,reason,at:new Date().toISOString(),previous:structuredClone(item)});
+}
+export function settleFiscalAdjustment(state,eventId,targetId,{date,method,amount}){
+  const event=state.events.find(e=>e.id===eventId),item=activeFiscalAdjustments(event||{}).find(x=>x.id===targetId);
+  if(!item||item.settlement||!/^\d{4}-\d{2}-\d{2}$/.test(date||'')||
+    !String(method||'').trim()||amount!==item.amount)
+    throw Error('未調整の記録と実際の精算日・方法・金額を確認してください');
+  item.settlement={date,method,amount,at:new Date().toISOString()};return item;
+}
+
 export function snackGroupTarget(state,event,billing,group){
   const ids=new Set(group.lineIds||[]);
   if((!ids.size&&!(group.quantities&&Object.keys(group.quantities).length===0))||ids.size!==(group.lineIds||[]).length||event.lines.filter(l=>ids.has(l.id)).length!==ids.size)
@@ -314,6 +347,21 @@ export function confirmSnackPlan(state,eventId,reason='請求を確定'){
   // correction must leave both physical use and the former invoice intact.
   const candidate={...state,events:state.events.map(e=>e.id===eventId?copy:e)};
   replaceSnackBilling(candidate,eventId,plan,reason);
+  // The saved purpose quantities become the physical snack use only when the
+  // confirmed plan has explicit product quantities. Keep legacy, unassigned
+  // household plans as they were rather than guessing their product split.
+  if(event.billing&&plan.groups.every(g=>g.quantities)&&plan.household.every(x=>x.lineId||x.groupId)){
+    for(const line of copy.lines){
+      if(line.sourceStockId)continue;
+      const used=snackPurposeQuantity(copy,line.id,plan);
+      const previousPurpose=snackPurposeQuantity(event,line.id,event.billing);
+      if(line.used===previousPurpose&&line.used!==used){
+        line.usageHistory=[...(line.usageHistory||[]),{at:new Date().toISOString(),reason,
+          previous:{used:line.used,cost:line.cost,usedConfirmed:!!line.usedConfirmed},updated:used}];
+        line.used=used;line.usedConfirmed=true;
+      }
+    }
+  }
   event.lines=copy.lines;
   event.billing=copy.billing;
   if(copy.billingHistory)event.billingHistory=copy.billingHistory;

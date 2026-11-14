@@ -3,7 +3,7 @@ import {productDisplayName} from './product-names.js';
 import {SnackBilling} from './snack-billing.jsx';
 import {StockEditor} from './sales.jsx';
 import {transferStockToSnack,cancelStockToSnackTransfer} from './snack-transfer.js';
-import {saveSnackSection,suggestedSnackPrice,savedFiscalAmount,snackQuantityRows,saveSnackCost,snackPurposeQuantity,addLineToSnackGroup,effectiveFiscalReceipts,recordFiscalReceipt,correctFiscalReceipt} from './snack-billing.js';
+import {saveSnackSection,suggestedSnackPrice,savedFiscalAmount,snackQuantityRows,saveSnackCost,snackPurposeQuantity,addLineToSnackGroup,effectiveFiscalReceipts,recordFiscalReceipt,correctFiscalReceipt,activeFiscalAdjustments,recordFiscalAdjustment,correctFiscalAdjustment,settleFiscalAdjustment} from './snack-billing.js';
 import React, { useState } from "react";
 import {
   delivery,
@@ -340,6 +340,10 @@ function SnackUsage({event:e,onTransfer}) {
  const [cashAmount,setCashAmount]=useState(null),[cashDate,setCashDate]=useState(today());
  const [cashCorrection,setCashCorrection]=useState(''),[cashReason,setCashReason]=useState('');
  const [cashMemo,setCashMemo]=useState(e.fiscalReconciliationMemo||'');
+ const [adjustLine,setAdjustLine]=useState(''),[adjustQty,setAdjustQty]=useState(1),[adjustReason,setAdjustReason]=useState('');
+ const [adjustRequestId,setAdjustRequestId]=useState(uid);
+ const [settleId,setSettleId]=useState(''),[settleDate,setSettleDate]=useState(today()),[settleMethod,setSettleMethod]=useState(''),[settleAmount,setSettleAmount]=useState(null);
+ const [adjustCancel,setAdjustCancel]=useState(''),[adjustCancelReason,setAdjustCancelReason]=useState('');
  const rows=snackQuantityRows(state,e),draftAmount=savedFiscalAmount(e);
  const usageCost=rows.some(x=>x.used>0&&x.line.cost==null)?null:rows.reduce((n,x)=>n+x.used*(x.line.cost||0),0);
  const fiscalCash=effectiveFiscalReceipts(e).reduce((n,x)=>n+x.amount,0);
@@ -369,6 +373,18 @@ function SnackUsage({event:e,onTransfer}) {
    {e.billing?<p>確定した財政請求 {yen(eventClaim(e))} ／ 記録済みの受取 {yen(fiscalCash)} ／ 差 {yen((eventClaim(e)||0)-fiscalCash)}</p>:<p>財政請求は未確定です。受取と請求の差は確定後に表示します。</p>}
    {(fiscalCash>0||e.fiscalReconciliationMemo)&&<div><Field label="差額・確認待ちのメモ（任意）"><input value={cashMemo} onChange={ev=>setCashMemo(ev.target.value)} placeholder="例：最終精算時に説明・調整"/></Field>
     <button type="button" className="text-action" disabled={cashMemo===e.fiscalReconciliationMemo} onClick={()=>save(s=>{const item=s.events.find(x=>x.id===e.id);item.fiscalReconciliationHistory??=[];item.fiscalReconciliationHistory.push({at:new Date().toISOString(),previous:item.fiscalReconciliationMemo||'',updated:cashMemo});item.fiscalReconciliationMemo=cashMemo;},'財政の請求と受取の差をメモ')}>メモを保存</button></div>}
+   {e.billing&&<details className="fiscal-adjustment"><summary>財政への過剰請求を最終精算で調整{activeFiscalAdjustments(e).some(x=>!x.settlement)?`（未調整 ${yen(activeFiscalAdjustments(e).filter(x=>!x.settlement).reduce((n,x)=>n+x.amount,0))}）`:''}</summary>
+    <p>元の請求数・受領額は変更しません。過剰請求の事実と実際の精算を別々に記録します。</p>
+    {activeFiscalAdjustments(e).map(item=>{const line=e.lines.find(l=>l.id===item.lineId);return <div className="fiscal-cash-row" key={item.id}>
+      <span>{line?.name} {item.qty}個・{yen(item.amount)} ／ {item.settlement?`${item.settlement.date} ${item.settlement.method}で調整済み`:'最終精算で調整待ち'}<small>{item.reason}</small></span>
+      {!item.settlement&&<><button type="button" className="text-action" onClick={()=>{setSettleId(item.id);setSettleAmount(item.amount);setAdjustCancel('');}}>実際の調整を記録</button><button type="button" className="text-action" onClick={()=>{setAdjustCancel(item.id);setAdjustCancelReason('');setSettleId('');}}>予定を訂正</button></>}
+    </div>;})}
+    {(e.fiscalAdjustmentCorrections||[]).map((x,i)=><small key={i}>予定の訂正：{x.reason}（元記録は履歴に保存）</small>)}
+    {settleId&&<div><Field label="実際に調整した日" type="date" value={settleDate} onChange={ev=>setSettleDate(ev.target.value)}/><Field label="調整方法"><input value={settleMethod} onChange={ev=>setSettleMethod(ev.target.value)} placeholder="例：次回の仕入代金と相殺"/></Field><Money label="実際に調整した金額" value={settleAmount} onChange={setSettleAmount}/><Button secondary disabled={!settleDate||!settleMethod.trim()||settleAmount!==activeFiscalAdjustments(e).find(x=>x.id===settleId)?.amount} onClick={async()=>{if(await save(s=>settleFiscalAdjustment(s,e.id,settleId,{date:settleDate,method:settleMethod,amount:settleAmount}),'財政との最終精算を記録')){setSettleId('');setSettleMethod('');setSettleAmount(null);}}}>調整済みとして保存</Button></div>}
+    {adjustCancel&&<div><Field label="予定を訂正する理由"><input value={adjustCancelReason} onChange={ev=>setAdjustCancelReason(ev.target.value)}/></Field><Button secondary disabled={!adjustCancelReason.trim()} onClick={async()=>{if(await save(s=>correctFiscalAdjustment(s,e.id,adjustCancel,adjustCancelReason),'財政の調整予定を訂正')){setAdjustCancel('');setAdjustCancelReason('');}}}>元記録を残して予定を取り消す</Button></div>}
+    <Field label="過剰請求した商品"><select value={adjustLine} onChange={ev=>setAdjustLine(ev.target.value)}><option value="">商品を選ぶ</option>{(e.billing.fiscal||[]).filter(x=>x.qty>0).map(x=><option key={x.lineId} value={x.lineId}>{e.lines.find(l=>l.id===x.lineId)?.name}（請求済み{x.qty}個）</option>)}</select></Field>
+    {adjustLine&&<><Qty label="調整予定の数量" min={1} max={(e.billing.fiscal.find(x=>x.lineId===adjustLine)?.qty||0)-activeFiscalAdjustments(e).filter(x=>x.lineId===adjustLine).reduce((n,x)=>n+x.qty,0)} value={adjustQty} onChange={setAdjustQty}/><p>仕入単価に基づく調整予定 {yen(adjustQty*(e.lines.find(l=>l.id===adjustLine)?.cost||0))}</p><Field label="過剰請求の理由"><input value={adjustReason} onChange={ev=>setAdjustReason(ev.target.value)}/></Field><Button secondary disabled={!adjustReason.trim()||adjustQty<1} onClick={async()=>{if(await save(s=>recordFiscalAdjustment(s,e.id,{id:adjustRequestId,lineId:adjustLine,qty:adjustQty,reason:adjustReason}),'財政への過剰請求を最終精算の予定に記録')){setAdjustRequestId(uid());setAdjustLine('');setAdjustQty(1);setAdjustReason('');}}}>調整予定を保存</Button></>}
+   </details>}
    {e.fiscalReceipts?.map(x=>{const corrected=e.fiscalReceiptCorrections?.find(c=>c.targetId===x.id);return <div className="fiscal-cash-row" key={x.id}>
     <span>{x.date} 受取 {yen(x.amount)}{corrected?`（訂正済み：${corrected.reason}）`:''}</span>
     {!corrected&&<button type="button" className="text-action" onClick={()=>{setCashCorrection(x.id);setCashReason('');}}>この受取を訂正</button>}

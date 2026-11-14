@@ -1252,6 +1252,34 @@ test('11/6レビュー：請求割当前の販売振替3個を同じ記録で2�
   await expect(page.locator('.snack-transfer-entry')).toContainText('2');
 });
 
+test('確定済み白パン1個の請求を訂正し、余った1個を販売へ振り替える',async({page,context})=>{
+ const shared={state:preparedState(),revision:0},s=shared.state;
+ const r=newRound(s,'2026-10-16',true);r.status='注文確定';s.rounds.push(r);
+ const line={id:'white-correct',productId:'white',name:'天然酵母ハイジの白パン',qty:16,used:11,usedConfirmed:true,cost:95};
+ const e={id:'white-event',roundId:r.id,date:r.date,name:'おやつ用',test:true,entryMode:'round',lines:[line],
+  billing:{label:'おやつ用',fiscal:[],household:[{buyerId:'hori',lineId:line.id,qty:1,unitPrice:100},{buyerId:'asano',groupId:'white-group',lineId:null,qty:10,unitPrice:100}],
+   groups:[{id:'white-group',label:'共通単価',lineIds:[line.id],quantities:{[line.id]:10},unitPrice:100,priceMode:'manual'}]}};
+ s.events.push(e);r.eventIds.push(e.id);
+ s.stocks.push({id:'white-stock',roundId:r.id,eventId:e.id,eventLineId:line.id,name:line.name,productId:line.productId,qty:5,cost:95,price:180,date:r.date,test:true});
+ await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+ await snackStep(page,'個別請求');
+ await page.locator('.snack-direct-buyer').filter({hasText:'ホリ'}).locator('summary').click();
+ await page.locator('.snack-direct-buyer').filter({hasText:'ホリ'}).getByRole('button',{name:'外す'}).click();
+ await page.getByLabel('確定済み請求の訂正理由').fill('当日食べていなかったため');
+ await page.getByRole('button',{name:'直接割当を途中保存'}).click();
+ await expect(page.getByLabel('確定済み請求の訂正理由')).toHaveValue('当日食べていなかったため');
+ await page.getByRole('button',{name:'おやつ請求を確定して集金へ反映'}).click();
+ await expect.poll(()=>shared.state.events[0].billing.household.some(x=>x.buyerId==='hori')).toBe(false);
+ expect(shared.state.events[0].lines[0].used).toBe(10);
+ await snackStep(page,'販売用へ振替');await page.getByRole('button',{name:'数量を指定して振替'}).click();
+ await expect(page.getByText('振替可能 1個')).toBeVisible();await setQty(page,'振り替える数量',1);
+ await page.getByRole('button',{name:'振り替えて販売用に追加'}).click();
+ await expect.poll(()=>shared.state.stocks.reduce((n,x)=>n+x.qty,0)).toBe(6);
+ for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await page.screenshot({path:`test-results/white-bread-correction-${width}.png`});}
+ await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+ await expect(page.locator('.snack-billing')).toContainText('振替保存済み');
+});
+
 test('11/6レビュー Work4：過去の未充当受取を保持して今回分だけを受け取る',async({page,context})=>{
   const shared={state:preparedState(),revision:0};
   const old=newRound(shared.state,'2026-09-11',true);old.collectionLive=true;old.orders.asano={name:'浅野',quantities:{brown:3}};shared.state.rounds.push(old);

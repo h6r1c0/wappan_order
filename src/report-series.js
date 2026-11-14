@@ -6,9 +6,15 @@ export function originBreakdown(rows,state){
  return result;
 }
 export function roundSeries(rows,rounds,state,metric='profit',group='origin'){
- const dates=[...new Set(rounds.map(r=>r.date))].sort();
+ // The older, manually entered results are dated snapshots. They have no
+ // trustworthy product or sales-method split, so only the total line uses them.
+ // When detailed transactions exist in that month, avoid counting a manual
+ // snapshot for the same period a second time.
+ const detailedMonths=new Set(rows.filter(r=>r.type!=='過去実績').map(r=>r.date?.slice(0,7)));
+ const eligible=rows.filter(r=>r.type!=='過去実績'||!detailedMonths.has(r.date?.slice(0,7)));
+ const dates=[...new Set([...rounds.map(r=>r.date),...eligible.filter(r=>r.type==='過去実績'&&r[metric]!=null).map(r=>r.date)])].sort();
  return dates.map(date=>{
-  const matches=rows.filter(r=>r.date===date);
+  const matches=eligible.filter(r=>r.date===date);
   const parts={};let total=0;
   for(const row of matches){
    const value=row[metric];if(value==null)continue;
@@ -17,7 +23,7 @@ export function roundSeries(rows,rounds,state,metric='profit',group='origin'){
      const personal=(other.allocations||[]).reduce((n,a)=>n+a.qty,0),external=other.paymentStatus==='paid'?other.qty:other.paidExternalQty||0;
      const split=[['個人請求',personal],['支払い済み・外部販売',external],['販売方法未確認',other.qty-personal-external]];
      for(const [key,qty] of split)if(qty)parts[key]=(parts[key]||0)+value*qty/other.qty;
-   }else{
+   }else if(row.type!=='過去実績'){
      const key=group==='origin'?originOf(row,state):row.type==='販売用商品'?
        ((sale?.destinationType||(!sale?.paid?'buyer':'external'))==='buyer'?'個人請求':sale?.destinationType==='external'?'支払い済み・外部販売':'販売方法未確認'):
        row.type==='通常販売'?'通常注文・販売用（原価配分未確認）':row.type;
@@ -25,6 +31,6 @@ export function roundSeries(rows,rounds,state,metric='profit',group='origin'){
    }
    total+=value;
   }
-  return {date,total,parts,unconfirmed:matches.some(r=>r[metric]==null||r.provisional)};
+  return {date,total,parts,manual:matches.some(r=>r.type==='過去実績'),unconfirmed:matches.some(r=>r[metric]==null||r.provisional)};
  });
 }

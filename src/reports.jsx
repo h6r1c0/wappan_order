@@ -524,13 +524,13 @@ function RoundLineChart({points,metric,onMetric,group,onGroup,selected,onSelect}
    <div className="round-chart-controls"><label>金額 <select value={metric} onChange={e=>onMetric(e.target.value)}><option value="profit">利益</option><option value="revenue">売上</option></select></label><label>内訳 <select value={group} onChange={e=>onGroup(e.target.value)}><option value="origin">商品由来別</option><option value="method">販売方法別</option></select></label></div>
    <div className="round-chart-plot"><svg viewBox="0 0 324 172" role="img" aria-label={`${metric==='profit'?'利益':'売上'}の注文回別折れ線グラフ`}>
     <line x1="24" x2="300" y1={y(0)} y2={y(0)} stroke="#bbc5bf"/>
-    {groups.map((g,n)=><polyline key={g} fill="none" stroke={colors[n%colors.length]} strokeWidth="1.3" points={points.map((p,i)=>`${x(i)},${y(p.parts[g]||0)}`).join(' ')}/>)}
+    {groups.map((g,n)=><g key={g} fill="none" stroke={colors[n%colors.length]} strokeWidth="1.3">{points.slice(1).map((p,i)=>!p.manual&&!points[i].manual&&g in p.parts&&g in points[i].parts?<line key={i} x1={x(i)} y1={y(points[i].parts[g])} x2={x(i+1)} y2={y(p.parts[g])}/>:null)}</g>)}
     <polyline fill="none" stroke="#273f51" strokeWidth="3.3" points={points.map((p,i)=>`${x(i)},${y(p.total)}`).join(' ')}/>
     {points.map((p,i)=><circle key={p.date} cx={x(i)} cy={y(p.total)} r="4" fill="#273f51"/>)}
    </svg></div>
-   <div className="round-chart-dates">{points.map(p=><button type="button" className={selected===p.date?'selected':''} key={p.date} onClick={()=>onSelect(p.date)}>{p.date.slice(5).replace('-','/')}</button>)}</div>
-   {points.find(p=>p.date===selected)&&<p role="status">{selected}　全体 {yen(points.find(p=>p.date===selected).total)}{points.find(p=>p.date===selected).unconfirmed?'（暫定・未確定を除く）':''}<br/>{Object.entries(points.find(p=>p.date===selected).parts).map(([name,value])=>`${name} ${yen(value)}`).join(' ／ ')}</p>}
-   {!points.length&&<small>対象の注文回はありません。</small>}
+   <div className="round-chart-dates">{points.map(p=><button type="button" className={selected===p.date?'selected':''} key={p.date} onClick={()=>onSelect(p.date)}>{p.date.slice(5).replace('-','/')}{p.manual?' 手入力':''}</button>)}</div>
+   {points.find(p=>p.date===selected)&&<p role="status">{selected}　全体 {yen(points.find(p=>p.date===selected).total)}{points.find(p=>p.date===selected).manual?'（過去の手入力実績・内訳なし）':''}{points.find(p=>p.date===selected).unconfirmed?'（暫定・未確定を除く）':''}<br/>{Object.entries(points.find(p=>p.date===selected).parts).map(([name,value])=>`${name} ${yen(value)}`).join(' ／ ')}</p>}
+   {!points.length&&<small>対象の注文回・過去実績はありません。</small>}
    <small>分類できない実績は「由来未確認」に残します。日付のない調整額はこのグラフに含めません。</small>
  </section>;
 }

@@ -3,7 +3,7 @@ import {validateCashSettlement} from './cash-settlement.js';
 import { deliveredQuantity, receivedQuantity, validateFulfillment } from './shortages.js';
 import { permanentProduct } from "./excel.js";
 import { bundleUsed, movedOut, bundleCost, validateCommerce } from "./commerce.js";
-import {snackBillingPreview,snackPurposeQuantity} from './snack-billing.js';
+import {snackBillingPreview,snackPurposeQuantity,activeFiscalAdjustments} from './snack-billing.js';
 export const uid = () => crypto.randomUUID();
 export const monthKey = (date) => String(date || "").slice(0, 7);
 export const monthProductsImported = (state, date) => {
@@ -942,6 +942,20 @@ export function validate(s) {
       throw Error('財政の受領・訂正履歴が重複しています');
     for(const receipt of fiscalReceipts){if(!String(receipt.id||'').trim()||!Number.isSafeInteger(receipt.amount)||receipt.amount<=0)throw Error('財政の受領額を確認してください');date(receipt.date);}
     for(const correction of fiscalCorrections)if(!fiscalReceipts.some(x=>x.id===correction.targetId)||!String(correction.reason||'').trim())throw Error('財政の受領訂正の理由を確認してください');
+    const adjustments=e.fiscalAdjustments||[],adjustmentCorrections=e.fiscalAdjustmentCorrections||[];
+    if(new Set(adjustments.map(x=>x.id)).size!==adjustments.length||new Set(adjustmentCorrections.map(x=>x.targetId)).size!==adjustmentCorrections.length)
+      throw Error('財政の調整履歴が重複しています');
+    for(const correction of adjustmentCorrections)if(!adjustments.some(x=>x.id===correction.targetId&&!x.settlement)||!String(correction.reason||'').trim())throw Error('財政の調整訂正を確認してください');
+    for(const adjustment of adjustments){
+      const line=e.lines.find(x=>x.id===adjustment.lineId),billed=(e.billing?.fiscal||[]).find(x=>x.lineId===adjustment.lineId)?.qty||0;
+      if(!line||!Number.isSafeInteger(adjustment.qty)||adjustment.qty<1||adjustment.qty>billed||
+        !Number.isSafeInteger(adjustment.amount)||adjustment.amount<0||!String(adjustment.reason||'').trim())throw Error('財政の調整対象と金額を確認してください');
+      if(adjustment.settlement){date(adjustment.settlement.date);if(adjustment.settlement.amount!==adjustment.amount||!String(adjustment.settlement.method||'').trim())throw Error('財政の精算実績を確認してください');}
+    }
+    for(const line of e.lines){
+      const qty=activeFiscalAdjustments(e).filter(x=>x.lineId===line.id).reduce((n,x)=>n+x.qty,0);
+      if(qty>((e.billing?.fiscal||[]).find(x=>x.lineId===line.id)?.qty||0))throw Error('財政の調整数が元の請求数を超えています');
+    }
     for (const l of e.lines) {
       if (!l.name.trim()) throw Error("行事の商品名を入力してください");
       integer(l.qty, "行事注文数");

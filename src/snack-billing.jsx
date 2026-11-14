@@ -6,6 +6,17 @@ import {saveSnackSection,confirmSnackPlan,emptySnackPlan,suggestedSnackPrice,sug
 import {receivedQuantity} from './shortages.js';
 
 const amount=(rows,id)=>rows.filter(x=>x.lineId===id).reduce((n,x)=>n+x.qty,0);
+const billingDifferences=(before,after,event,state)=>{
+  const key=x=>`${x.buyerId}:${x.lineId||x.groupId||''}`;
+  const a=new Map((before?.household||[]).map(x=>[key(x),x])),b=new Map((after?.household||[]).map(x=>[key(x),x]));
+  return [...new Set([...a.keys(),...b.keys()])].flatMap(id=>{
+    const old=a.get(id),next=b.get(id);
+    if((old?.qty||0)===(next?.qty||0)&&(old?.unitPrice||0)===(next?.unitPrice||0))return [];
+    const item=old||next,name=state.buyers.find(x=>x.id===item.buyerId)?.name||'購入者';
+    const product=event.lines.find(x=>x.id===item.lineId)?.name||before?.groups?.find(x=>x.id===item.groupId)?.label||after?.groups?.find(x=>x.id===item.groupId)?.label||'おやつ';
+    return [`${name}・${product} ${(old?.qty||0)}個 ${yen((old?.qty||0)*(old?.unitPrice||0))} → ${(next?.qty||0)}個 ${yen((next?.qty||0)*(next?.unitPrice||0))}`];
+  });
+};
 export function SnackBilling({event,onTransfer}){
   const {state,save}=useApp();
   const [draft,setDraft]=useState(()=>{
@@ -36,7 +47,7 @@ export function SnackBilling({event,onTransfer}){
       const probe=structuredClone(state);saveSnackSection(probe,event.id,section,value,reason||'おやつの区分を保存');
       setError('');
       if(await save(s=>saveSnackSection(s,event.id,section,value,reason||'おやつの区分を保存'),`${section==='fiscal'?'財政':section==='direct'?'直接割当':section==='common'?'共通単価':'おやつ名'}を保存`)){
-        setSaved('この区分を保存しました。請求と集金への反映は「請求を確定」後です。');setReason('');
+        setSaved('この区分を途中保存しました。確定済み請求の訂正は、下のボタンで集金へ反映してください。');if(!event.billing)setReason('');
       }
     }catch(e){setError(e.message);}
   };
@@ -92,6 +103,7 @@ export function SnackBilling({event,onTransfer}){
   return <section className="snack-billing" data-unsaved={unsaved}>
     <div className="snack-billing-body">
       <p className="snack-save-state" role="status">{event.billing?'おやつ請求確定済み・集金へ反映':event.snackDraft?'おやつの区分を途中保存済み・請求未確定':'おやつ請求未確定'}{unsaved?' ／ 編集中の値は未保存':''}<small>区分の保存は途中保存です。請求確定後に家庭分が集金へ反映されます。</small></p>
+      {event.billing&&<Field label="確定済み請求の訂正理由（再確定まで保持）"><input value={reason} onChange={e=>setReason(e.target.value)} placeholder="例：余語のおやつを食べていなかったため1個取消"/></Field>}
       <details className="snack-label"><summary>おやつ名を付ける（任意）</summary><Field label="行事・おやつ名"><input value={draft.label||''} onChange={e=>change({...draft,label:e.target.value})}/></Field><button type="button" className="text-action" onClick={()=>savePart('label',draft.label)}>名前を保存</button></details>
       <details className="snack-work-step" name={`snack-work-${event.id}`}><summary>販売用へ振替 <small className="snack-step-status">{status.some(x=>x.retail>0)?'振替保存済み':'未振替'}</small></summary>
       <p className="muted">請求先を決める前でも、販売用に回す数量だけ保存できます。</p>
@@ -194,16 +206,17 @@ export function SnackBilling({event,onTransfer}){
       {!event.billing&&<p className="snack-quantity-state">請求未確定{status.some(x=>x.unassigned>0)?'：表の未振分を確認してください':''}</p>}
       {error&&<p role="alert" className="notice">{error}</p>}{saved&&<p role="status">{saved}</p>}
       {unsaved&&event.snackDraft&&<p className="notice">変更した区分を保存してから請求を確定してください。</p>}
-      {(event.billing||event.snackDraft&&(unsaved||groups.some(g=>commonAssigned(g.id)>Object.values(g.quantities||{}).reduce((n,x)=>n+x,0))))&&
-        <Field label={event.billing?'確定請求を変更する理由':'訂正・確認待ちのメモ（任意）'}><input value={reason} onChange={e=>setReason(e.target.value)} placeholder="例：販売記録の返却待ち・最終精算時に説明"/></Field>}
+      {!event.billing&&event.snackDraft&&(unsaved||groups.some(g=>commonAssigned(g.id)>Object.values(g.quantities||{}).reduce((n,x)=>n+x,0)))&&
+        <Field label="訂正・確認待ちのメモ（任意）"><input value={reason} onChange={e=>setReason(e.target.value)} placeholder="例：販売記録の返却待ち・最終精算時に説明"/></Field>}
       {!event.billing&&event.snackDraft&&!unsaved&&reason.trim()&&<button type="button" className="text-action" onClick={()=>savePart('common',{groups,household:draft.household.filter(x=>x.groupId)})}>確認待ちのメモを保存</button>}
       <p className="snack-final-note">おやつの請求だけを確定し、家庭分を集金へ反映します。確定後の変更は理由を入力し、区分を途中保存してから再確定します。</p>
-      <Button disabled={!event.snackDraft||unsaved||status.some(x=>x.excess>0||x.unassigned!==0)||!!event.billing&&!reason.trim()} onClick={async()=>{
+      {event.billing&&status.some(x=>x.unassigned>0)&&<p className="snack-quantity-state">未振分 {status.filter(x=>x.unassigned>0).map(x=>`${x.line.name} ${x.unassigned}個`).join(' ／ ')}。請求訂正を確定した後、必要な数量だけ販売用へ振り替えられます。自動振替はしません。</p>}
+      <Button disabled={!event.snackDraft||unsaved||status.some(x=>x.excess>0||x.unassigned<0)||!!event.billing&&!reason.trim()} onClick={async()=>{
         try{const probe=structuredClone(state);confirmSnackPlan(probe,event.id,reason||'請求先を確定');setError('');
           if(await save(s=>confirmSnackPlan(s,event.id,reason||'請求先を確定'),'おやつ請求を確定')){setSaved('請求先別の内容を確定しました。');setReason('');}}
         catch(e){setError(e.message);}
       }}>おやつ請求を確定して集金へ反映</Button>
-      {!!event.billingHistory?.length&&<details><summary>請求の変更履歴</summary>{event.billingHistory.map((x,i)=><p key={i}>{x.at.slice(0,10)} {x.reason}</p>)}</details>}
+      {!!event.billingHistory?.length&&<details><summary>請求の変更履歴</summary>{event.billingHistory.map((x,i)=><p key={i}>{x.at.slice(0,10)} {x.reason}{billingDifferences(x.billing,event.billingHistory[i+1]?.billing||event.billing,event,state).map((line,j)=><small key={j} className="snack-history-change">{line}</small>)}</p>)}</details>}
       {!!event.snackDraftHistory?.length&&<details><summary>仕分けの保存・訂正履歴</summary>{event.snackDraftHistory.map((x,i)=><p key={i}>{x.at.slice(0,10)} {x.reason}</p>)}</details>}
     </div>
   </section>;
