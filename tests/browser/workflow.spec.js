@@ -1260,9 +1260,9 @@ test('11/15レビュー：確定済み白パン1個の請求を訂正し、余�
  const e={id:'white-event',roundId:r.id,date:r.date,name:'おやつ用',test:true,entryMode:'round',lines:[line],
   billing:{label:'おやつ用',fiscal:[],household:[{buyerId:'hori',lineId:line.id,qty:1,unitPrice:100},{buyerId:'asano',groupId:'white-group',lineId:null,qty:10,unitPrice:100}],
    groups:[{id:'white-group',label:'共通単価',lineIds:[line.id],quantities:{[line.id]:10},unitPrice:100,priceMode:'manual'}]}};
- s.events.push(e);r.eventIds.push(e.id);r.orders.hori={name:'ホリ',quantities:{brown:1}};r.products.find(p=>p.id==='brown').price=2670;confirmBilling(s,r.id,'hori',2770);
+ s.events.push(e);r.eventIds.push(e.id);r.orders.hori={name:'ホリ',quantities:{brown:1}};r.products.find(p=>p.id==='brown').price=2670;confirmBilling(s,r.id,'hori',2770);s.billingReviews[0].at='2026-11-14T00:00:00Z';
  s.stocks.push({id:'white-stock',roundId:r.id,eventId:e.id,eventLineId:line.id,name:line.name,productId:line.productId,qty:5,cost:95,price:180,date:r.date,test:true});
- await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+ await backend(context,shared);await login(page);await page.clock.setFixedTime(new Date('2026-11-15T03:00:00Z'));await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
  await snackStep(page,'個別請求');
  await page.locator('.snack-direct-buyer').filter({hasText:'ホリ'}).locator('summary').click();
  await page.locator('.snack-direct-buyer').filter({hasText:'ホリ'}).getByRole('button',{name:'外す'}).click();
@@ -1272,6 +1272,7 @@ test('11/15レビュー：確定済み白パン1個の請求を訂正し、余�
  await page.getByRole('button',{name:'おやつ請求を確定して集金へ反映'}).click();
  await expect.poll(()=>shared.state.events[0].billing.household.some(x=>x.buyerId==='hori')).toBe(false);
  expect(shared.state.events[0].lines[0].used).toBe(10);
+ expect(billingAudit(shared.state,r.id).buyers.find(x=>x.buyerId==='hori').issues).toEqual([]);
  expect(billingAudit(shared.state,r.id).buyers.find(x=>x.buyerId==='hori')).toMatchObject({expected:2670,knownBag:2770,complete:true});
  expect(shared.state.collectionEntries).toHaveLength(0);
  await snackStep(page,'販売用へ振替');await page.getByRole('button',{name:'数量を指定して振替'}).click();
