@@ -1,7 +1,54 @@
+import {confirmBilling,billingAudit} from '../src/collection-workflow.js';
+import {envelopePrintRows} from '../src/print-prep.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,newRound,validate,collections,collectionPosition,eventClaim,report,transfer,correctSnackToSalesTransfer,stockRemaining} from '../src/domain.js';
-import {replaceSnackBilling,snackBillingPreview,suggestedSnackPrice,saveSnackSection,addLineToSnackGroup,mergeSnackGroups,recordFiscalReceipt,correctFiscalReceipt,effectiveFiscalReceipts} from '../src/snack-billing.js';
+import {replaceSnackBilling,snackBillingPreview,suggestedSnackPrice,saveSnackSection,confirmSnackPlan,addLineToSnackGroup,mergeSnackGroups,recordFiscalReceipt,correctFiscalReceipt,effectiveFiscalReceipts,activeFiscalAdjustments,recordFiscalAdjustment,correctFiscalAdjustment,settleFiscalAdjustment} from '../src/snack-billing.js';
+
+test('財政4個の請求原本を残し、1個151円の精算予定・実績を別履歴にする',()=>{
+ const {s,e}=setup();e.lines[1].qty=19;e.lines[1].used=4;e.lines[1].usedConfirmed=true;
+ e.billing={label:'おやつ用',fiscal:[{lineId:'appleline',qty:4}],household:[],groups:[]};
+ const old=structuredClone(e.billing),item=recordFiscalAdjustment(s,e.id,{id:'overcharge',lineId:'appleline',qty:1,reason:'1個分を過剰請求'});
+ assert.equal(item.amount,151);assert.deepEqual(e.billing,old);
+ assert.throws(()=>recordFiscalAdjustment(s,e.id,{id:'overcharge',lineId:'appleline',qty:1,reason:'重複'}),/保存済み/);
+ assert.throws(()=>settleFiscalAdjustment(s,e.id,item.id,{date:'2026-11-15',method:'相殺',amount:150}),/金額/);
+ settleFiscalAdjustment(s,e.id,item.id,{date:'2026-11-15',method:'次回仕入代金と相殺',amount:151});
+ assert.equal(activeFiscalAdjustments(e)[0].settlement.amount,151);
+ assert.throws(()=>settleFiscalAdjustment(s,e.id,item.id,{date:'2026-11-15',method:'相殺',amount:151}),/未調整/);
+ assert.throws(()=>correctFiscalAdjustment(s,e.id,item.id,'取消'),/精算済み/);
+ assert.doesNotThrow(()=>validate(structuredClone(s)));
+ const fresh=structuredClone(s);assert.deepEqual(fresh.events.find(x=>x.id===e.id).billing,old);
+ assert.equal(activeFiscalAdjustments(fresh.events.find(x=>x.id===e.id))[0].settlement.amount,151);
+});
+
+test('確定後の白パン1個を理由付きで外し、請求再確定後の残り1個だけ販売用へ振り替える',()=>{
+ const {s,r,e}=setup();e.lines=[{id:'white',productId:'white',name:'天然酵母ハイジの白パン',qty:16,used:11,usedConfirmed:true,cost:95}];
+ s.stocks.push({id:'white-sales',roundId:r.id,eventId:e.id,eventLineId:'white',name:e.lines[0].name,productId:'white',qty:5,cost:95,price:180,date:r.date,test:false});
+ const group={id:'common',label:'共通単価',lineIds:['white'],quantities:{white:10},unitPrice:100,priceMode:'manual'};
+ const direct={buyerId:'sato',lineId:'white',qty:1,unitPrice:100};
+ const common={buyerId:'hori',groupId:'common',lineId:null,qty:10,unitPrice:100};
+ r.orders.sato={name:'佐藤',quantities:{brown:1}};r.products.find(p=>p.id==='brown').price=2670;
+ e.billing={label:'おやつ用',fiscal:[],household:[direct,common],groups:[group]};
+ confirmBilling(s,r.id,'sato',2770);const notified=structuredClone(s.billingReviews[0]);
+ assert.equal(collectionPosition(s,r.id,'sato').current,2770);
+ saveSnackSection(s,e.id,'direct',[],'食べていなかったため取消');
+ assert.equal(collectionPosition(s,r.id,'sato').current,2770);
+ assert.equal(snackBillingPreview(s,e,e.snackDraft).complete,true);
+ assert.equal(confirmSnackPlan(s,e.id,'食べていなかったため白パン1個を取消').household,1000);
+ assert.equal(e.lines[0].used,10);assert.equal(e.lines[0].usageHistory.at(-1).previous.used,11);
+ assert.equal(collectionPosition(s,r.id,'sato').current,2670);
+ assert.deepEqual(s.billingReviews[0],notified);
+ assert.deepEqual(billingAudit(s,r.id).buyers.find(x=>x.buyerId==='sato').issues,[]);
+ assert.equal(billingAudit(s,r.id).buyers.find(x=>x.buyerId==='sato').snackCorrectionExplained,true);
+ assert.equal(envelopePrintRows(s,r).find(x=>x.id==='sato').billAmount,2670);
+ assert.equal(envelopePrintRows(s,r).find(x=>x.id==='sato').billPending,false);
+ assert.equal(s.collectionEntries.length,0);assert.equal((s.collectionCredits||[]).length,0);
+ assert.equal(e.billingHistory.at(-1).billing.household.find(x=>x.buyerId==='sato').qty,1);
+ transfer(s,e,e.lines[0],1,180,r.date);assert.equal(s.stocks.at(-1).qty,1);
+ assert.doesNotThrow(()=>validate(s));
+ assert.equal(e.billing.groups[0].unitPrice,100);
+ assert.equal(collectionPosition(s,r.id,'hori').current,1000);
+});
 import {transferStockToSnack,cancelStockToSnackTransfer} from '../src/snack-transfer.js';
 
 const setup=()=>{

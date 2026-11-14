@@ -110,7 +110,7 @@ export async function createPrintPdf(model,fontBytes) {
         const nameSize=Math.min(15,mm(40.65)/Math.max(1,font.widthOfTextAtSize(buyerLabel,15))*15);
         if(model.kind==='envelopes'){
           text(page,buyerName,x+2.8,y+12,nameSize,{bold:true});
-          text(page,'様',x+2.8+font.widthOfTextAtSize(buyerName,nameSize)/mm(1)+.7,y+10.5,9);
+          text(page,'様',x+2.8+font.widthOfTextAtSize(buyerName,nameSize)/mm(1)+.7,y+12,9);
         }else text(page,buyerLabel,x+2.8,y+9,nameSize,{bold:true});
         if(row.billAmount!==undefined)text(page,row.billPending?'請求額 未確定':`請求額 ${row.billAmount.toLocaleString('ja-JP')}円`,x+2.8,y+(model.kind==='envelopes'?18:14.2),9,{bold:true});
         if(model.kind==='envelopes'&&row.snack>0)text(page,row.billPending?'おやつ代を含む・請求未確定':row.normal>0?`通常 ${row.normal}円 ＋ おやつ代 ${row.snack}円`:'おやつ代のみ',x+2.8,y+22.5,7.5);
@@ -123,7 +123,24 @@ export async function createPrintPdf(model,fontBytes) {
           text(page,model.kind==='envelopes'?`×${product.qty} ${product.amount==null?'未確定':`${product.amount}円`}`:`×${product.qty}`,x+43.45,productTop+3.8,model.kind==='envelopes'?7:9.5,{right:true,bold:true});
           productTop+=parts.length*4.5+1;
         }
-        if(model.kind==='envelopes')text(page,`${model.staff||'担当者'}まで`,x+43.45,Math.min(y+h-3,productTop+6),8,{right:true});
+        if(model.kind==='envelopes'){
+          const staff=model.staff||'担当者',suffixSize=7;
+          const end=x+43.45-font.widthOfTextAtSize('まで',suffixSize)/mm(1);
+          const staffY=Math.min(y+h-3,productTop+6),staffWidth=font.widthOfTextAtSize(staff,8)/mm(1);
+          text(page,'まで',x+43.45,staffY,suffixSize,{right:true});
+          text(page,staff,end,staffY,8,{right:true,bold:true});
+          // Fine, broken wax strands keep the underline almost straight and
+          // reproduce light paper grain without a solid bar or zigzag.
+          for(let strand=0;strand<4;strand++){
+            let pos=0,step=0;
+            while(pos<staffWidth){
+              const length=Math.min(staffWidth-pos,1.8+((step*7+strand*11)%13)/9);
+              const base=staffY+.75+strand*.10;
+              line(page,end-staffWidth+pos,base,end-staffWidth+pos+length,base+.025*Math.sin(step+strand),{gray:.46+strand*.045,width:.075});
+              pos+=length+.06+((step*3+strand)%5)*.03;step++;
+            }
+          }
+        }
       }
     }
   }

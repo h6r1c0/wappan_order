@@ -103,6 +103,14 @@ test('個人仕分け表は注文のある購入者だけを画面と同じ読�
   assert.deepEqual(sortingPrintRows(state,round).find(x=>x.id==='y').lines.map(l=>[l.id,l.qty]),[['brown',1]]);
   assert.deepEqual(before.rounds[0].orders.y.quantities,round.orders.y.quantities);
 });
+test('仕分け商品がない請求者は個人仕分け表の空枠に載せない',()=>{
+ const {state,round}=fixture();
+ state.buyers.push({id:'snack-only',name:'おやつのみ',kana:'おやつのみ'});
+ state.buyers.push({id:'onsite-only',name:'園内販売のみ',kana:'えんない'});
+ round.orders['snack-only']={name:'おやつのみ',quantities:{}};
+ round.orders['onsite-only']={name:'園内販売のみ',quantities:{}};
+ assert.deepEqual(sortingPrintRows(state,round).filter(x=>['snack-only','onsite-only'].includes(x.id)),[]);
+});
 
 test('仕分けの略称は規格や識別を守り、衝突時は正式名称に戻す',()=>{
   const products=[{name:'甘夏サンドクッキー(冷)　約70g'},{name:'Ｆ.Ｔ.ジンジャークッキー'},

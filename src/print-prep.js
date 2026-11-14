@@ -75,7 +75,7 @@ export function sortingPrintRows(state, round) {
     lines:products.map(product => ({id:product.id,name:product.name,
       printName:sortingPrintName(product.name,products),qty:deliveredQuantity(order,product.id)}))
       .filter(line => line.qty > 0),
-  });}).filter(row => row.lines.length||row.billAmount||row.billPending)
+  });}).filter(row => row.lines.length)
     .sort((a,b) => a.buyer && b.buyer ? buyerCompare(a.buyer,b.buyer) || a.index-b.index : a.buyer ? -1 : b.buyer ? 1 : a.index-b.index);
 }
 

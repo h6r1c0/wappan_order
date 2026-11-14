@@ -17,9 +17,10 @@ for(const width of [320,375,430]){
    await expect(page.getByText('外部販売の現金引渡し')).toBeVisible();
    await page.locator('.cash-work-section').first().locator('summary').first().click();
    await page.getByLabel('今回受け取った現金').fill('150');
-   await page.getByLabel('引渡し元・内容').fill('販売担当');
-   await page.getByRole('button',{name:'引渡しを保存'}).click();
+   await expect(page.getByLabel('引渡し元・メモ（任意）')).toBeVisible();
+   await page.getByRole('button',{name:'現金引渡しを保存'}).click();
    await expect.poll(()=>shared.state.externalCashReceipts.length).toBe(1);
+   expect(shared.state.externalCashReceipts[0].note).toBe('外部販売の現金引渡し');
    await expect(page.locator('.cash-work-section').first()).toContainText('未回収 250円');
    const supplier=page.locator('.supplier-payment');await supplier.locator('summary').first().click();
    await supplier.getByText('支払予定額・期限を設定／訂正').click();

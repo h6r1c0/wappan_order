@@ -1,9 +1,10 @@
+import {effectiveReportRows} from './report-series.js';
 import {validateCollectionWorkflow} from './collection-validation.js';
 import {validateCashSettlement} from './cash-settlement.js';
 import { deliveredQuantity, receivedQuantity, validateFulfillment } from './shortages.js';
 import { permanentProduct } from "./excel.js";
 import { bundleUsed, movedOut, bundleCost, validateCommerce } from "./commerce.js";
-import {snackBillingPreview,snackPurposeQuantity} from './snack-billing.js';
+import {snackBillingPreview,snackPurposeQuantity,activeFiscalAdjustments} from './snack-billing.js';
 export const uid = () => crypto.randomUUID();
 export const monthKey = (date) => String(date || "").slice(0, 7);
 export const monthProductsImported = (state, date) => {
@@ -582,11 +583,13 @@ export function collectionDueItems(s, roundId, buyerId) {
     )
   ));
   let unallocated=0;
+  let held=0;
   const unallocatedEntryIds=[];
   for(const entry of entries){
     let amount=entry.received+entry.adjustment;
     if(amount<0){
-      let refund=-amount;const fromCredit=Math.min(credit,refund);credit-=fromCredit;refund-=fromCredit;
+      let refund=-amount;const fromHeld=Math.min(held,refund);held-=fromHeld;refund-=fromHeld;
+      const fromCredit=Math.min(credit,refund);credit-=fromCredit;refund-=fromCredit;
       for(const item of [...items].reverse()){const reopen=Math.min(refund,item.amount-item.balance);item.balance+=reopen;refund-=reopen;if(!refund)break;}
       if(refund)items.push({id:`refund:${entry.id}`,kind:'refund',roundId:entry.roundId,date:entry.date,amount:refund,balance:refund,reason:'返金',note:'受取訂正後に確認が必要な返金分'});
       continue;
@@ -605,6 +608,16 @@ export function collectionDueItems(s, roundId, buyerId) {
     if(!eligibleIds.has(entry.roundId)){
       const chosen=items.find(x=>x.id===entry.itemId);
       if(chosen)chosen.balance-=Math.min(amount,chosen.balance);
+      continue;
+    }
+    // An overpayment explicitly kept for a future decision is not permission
+    // to settle a different, older invoice. Apply only a uniquely identifiable
+    // claim in the receipt's own round; keep the rest available for refund or
+    // a later, explicit allocation.
+    if(entry.reason==='多く受け取ったので次回へ預かる'&&!entry.itemId){
+      const own=items.filter(x=>x.roundId===entry.roundId&&x.balance>0);
+      if(own.length===1){const used=Math.min(amount,own[0].balance);own[0].balance-=used;amount-=used;}
+      held+=amount;
       continue;
     }
     // An older receipt cannot become ambiguous merely because a later round
@@ -629,7 +642,7 @@ export function collectionDueItems(s, roundId, buyerId) {
     credit+=amount;
   }
   if(credit) for(const item of items){const used=Math.min(credit,item.balance);item.balance-=used;credit-=used;if(!credit)break;}
-  return {items,credit,unallocated,unallocatedEntryIds};
+  return {items,credit:credit+held,held,unallocated,unallocatedEntryIds};
 }
 export function collectionPosition(s, roundId, buyerId) {
   s=effectiveCollectionState(s);
@@ -674,13 +687,17 @@ export function collectionPosition(s, roundId, buyerId) {
   const refunded=sum((s.collectionEntries||[]).filter(x=>x.buyerId===buyerId&&x.received<0&&
     (x.roundId===roundId||earlier.some(r=>r.id===x.roundId))).map(x=>-x.received));
   const refundableCredit=Math.max(dueState.credit,legacyCredit-refunded);
-  return { carry:carry-laterForPrior-currentForPrior, current, received:received+laterForCurrent-currentForPrior, adjusted, confirmedHistorical,
-    balance: carry + current - received - adjusted - confirmedHistorical - laterForPrior - laterForCurrent,
-    credits, availableCredit:refundableCredit, entries, unallocated:dueState.unallocated, due:dueState.items.filter(x=>x.balance>0) };
+  const outstanding=sum(dueState.items.map(x=>x.balance));
+  const rawBalance=carry+current-received-adjusted-confirmedHistorical-laterForPrior-laterForCurrent;
+  const priorDue=dueState.items.filter(x=>x.roundId!==roundId).reduce((n,x)=>n+x.balance,0);
+  const priorBalance=carry-laterForPrior-currentForPrior;
+  return { carry:dueState.held&&priorDue>0?priorDue:priorBalance, current, received:received+laterForCurrent-currentForPrior, adjusted, confirmedHistorical,
+    balance:outstanding>0?rawBalance+dueState.held:rawBalance,
+    credits, availableCredit:refundableCredit, held:dueState.held, entries, unallocated:dueState.unallocated, due:dueState.items.filter(x=>x.balance>0) };
 }
 export function report(s, from, to, year, {includeTest=false} = {}) {
   const inRange = (d) => from <= d && d <= to;
-  const rows = [];
+  let rows = [];
   const pooledSales = new Set();
   for (const r of s.rounds.filter((r) => (includeTest||!r.test) && inRange(r.date) && (Object.keys(r.orders).length || r.invoice!=null))) {
     const combined = roundAccounting(s,r);
@@ -740,6 +757,7 @@ export function report(s, from, to, year, {includeTest=false} = {}) {
       name: h.note || "過去実績",
       profit: h.revenue == null ? h.profit : h.revenue - h.cost,
     });
+  const selected=effectiveReportRows(rows);rows=selected.rows;
   const adjustments = s.adjustments.filter(
     (a) =>
       a.year === Number(year) &&
@@ -751,6 +769,7 @@ export function report(s, from, to, year, {includeTest=false} = {}) {
     adjustment = sum(adjustments.map((a) => a.amount));
   return {
     rows: rows.sort((a, b) => a.date.localeCompare(b.date)),
+    historyOverlaps:selected.overlaps,
     adjustments,
     revenue: sum(rows.map((r) => r.revenue ?? 0)),
     cost: sum(rows.map((r) => r.cost ?? 0)),
@@ -926,6 +945,20 @@ export function validate(s) {
       throw Error('財政の受領・訂正履歴が重複しています');
     for(const receipt of fiscalReceipts){if(!String(receipt.id||'').trim()||!Number.isSafeInteger(receipt.amount)||receipt.amount<=0)throw Error('財政の受領額を確認してください');date(receipt.date);}
     for(const correction of fiscalCorrections)if(!fiscalReceipts.some(x=>x.id===correction.targetId)||!String(correction.reason||'').trim())throw Error('財政の受領訂正の理由を確認してください');
+    const adjustments=e.fiscalAdjustments||[],adjustmentCorrections=e.fiscalAdjustmentCorrections||[];
+    if(new Set(adjustments.map(x=>x.id)).size!==adjustments.length||new Set(adjustmentCorrections.map(x=>x.targetId)).size!==adjustmentCorrections.length)
+      throw Error('財政の調整履歴が重複しています');
+    for(const correction of adjustmentCorrections)if(!adjustments.some(x=>x.id===correction.targetId&&!x.settlement)||!String(correction.reason||'').trim())throw Error('財政の調整訂正を確認してください');
+    for(const adjustment of adjustments){
+      const line=e.lines.find(x=>x.id===adjustment.lineId),billed=(e.billing?.fiscal||[]).find(x=>x.lineId===adjustment.lineId)?.qty||0;
+      if(!line||!Number.isSafeInteger(adjustment.qty)||adjustment.qty<1||adjustment.qty>billed||
+        !Number.isSafeInteger(adjustment.amount)||adjustment.amount<0||!String(adjustment.reason||'').trim())throw Error('財政の調整対象と金額を確認してください');
+      if(adjustment.settlement){date(adjustment.settlement.date);if(adjustment.settlement.amount!==adjustment.amount||!String(adjustment.settlement.method||'').trim())throw Error('財政の精算実績を確認してください');}
+    }
+    for(const line of e.lines){
+      const qty=activeFiscalAdjustments(e).filter(x=>x.lineId===line.id).reduce((n,x)=>n+x.qty,0);
+      if(qty>((e.billing?.fiscal||[]).find(x=>x.lineId===line.id)?.qty||0))throw Error('財政の調整数が元の請求数を超えています');
+    }
     for (const l of e.lines) {
       if (!l.name.trim()) throw Error("行事の商品名を入力してください");
       integer(l.qty, "行事注文数");

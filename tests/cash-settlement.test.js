@@ -42,6 +42,18 @@ test('外部売上と係への一部引渡しは別履歴。訂正後再受取�
  assert.equal(report(s,'2026-04-01','2027-03-31',2026,{includeTest:true}).revenue,prior);
  validate(s);
 });
+test('外部販売の全額引渡しはメモなしで保存でき、同じ操作の再試行は重複しない',()=>{
+ const {s,now}=fixture();
+ const before=report(s,now.date,now.date,2026,{includeTest:true});
+ const sales=externalCashPosition(s,now).sales;
+ const entry=recordExternalCash(s,now.id,sales,'',now.date,'cash-once');
+ assert.equal(entry.note,'外部販売の現金引渡し');
+ assert.equal(externalCashPosition(s,now).remaining,0);
+ assert.throws(()=>recordExternalCash(s,now.id,sales,'',now.date,'cash-once'),/登録済み/);
+ assert.equal(s.externalCashReceipts.length,1);
+ assert.deepEqual(report(s,now.date,now.date,2026,{includeTest:true}),before);
+ validate(s);
+});
 test('仕入先予定の訂正履歴と一部振込・取消を保ち、現金受取へ触れない',()=>{
  const {s,old,now}=fixture();
  const before=collectionPosition(s,now.id,'hori').balance;
@@ -73,13 +85,14 @@ test('他回の未収受取と外部販売引渡しを区別し、充当先不�
  assert.equal(supplierCashEstimate(s,now).uncertain,true);
  assert.equal(supplierPosition(s,old).complete,true);
 });
-test('過払いの預かりから実際の受取を再登録せず返金できる',()=>{
+test('充当先未確認の過払いは古い請求を推測消込せず、現金を再登録せず返金できる',()=>{
  const {s,old}=fixture();old.orders.hori.quantities={};old.collectionLive=true;
  s.receivableItems.push({id:'bill',kind:'opening',buyerId:'hori',date:'2026-10-01',amount:100,reason:'請求',note:'過去分'});
  receiveCollection(s,{roundId:old.id,buyerId:'hori',received:1150,reason:'多く受け取ったので次回へ預かる'});
- assert.equal(collectionPosition(s,old.id,'hori').availableCredit,1050);
+ assert.equal(collectionPosition(s,old.id,'hori').availableCredit,1150);
+ assert.equal(collectionPosition(s,old.id,'hori').due.find(i=>i.id==='bill').balance,100);
  receiveCollection(s,{roundId:old.id,buyerId:'hori',received:-1050,reason:'返金がある'});
- assert.equal(collectionPosition(s,old.id,'hori').availableCredit,0);
+ assert.equal(collectionPosition(s,old.id,'hori').availableCredit,100);
  assert.equal(s.collectionEntries.filter(x=>x.received>0).length,1);
 });
 test('DB: 現金引渡しと振込は旧JSONと両立し、重複・無効参照を拒否する',async()=>{

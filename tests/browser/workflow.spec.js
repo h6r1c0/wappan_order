@@ -1,3 +1,4 @@
+import {confirmBilling,billingAudit} from '../../src/collection-workflow.js';
 import {PDFDocument} from 'pdf-lib';
 import {installPreviewProbe,openPdf,pdfBytes} from './print-preview-helpers.js';
 import { test, expect } from "@playwright/test";
@@ -1252,6 +1253,47 @@ test('11/6レビュー：請求割当前の販売振替3個を同じ記録で2�
   await expect(page.locator('.snack-transfer-entry')).toContainText('2');
 });
 
+test('11/15レビュー：確定済み白パン1個の請求を訂正し、余った1個を販売へ振り替える',async({page,context})=>{
+ const shared={state:preparedState(),revision:0},s=shared.state;
+ const r=newRound(s,'2026-10-16',true);r.status='注文確定';s.rounds.push(r);
+ const line={id:'white-correct',productId:'white',name:'天然酵母ハイジの白パン',qty:16,used:11,usedConfirmed:true,cost:95};
+ const e={id:'white-event',roundId:r.id,date:r.date,name:'おやつ用',test:true,entryMode:'round',lines:[line],
+  billing:{label:'おやつ用',fiscal:[],household:[{buyerId:'hori',lineId:line.id,qty:1,unitPrice:100},{buyerId:'asano',groupId:'white-group',lineId:null,qty:10,unitPrice:100}],
+   groups:[{id:'white-group',label:'共通単価',lineIds:[line.id],quantities:{[line.id]:10},unitPrice:100,priceMode:'manual'}]}};
+ s.events.push(e);r.eventIds.push(e.id);r.orders.hori={name:'ホリ',quantities:{brown:1}};r.products.find(p=>p.id==='brown').price=2670;confirmBilling(s,r.id,'hori',2770);s.billingReviews[0].at='2026-11-14T00:00:00Z';
+ s.stocks.push({id:'white-stock',roundId:r.id,eventId:e.id,eventLineId:line.id,name:line.name,productId:line.productId,qty:5,cost:95,price:180,date:r.date,test:true});
+ await backend(context,shared);await login(page);await page.clock.setFixedTime(new Date('2026-11-15T03:00:00Z'));await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+ await snackStep(page,'個別請求');
+ await page.locator('.snack-direct-buyer').filter({hasText:'ホリ'}).locator('summary').click();
+ await page.locator('.snack-direct-buyer').filter({hasText:'ホリ'}).getByRole('button',{name:'外す'}).click();
+ await page.getByLabel('確定済み請求の訂正理由').fill('当日食べていなかったため');
+ await page.getByRole('button',{name:'直接割当を途中保存'}).click();
+ await expect(page.getByLabel('確定済み請求の訂正理由')).toHaveValue('当日食べていなかったため');
+ await page.getByRole('button',{name:'おやつ請求を確定して集金へ反映'}).click();
+ await expect.poll(()=>shared.state.events[0].billing.household.some(x=>x.buyerId==='hori')).toBe(false);
+ expect(shared.state.events[0].lines[0].used).toBe(10);
+ expect(billingAudit(shared.state,r.id).buyers.find(x=>x.buyerId==='hori').issues).toEqual([]);
+ expect(billingAudit(shared.state,r.id).buyers.find(x=>x.buyerId==='hori')).toMatchObject({expected:2670,knownBag:2770,complete:true});
+ expect(shared.state.collectionEntries).toHaveLength(0);
+ await snackStep(page,'販売用へ振替');await page.getByRole('button',{name:'数量を指定して振替'}).click();
+ await expect(page.getByText('振替可能 1個')).toBeVisible();await setQty(page,'振り替える数量',1);
+ // This isolated product has no master price. Confirm a sales price instead
+ // of trying to bypass the production guard for an unknown price.
+ await page.getByLabel('通常販売価格（1個）').fill('180');
+ await expect(page.getByRole('button',{name:'振り替えて販売用に追加'})).toBeEnabled();
+ await page.getByRole('button',{name:'振り替えて販売用に追加'}).click();
+ await expect.poll(()=>shared.state.stocks.reduce((n,x)=>n+x.qty,0)).toBe(6);
+ for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await page.screenshot({path:`test-results/white-bread-correction-${width}.png`});}
+ await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+ await expect(page.locator('.snack-billing')).toContainText('振替保存済み');
+ await page.locator('.stage-4 > .stage-trigger').click();
+ const row=page.locator('.collection-entry[data-buyer="hori"]');await expect(row).toContainText('2,670');await expect(row.getByRole('button',{name:'全額受取',exact:true})).toBeVisible();
+ await row.getByRole('button',{name:'全額受取',exact:true}).click();
+ await expect.poll(()=>shared.state.collectionEntries.at(-1)?.received).toBe(2670);
+ expect(shared.state.billingReviews[0].bagAmount).toBe(2770);
+ await expect(row.getByRole('button',{name:'全額受取',exact:true})).toHaveCount(0);
+});
+
 test('11/6レビュー Work4：過去の未充当受取を保持して今回分だけを受け取る',async({page,context})=>{
   const shared={state:preparedState(),revision:0};
   const old=newRound(shared.state,'2026-09-11',true);old.collectionLive=true;old.orders.asano={name:'浅野',quantities:{brown:3}};shared.state.rounds.push(old);
@@ -1561,4 +1603,47 @@ test('11/10レビュー：保存済み商品から販売先を直接訂正し、
  await page.getByRole('button',{name:'集計',exact:true}).click();
  await expect(page.locator('main[data-page="集計"] .report-mode button.selected')).toBeVisible();
  await mobileShots(page,'report-blue-theme');
+});
+
+
+test('11/15レビュー：財政の元請求を残して151円の予定・精算実績を再表示する',async({page,context,browserName})=>{
+ const shared={state:preparedState(),revision:0},s=shared.state;
+ const r=newRound(s,'2026-10-16',true);r.status='注文確定';s.rounds.push(r);
+ const e={id:'fiscal-review',roundId:r.id,date:r.date,name:'おやつ用',test:true,entryMode:'round',
+  lines:[{id:'fiscal-apple',name:'りんごデニッシュ',qty:4,used:4,usedConfirmed:true,cost:151}],
+  billing:{label:'おやつ用',fiscal:[{lineId:'fiscal-apple',qty:4}],household:[],groups:[]},
+  fiscalReceipts:[{id:'original-cash',date:r.date,amount:604}]};
+ s.events.push(e);r.eventIds.push(e.id);const original=structuredClone(e);
+ await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+ await page.locator('.snack-usage > details').filter({has:page.locator('.fiscal-adjustment')}).locator('> summary').click();
+ await page.locator('.fiscal-adjustment > summary').click();
+ await page.getByLabel('過剰請求した商品').selectOption('fiscal-apple');
+ await page.getByLabel('過剰請求の理由').fill('1個分を多く請求したため最終精算');
+ await page.getByRole('button',{name:'調整予定を保存',exact:true}).click();
+ await expect(page.locator('.fiscal-adjustment')).toContainText('未調整 151円');
+ expect(shared.state.events[0].billing).toEqual(original.billing);expect(shared.state.events[0].fiscalReceipts).toEqual(original.fiscalReceipts);
+ await page.getByRole('button',{name:'実際の調整を記録'}).click();
+ await page.getByLabel('実際に調整した日').fill('2026-11-15');await page.getByLabel('調整方法',{exact:true}).fill('財政との最終精算で相殺');
+ await page.getByRole('button',{name:'調整済みとして保存'}).click();
+ await expect(page.locator('.fiscal-adjustment')).toContainText('相殺で調整済み');
+ await expect(page.getByRole('button',{name:'実際の調整を記録'})).toHaveCount(0);
+ for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await page.locator('.fiscal-adjustment').scrollIntoViewIfNeeded();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/fiscal-adjustment-${browserName}-${width}.png`});}
+ await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
+ expect(shared.state.events[0].fiscalAdjustments).toHaveLength(1);expect(shared.state.events[0].fiscalAdjustments[0].settlement.amount).toBe(151);
+ expect(shared.state.events[0].billing).toEqual(original.billing);expect(shared.state.events[0].fiscalReceipts).toEqual(original.fiscalReceipts);
+});
+
+test('11/15レビュー：過去の手入力売上を全体線に表示し内訳を作らない',async({page,context,browserName})=>{
+ const shared={state:preparedState(),revision:0},s=shared.state;
+ s.history=[{id:'manual-apr',date:'2026-04-17',revenue:800,cost:500,profit:300,test:false},{id:'manual-aug',date:'2026-08-07',revenue:1200,cost:900,profit:300,test:false}];
+ const r=newRound(s,'2026-09-11',false);r.orders.hori={name:'ホリ',quantities:{brown:1}};r.invoice=100;r.status='精算済み';s.rounds.push(r);
+ const before=structuredClone(s);await backend(context,shared);await login(page);await nav(page,'集計');
+ await page.getByLabel('対象年度（4月〜翌3月）').selectOption('2026');
+ const chart=page.getByRole('region',{name:'注文回別の実績推移'});
+ await chart.getByRole('combobox',{name:/^金額/}).selectOption('revenue');
+ await chart.getByRole('button',{name:'04/17 手入力'}).click();await expect(chart.getByRole('status')).toContainText('全体 800円（過去の手入力実績・内訳なし）');
+ await chart.getByRole('combobox',{name:/^内訳/}).selectOption('method');await expect(chart.getByRole('status')).toContainText('内訳なし');
+ await chart.getByRole('button',{name:'09/11',exact:true}).click();await expect(chart.getByRole('status')).toContainText('全体 430円');
+ for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await chart.scrollIntoViewIfNeeded();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/manual-sales-${browserName}-${width}.png`});}
+ expect(shared.state).toEqual(before);expect(shared.revision).toBe(0);
 });

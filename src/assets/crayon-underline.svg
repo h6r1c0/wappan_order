@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 40" preserveAspectRatio="none">
+  <defs>
+    <filter id="paper" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency=".38 .7" numOctaves="3" seed="17" result="grain"/>
+      <feColorMatrix in="grain" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  2.6 0 0 0 -.6" result="wax"/>
+      <feComposite in="wax" in2="SourceGraphic" operator="in"/>
+    </filter>
+  </defs>
+  <path fill="white" filter="url(#paper)" d="M2 16Q18 12 46 13L139 11Q197 13 254 11L383 10Q442 12 510 10L648 11Q699 9 754 11L864 12Q938 11 998 15L997 27Q940 30 868 28L753 30Q702 28 649 30L511 29Q449 31 383 29L255 30Q197 28 139 30L47 29Q17 30 2 26Z"/>
+</svg>
