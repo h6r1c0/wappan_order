@@ -22,6 +22,17 @@ export function chargeLines(state,roundId,buyerId){
   }
   return lines;
 }
+// A reasoned, confirmed snack correction explains its own change after a
+// billing review. Keep the notified amount; never manufacture cash or a refund.
+function confirmedSnackDelta(state,roundId,buyerId,review){
+ if(review?.status!=='confirmed'||!review.at)return 0;
+ const amount=plan=>(plan?.household||[]).filter(x=>x.buyerId===buyerId).reduce((n,x)=>n+x.qty*x.unitPrice,0);
+ return state.events.filter(e=>e.roundId===roundId).reduce((total,event)=>total+(event.billingHistory||[]).reduce((n,h,i)=>{
+  if(!h.reason?.trim()||!h.at||h.at<review.at)return n;
+  const next=event.billingHistory[i+1]?.billing||event.billing;
+  return n+amount(next)-amount(h.billing);
+ },0),0);
+}
 export function billingAudit(state,roundId){
   const r=state.rounds.find(x=>x.id===roundId),rows=collections(state,'','',roundId,r.test);
   const ids=new Set([...Object.keys(r.orders),...rows.map(x=>x.id)]);
@@ -37,7 +48,8 @@ export function billingAudit(state,roundId){
       if(line.qty>line.ordered||line.qty<0)issues.push({type:'quantity',key:line.key,message:`${line.name}の注文数と受取確定数を確認してください`});
     }
     const explained=additions.filter(x=>x.reason==='商品請求漏れ'&&x.notifiedAmount===knownBag).reduce((n,x)=>n+x.amount,0);
-    if(knownBag!=null&&knownBag!==expected&&expected-knownBag!==explained)issues.push({type:'bag',message:`案内済み ${knownBag.toLocaleString()}円と現在の請求 ${expected.toLocaleString()}円に未確認の差があります`,difference:expected-knownBag});
+    const snackDelta=confirmedSnackDelta(state,roundId,buyerId,review);
+    if(knownBag!=null&&knownBag!==expected&&expected-knownBag!==explained+snackDelta)issues.push({type:'bag',message:`案内済み ${knownBag.toLocaleString()}円と現在の請求 ${expected.toLocaleString()}円に未確認の差があります`,difference:expected-knownBag});
     if(review)for(const l of lines){const prior=review.lines.find(x=>x.key===l.key);if(prior&&prior.qty!==l.qty)issues.push({type:'review-quantity',key:l.key,productId:l.productId,qty:l.qty,message:`${l.name}：受取確定 ${l.qty}個に対し、確認した請求対象 ${prior.qty}個です`});}
     if(review?.status==='pending'&&!(explained>0&&expected-knownBag===explained&&review.exceptionReason==='請求内容を照合中'&&!lines.some(l=>l.qty>0&&(l.unitPrice==null||l.missingProduct))))issues.push({type:'pending',message:`請求は未確定です：${review.exceptionReason}`});
     if(review&&JSON.stringify(review.lines)!==JSON.stringify(lines.map(({key,qty,unitPrice,amount})=>({key,qty,unitPrice,amount}))))issues.push({type:'changed',message:'請求確認後に商品・数量・単価が変わっています'});

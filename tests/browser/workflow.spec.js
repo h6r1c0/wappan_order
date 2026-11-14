@@ -1,3 +1,4 @@
+import {confirmBilling,billingAudit} from '../../src/collection-workflow.js';
 import {PDFDocument} from 'pdf-lib';
 import {installPreviewProbe,openPdf,pdfBytes} from './print-preview-helpers.js';
 import { test, expect } from "@playwright/test";
@@ -1259,7 +1260,7 @@ test('11/15レビュー：確定済み白パン1個の請求を訂正し、余�
  const e={id:'white-event',roundId:r.id,date:r.date,name:'おやつ用',test:true,entryMode:'round',lines:[line],
   billing:{label:'おやつ用',fiscal:[],household:[{buyerId:'hori',lineId:line.id,qty:1,unitPrice:100},{buyerId:'asano',groupId:'white-group',lineId:null,qty:10,unitPrice:100}],
    groups:[{id:'white-group',label:'共通単価',lineIds:[line.id],quantities:{[line.id]:10},unitPrice:100,priceMode:'manual'}]}};
- s.events.push(e);r.eventIds.push(e.id);
+ s.events.push(e);r.eventIds.push(e.id);r.orders.hori={name:'ホリ',quantities:{brown:1}};r.products.find(p=>p.id==='brown').price=2670;confirmBilling(s,r.id,'hori',2770);
  s.stocks.push({id:'white-stock',roundId:r.id,eventId:e.id,eventLineId:line.id,name:line.name,productId:line.productId,qty:5,cost:95,price:180,date:r.date,test:true});
  await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
  await snackStep(page,'個別請求');
@@ -1271,6 +1272,8 @@ test('11/15レビュー：確定済み白パン1個の請求を訂正し、余�
  await page.getByRole('button',{name:'おやつ請求を確定して集金へ反映'}).click();
  await expect.poll(()=>shared.state.events[0].billing.household.some(x=>x.buyerId==='hori')).toBe(false);
  expect(shared.state.events[0].lines[0].used).toBe(10);
+ expect(billingAudit(shared.state,r.id).buyers.find(x=>x.buyerId==='hori')).toMatchObject({expected:2670,knownBag:2770,complete:true});
+ expect(shared.state.collectionEntries).toHaveLength(0);
  await snackStep(page,'販売用へ振替');await page.getByRole('button',{name:'数量を指定して振替'}).click();
  await expect(page.getByText('振替可能 1個')).toBeVisible();await setQty(page,'振り替える数量',1);
  // This isolated product has no master price. Confirm a sales price instead
@@ -1282,6 +1285,8 @@ test('11/15レビュー：確定済み白パン1個の請求を訂正し、余�
  for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await page.screenshot({path:`test-results/white-bread-correction-${width}.png`});}
  await page.reload();await page.locator('.round-list-item').click();await openAfter(page,'おやつの仕分け');
  await expect(page.locator('.snack-billing')).toContainText('振替保存済み');
+ await page.locator('.stage-4 > .stage-trigger').click();
+ const row=page.locator('.collection-entry[data-buyer="hori"]');await expect(row).toContainText('2,670');await expect(row.getByRole('button',{name:'全額受取',exact:true})).toBeVisible();
 });
 
 test('11/6レビュー Work4：過去の未充当受取を保持して今回分だけを受け取る',async({page,context})=>{
@@ -1630,9 +1635,9 @@ test('11/15レビュー：過去の手入力売上を全体線に表示し内訳
  const before=structuredClone(s);await backend(context,shared);await login(page);await nav(page,'集計');
  await page.getByLabel('対象年度（4月〜翌3月）').selectOption('2026');
  const chart=page.getByRole('region',{name:'注文回別の実績推移'});
- await chart.getByLabel('金額',{exact:true}).selectOption('revenue');
+ await chart.getByRole('combobox',{name:/^金額/}).selectOption('revenue');
  await chart.getByRole('button',{name:'04/17 手入力'}).click();await expect(chart.getByRole('status')).toContainText('全体 800円（過去の手入力実績・内訳なし）');
- await chart.getByLabel('内訳',{exact:true}).selectOption('method');await expect(chart.getByRole('status')).toContainText('内訳なし');
+ await chart.getByRole('combobox',{name:/^内訳/}).selectOption('method');await expect(chart.getByRole('status')).toContainText('内訳なし');
  await chart.getByRole('button',{name:'09/11',exact:true}).click();await expect(chart.getByRole('status')).toContainText('全体 430円');
  for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await chart.scrollIntoViewIfNeeded();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/manual-sales-${browserName}-${width}.png`});}
  expect(shared.state).toEqual(before);expect(shared.revision).toBe(0);

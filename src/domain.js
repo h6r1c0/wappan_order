@@ -1,3 +1,4 @@
+import {effectiveReportRows} from './report-series.js';
 import {validateCollectionWorkflow} from './collection-validation.js';
 import {validateCashSettlement} from './cash-settlement.js';
 import { deliveredQuantity, receivedQuantity, validateFulfillment } from './shortages.js';
@@ -696,7 +697,7 @@ export function collectionPosition(s, roundId, buyerId) {
 }
 export function report(s, from, to, year, {includeTest=false} = {}) {
   const inRange = (d) => from <= d && d <= to;
-  const rows = [];
+  let rows = [];
   const pooledSales = new Set();
   for (const r of s.rounds.filter((r) => (includeTest||!r.test) && inRange(r.date) && (Object.keys(r.orders).length || r.invoice!=null))) {
     const combined = roundAccounting(s,r);
@@ -756,6 +757,7 @@ export function report(s, from, to, year, {includeTest=false} = {}) {
       name: h.note || "過去実績",
       profit: h.revenue == null ? h.profit : h.revenue - h.cost,
     });
+  const selected=effectiveReportRows(rows);rows=selected.rows;
   const adjustments = s.adjustments.filter(
     (a) =>
       a.year === Number(year) &&
@@ -767,6 +769,7 @@ export function report(s, from, to, year, {includeTest=false} = {}) {
     adjustment = sum(adjustments.map((a) => a.amount));
   return {
     rows: rows.sort((a, b) => a.date.localeCompare(b.date)),
+    historyOverlaps:selected.overlaps,
     adjustments,
     revenue: sum(rows.map((r) => r.revenue ?? 0)),
     cost: sum(rows.map((r) => r.cost ?? 0)),

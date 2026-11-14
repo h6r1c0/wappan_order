@@ -8,7 +8,7 @@ import {envelopePrintRows,sortingPages,sortingPrintName} from '../src/print-prep
 import {createPrintPdf} from '../src/print-pdf.js';
 import {originBreakdown,roundSeries} from '../src/report-series.js';
 
-test('4〜8月の手入力売上を全体線だけに載せ、詳細取引がある月は二重計上しない',()=>{
+test('4〜8月の手入力売上を全体線だけに載せ、同日詳細取引との重複候補は加算保留する',()=>{
  const s=initialState();
  const manual=[['2026-04-17',800],['2026-04-30',15980],['2026-05-15',17150],['2026-06-12',40560],['2026-07-24',17410],['2026-08-07',10780]];
  s.history=manual.map(([date,revenue],i)=>({id:`manual-${i}`,date,revenue,cost:0,profit:revenue,test:false}));
@@ -22,6 +22,17 @@ test('4〜8月の手入力売上を全体線だけに載せ、詳細取引があ
  const detailed={id:'detail',date:'2026-09-11',type:'販売用商品',revenue:300,profit:100};
  assert.equal(roundSeries([...rows,duplicate,detailed],[r],s,'revenue','method').find(x=>x.date===r.date).total,300);
  assert.equal(Object.values(roundSeries([...rows,duplicate,detailed],[r],s,'revenue','method').find(x=>x.date===r.date).parts).reduce((n,x)=>n+x,0),300);
+});
+
+test('同月別日の手入力を落とさず、同日重複候補は年度・月別・グラフで同じく保留する',()=>{
+ const s=initialState(),r=newRound(s,'2026-09-11',false);s.rounds.push(r);
+ r.orders.hori={name:'堀',quantities:{brown:1}};r.products.find(p=>p.id==='brown').price=430;
+ s.history=[{id:'earlier',date:'2026-09-01',revenue:800,cost:500,test:false},{id:'overlap',date:r.date,revenue:999,cost:600,test:false}];
+ const original=structuredClone(s),annual=report(s,'2026-04-01','2027-03-31',2026),monthly=report(s,'2026-09-01','2026-09-30',2026);
+ assert.equal(annual.revenue,1230);assert.equal(monthly.revenue,1230);
+ assert.equal(annual.historyOverlaps[0].id,'overlap');
+ const points=roundSeries(annual.rows,[r],s,'revenue');assert.equal(points.reduce((n,p)=>n+p.total,0),annual.revenue);
+ assert.equal(points.find(p=>p.date==='2026-09-01').total,800);assert.deepEqual(s,original);
 });
 
 test('当該回の個人請求だけをラベルへ印刷し、商品由来と販売方法を別に集計',async()=>{

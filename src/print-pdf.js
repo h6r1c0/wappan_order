@@ -124,10 +124,22 @@ export async function createPrintPdf(model,fontBytes) {
           productTop+=parts.length*4.5+1;
         }
         if(model.kind==='envelopes'){
-          const staff=model.staff||'担当者',end=x+43.45-font.widthOfTextAtSize('まで',8)/mm(1);
-          const staffY=Math.min(y+h-3,productTop+6);
-          text(page,`${staff}まで`,x+43.45,staffY,8,{right:true});
-          line(page,end-font.widthOfTextAtSize(staff,8)/mm(1),staffY+1,end,staffY+1,{gray:.45,width:.31});
+          const staff=model.staff||'担当者',suffixSize=7;
+          const end=x+43.45-font.widthOfTextAtSize('まで',suffixSize)/mm(1);
+          const staffY=Math.min(y+h-3,productTop+6),staffWidth=font.widthOfTextAtSize(staff,8)/mm(1);
+          text(page,'まで',x+43.45,staffY,suffixSize,{right:true});
+          text(page,staff,end,staffY,8,{right:true,bold:true});
+          // Fine, broken wax strands keep the underline almost straight and
+          // reproduce light paper grain without a solid bar or zigzag.
+          for(let strand=0;strand<4;strand++){
+            let pos=0,step=0;
+            while(pos<staffWidth){
+              const length=Math.min(staffWidth-pos,1.8+((step*7+strand*11)%13)/9);
+              const base=staffY+.75+strand*.10;
+              line(page,end-staffWidth+pos,base,end-staffWidth+pos+length,base+.025*Math.sin(step+strand),{gray:.46+strand*.045,width:.075});
+              pos+=length+.06+((step*3+strand)%5)*.03;step++;
+            }
+          }
         }
       }
     }

@@ -123,6 +123,7 @@ export function Reports() {
         onClick={()=>setTab(tab==='過去実績・調整'?'利益':'過去実績・調整')}>管理・補正：過去実績・調整 {tab==='過去実績・調整'?'▾':'›'}</button>
       {tab === "利益" && (
         <>
+          {!!data.historyOverlaps?.length&&<p className="notice" role="alert">同日に詳細取引がある手入力実績 {data.historyOverlaps.length}件は、重複を避けるため合計・グラフへの加算を保留しています。元の記録は「過去実績・調整」に残っています。対象日：{[...new Set(data.historyOverlaps.map(r=>r.date))].join('、')}</p>}
           <OriginSummary rows={data.rows} state={state} totalRevenue={data.revenue} adjustment={data.adjustment}/>
           <RoundLineChart points={roundSeries(data.rows,state.rounds.filter(r=>r.date>=start&&r.date<=end&&(includeTest||!r.test)),state,chartMetric,chartGroup)} metric={chartMetric} onMetric={setChartMetric} group={chartGroup} onGroup={setChartGroup} selected={chartPoint} onSelect={setChartPoint}/>
           <div className="report-totals">

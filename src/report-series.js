@@ -5,14 +5,20 @@ export function originBreakdown(rows,state){
  for(const row of rows){const bucket=result[originOf(row,state)];bucket.revenue+=row.revenue||0;bucket.profit+=row.profit||0;}
  return result;
 }
+// A date collision is a possible overlap, not proof that the manual entry
+// can be deleted. Keep it available for review and use detail once in totals.
+export function effectiveReportRows(rows){
+ const detailedDates=new Set(rows.filter(r=>r.type!=='過去実績'&&r.type!=='外部販売経費'&&(r.revenue>0||r.cost>0)).map(r=>r.date));
+ const overlaps=rows.filter(r=>r.type==='過去実績'&&detailedDates.has(r.date));
+ const overlapIds=new Set(overlaps);
+ return {rows:rows.filter(r=>!overlapIds.has(r)),overlaps};
+}
 export function roundSeries(rows,rounds,state,metric='profit',group='origin'){
- // The older, manually entered results are dated snapshots. They have no
- // trustworthy product or sales-method split, so only the total line uses them.
- // When detailed transactions exist in that month, avoid counting a manual
- // snapshot for the same period a second time.
- const detailedMonths=new Set(rows.filter(r=>r.type!=='過去実績').map(r=>r.date?.slice(0,7)));
- const eligible=rows.filter(r=>r.type!=='過去実績'||!detailedMonths.has(r.date?.slice(0,7)));
- const dates=[...new Set([...rounds.map(r=>r.date),...eligible.filter(r=>r.type==='過去実績'&&r[metric]!=null).map(r=>r.date)])].sort();
+ // Manual totals have no trustworthy product or sales-method split. Use the
+ // same overlap selection as the annual/monthly report, at date granularity:
+ // another sale in the same month does not erase an earlier manual result.
+ const {rows:eligible}=effectiveReportRows(rows);
+ const dates=[...new Set([...rounds.map(r=>r.date),...eligible.filter(r=>r[metric]!=null).map(r=>r.date)])].sort();
  return dates.map(date=>{
   const matches=eligible.filter(r=>r.date===date);
   const parts={};let total=0;
