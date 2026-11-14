@@ -39,6 +39,7 @@ test('確定後の白パン1個を理由付きで外し、請求再確定後の�
  assert.equal(collectionPosition(s,r.id,'sato').current,2670);
  assert.deepEqual(s.billingReviews[0],notified);
  assert.deepEqual(billingAudit(s,r.id).buyers.find(x=>x.buyerId==='sato').issues,[]);
+ assert.equal(billingAudit(s,r.id).buyers.find(x=>x.buyerId==='sato').snackCorrectionExplained,true);
  assert.equal(envelopePrintRows(s,r).find(x=>x.id==='sato').billAmount,2670);
  assert.equal(envelopePrintRows(s,r).find(x=>x.id==='sato').billPending,false);
  assert.equal(s.collectionEntries.length,0);assert.equal((s.collectionCredits||[]).length,0);

@@ -53,7 +53,7 @@ export function billingAudit(state,roundId){
     if(review)for(const l of lines){const prior=review.lines.find(x=>x.key===l.key);if(prior&&prior.qty!==l.qty)issues.push({type:'review-quantity',key:l.key,productId:l.productId,qty:l.qty,message:`${l.name}：受取確定 ${l.qty}個に対し、確認した請求対象 ${prior.qty}個です`});}
     if(review?.status==='pending'&&!(explained>0&&expected-knownBag===explained&&review.exceptionReason==='請求内容を照合中'&&!lines.some(l=>l.qty>0&&(l.unitPrice==null||l.missingProduct))))issues.push({type:'pending',message:`請求は未確定です：${review.exceptionReason}`});
     if(review&&JSON.stringify(review.lines)!==JSON.stringify(lines.map(({key,qty,unitPrice,amount})=>({key,qty,unitPrice,amount}))))issues.push({type:'changed',message:'請求確認後に商品・数量・単価が変わっています'});
-    return {buyerId,current,name:state.buyers.find(x=>x.id===buyerId)?.name||r.orders[buyerId]?.name,lines,expected,knownBag,review,issues,complete:!issues.length};
+    return {buyerId,current,name:state.buyers.find(x=>x.id===buyerId)?.name||r.orders[buyerId]?.name,lines,expected,knownBag,review,issues,snackCorrectionExplained:snackDelta!==0&&expected-knownBag===explained+snackDelta,complete:!issues.length};
   });
   const stocks=state.stocks.filter(x=>x.roundId===roundId).map(stock=>({stock,...stockAllocation(state,stock)}));
   return {buyers,issues:buyers.flatMap(b=>b.issues.map(x=>({...x,buyerId:b.buyerId,name:b.name}))),stocks};

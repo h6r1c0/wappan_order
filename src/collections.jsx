@@ -33,10 +33,10 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
   const knownQuick=position.balance>0&&!position.unallocated&&!pending&&!audit?.issues.length&&dueOptions.length>0;
   const currentDue=dueOptions.filter(x=>x.roundId===round.id);
   const pastDue=dueOptions.filter(x=>x.roundId!==round.id);
-  const singleQuick=knownQuick&&dueOptions.length===1&&!(position.received===0&&audit?.knownBag!=null&&audit.knownBag!==audit.expected);
+  const singleQuick=knownQuick&&dueOptions.length===1&&!(position.received===0&&audit?.knownBag!=null&&audit.knownBag!==audit.expected&&!audit.snackCorrectionExplained);
   const separateQuick=knownQuick&&currentDue.length===1&&pastDue.length===1;
   const currentQuick=!singleQuick&&!separateQuick&&position.balance>0&&!pending&&!audit?.issues.length&&
-    !(position.received===0&&audit?.knownBag!=null&&audit.knownBag!==audit.expected)&&currentDue.length===1&&
+    !(position.received===0&&audit?.knownBag!=null&&audit.knownBag!==audit.expected&&!audit.snackCorrectionExplained)&&currentDue.length===1&&
     canReceiveDueItem(state,round.id,buyer.id,currentDue[0]);
   const act=async(fn,description)=>{if(busy)return false;setBusy(true);try{return await save(fn,description);}finally{setBusy(false);}};
   const afterSave=()=>{setReceived(null);setReason('');setOpen(false);setInvestigate(false);request.current=uid();onDone(buyer.id,false);};

@@ -1288,6 +1288,10 @@ test('11/15レビュー：確定済み白パン1個の請求を訂正し、余�
  await expect(page.locator('.snack-billing')).toContainText('振替保存済み');
  await page.locator('.stage-4 > .stage-trigger').click();
  const row=page.locator('.collection-entry[data-buyer="hori"]');await expect(row).toContainText('2,670');await expect(row.getByRole('button',{name:'全額受取',exact:true})).toBeVisible();
+ await row.getByRole('button',{name:'全額受取',exact:true}).click();
+ await expect.poll(()=>shared.state.collectionEntries.at(-1)?.received).toBe(2670);
+ expect(shared.state.billingReviews[0].bagAmount).toBe(2770);
+ await expect(row.getByRole('button',{name:'全額受取',exact:true})).toHaveCount(0);
 });
 
 test('11/6レビュー Work4：過去の未充当受取を保持して今回分だけを受け取る',async({page,context})=>{
