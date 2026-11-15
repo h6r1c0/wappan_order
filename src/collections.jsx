@@ -190,7 +190,7 @@ export function RoundCollections({round,rows,sessions={},onDraft,onSource,initia
       :<details className="billing-audit billing-audit-done" aria-label="集金前の自動照合"><summary>請求照合済み <span>販売用・印刷 ›</span></summary><p>注文・受取確定数・単価を照合しました。</p>{auditDetails}</details>}
     <div className="collection-list-heading"><strong>{activeIds.length===sorted.filter(id=>collectionPosition(state,round.id,id).balance>0).length?'未受取':'未受取・要確認'} {activeIds.length}人</strong><small>集金予定額</small></div>
     {activeIds.map(id=>{const buyer=state.buyers.find(x=>x.id===id);return buyer&&<BuyerCollection key={id} round={round} buyer={buyer} row={rows.find(x=>x.id===id)} focus={focus} onDone={next} onOpen={go} session={sessions[id]} onDraft={onDraft} onSource={onSource} recentReceipt={recentReceipt} onRecent={setRecentReceipt}/>;})}
-    <details className="collection-completed"><summary>受取済み・過去分の登録（{settledIds.length}人）</summary>
+    <details className="collection-completed" open={settledIds.includes(focus)||undefined}><summary>受取済み・過去分の登録（{settledIds.length}人）</summary>
       {settledIds.map(id=>{const buyer=state.buyers.find(x=>x.id===id);return buyer&&<BuyerCollection key={id} round={round} buyer={buyer} row={rows.find(x=>x.id===id)} focus={focus} onDone={next} onOpen={go} session={sessions[id]} onDraft={onDraft} onSource={onSource} recentReceipt={recentReceipt} onRecent={setRecentReceipt}/>;})}</details>
   </div>;
 }

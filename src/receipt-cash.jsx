@@ -3,18 +3,18 @@ import {collectionDueItems,uid,today,yen} from './domain.js';
 import {collectionCashLedger,allocateReceivedCash,refundReceivedCash} from './receipt-cash.js';
 import {useApp,Button,Field,Money} from './ui.jsx';
 export function ReceiptCash({round,buyer}){
- const {state,save}=useApp(),ledger=collectionCashLedger(state,round.id,buyer.id);
+ const {state,save,notify}=useApp(),ledger=collectionCashLedger(state,round.id,buyer.id);
  const [editing,setEditing]=useState(''),[amounts,setAmounts]=useState({}),[purpose,setPurpose]=useState('refund-pending'),[reason,setReason]=useState('受取済み現金の充当先と残額を確認');
  const [refunding,setRefunding]=useState(''),[refund,setRefund]=useState(null),[date,setDate]=useState(today()),[confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
  const request=useRef(uid()),selected=ledger.receipts.find(x=>x.entry.id===editing);
  const probe=selected?{...state,collectionEntries:state.collectionEntries.filter(x=>x.id!==editing&&x.sourceReceiptId!==editing),collectionAllocations:(state.collectionAllocations||[]).filter(x=>x.entryId!==editing)}:null;
  const claims=probe?collectionDueItems(probe,ledger.latestRoundId,buyer.id).items.filter(x=>x.balance>0):[];
  const total=Object.values(amounts).reduce((n,x)=>n+(x||0),0),left=selected?selected.entry.received-total:0;
- const run=async(fn,description,success)=>{if(busy)return;setBusy(true);setError('');try{if(await save(fn,description)){setMessage(success);setEditing('');setRefunding('');request.current=uid();}}catch(e){setError(e.message);}finally{setBusy(false);}};
+ const run=async(fn,description,success)=>{if(busy)return;setBusy(true);setError('');try{if(await save(fn,description)){notify(success);setMessage(success);setEditing('');setRefunding('');request.current=uid();}}catch(e){setError(e.message);}finally{setBusy(false);}};
  const begin=cash=>{setEditing(cash.entry.id);setAmounts(Object.fromEntries(cash.parts.map(p=>[p.itemId,p.amount])));setPurpose(cash.allocation?.heldPurpose||'refund-pending');setError('');setMessage('');request.current=uid();};
  if(!ledger.receipts.length&&!ledger.refunded)return null;
  return <section className="receipt-cash" aria-label="受取済み現金と充当"><h3>受取済み現金と充当</h3><p>関連する注文回をまとめて表示。充当は、新しい現金受取ではありません。</p>
- <dl className="cash-totals"><div><dt>受取総額</dt><dd>{yen(ledger.received)}</dd></div><div><dt>請求に充当済み</dt><dd>{yen(ledger.allocated)}</dd></div><div><dt>未充当・預かり</dt><dd>{yen(Math.max(0,ledger.remaining-ledger.refundPending))}</dd></div><div><dt>返金待ち</dt><dd>{yen(ledger.refundPending)}</dd></div><div><dt>返金済み</dt><dd>{yen(ledger.refunded)}</dd></div></dl>
+ <dl className="cash-totals"><div><dt>受取総額</dt><dd>{yen(ledger.received)}</dd></div><div><dt>請求に充当済み</dt><dd>{ledger.unlinkedRefund?'要照合':yen(ledger.allocated)}</dd></div><div><dt>未充当・預かり</dt><dd>{ledger.unlinkedRefund?'要照合':yen(Math.max(0,ledger.remaining-ledger.refundPending))}</dd></div><div><dt>返金待ち</dt><dd>{yen(ledger.refundPending)}</dd></div><div><dt>返金済み</dt><dd>{yen(ledger.refunded)}</dd></div></dl>
  {ledger.unlinkedRefund&&<p className="notice">返金元が未確認の古い返金があります。履歴を照合してから充当・返金を訂正してください。</p>}
  {ledger.receipts.map(cash=><details key={cash.entry.id} open={editing===cash.entry.id||refunding===cash.entry.id?true:undefined}><summary>{cash.entry.date} 受取 {yen(cash.entry.received)} ／ {cash.refundPending?'返金待ち':'未充当'} {yen(cash.remaining)}</summary>
  <small>記録した注文回：{state.rounds.find(x=>x.id===cash.entry.roundId)?.date} ／ 充当 {yen(cash.allocated)} ／ 返金済み {yen(cash.refunded)}</small>

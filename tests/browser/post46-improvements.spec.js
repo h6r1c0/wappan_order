@@ -4,9 +4,9 @@ import {backend,login,openAfter,closeToast,nav} from './workflow-helpers.js';
 for(const width of [320,375,430])test(`${width}px：外部販売は選択・紙照合・確認後にだけ保存し、現金受取を作らない`,async({browser})=>{
  const context=await browser.newContext({viewport:{width,height:812}}),page=await context.newPage();const state=initialState(),r=newRound(state,'2026-10-16',true);state.rounds.push(r);r.status='納品済み';r.shortageConfirmation='none';r.invoice=0;
  const stock={id:'bread',roundId:r.id,date:r.date,name:'天然酵母ハイジの白パン',qty:9,price:120,cost:95,test:true};state.stocks.push(stock);r.stockIds.push(stock.id);addSale(state,stock,{qty:2,price:120,date:r.date,destinationType:'buyer',buyerId:'hori',paymentStatus:'later',chargeRoundId:r.id});const shared={state,revision:0};
- try{await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売用の仕分け');
+ try{await backend(context,shared);await login(page);await page.locator('.round-list-item').click();await openAfter(page,'販売用の仕分け');await page.getByRole('button',{name:'商品から複数人へ割当',exact:true}).click();
  await page.getByRole('button',{name:'未割当を一括で外部販売へ'}).click();const panel=page.getByRole('region',{name:'外部販売の一括確認'});await expect(panel).toBeVisible();expect(shared.revision).toBe(0);
- await panel.getByLabel('天然酵母ハイジの白パン',{exact:true}).check();await panel.getByLabel('外部販売の日',{exact:true}).fill('2026-10-18');await panel.getByLabel('紙の販売合計（照合用・任意）').fill('12620');await expect(panel.getByRole('status')).toContainText('-11,780円');
+ await panel.getByLabel('天然酵母ハイジの白パン',{exact:true}).check();await panel.getByLabel('新しく登録する外部販売の日',{exact:true}).fill('2026-10-18');await panel.getByLabel('紙の販売合計（照合用・任意）').fill('12620');await expect(panel.getByRole('status')).toContainText('-11,780円');
  await panel.getByLabel('商品・数量・単価を実際の販売記録と照合しました').check();await panel.getByRole('button',{name:'確認した商品だけ割当を保存'}).click();await expect.poll(()=>shared.revision).toBe(1);expect(shared.state.sales).toHaveLength(2);expect(shared.state.sales.at(-1).qty).toBe(7);expect(shared.state.externalCashReceipts?.length||0).toBe(0);expect(shared.state.collectionEntries).toHaveLength(0);await closeToast(page);await page.screenshot({path:`test-results/post46-external-${browser.browserType().name()}-${width}.png`,fullPage:true});
  }finally{await context.close();}
 });

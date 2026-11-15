@@ -24,7 +24,7 @@ for(const width of [320,375,430])test(`${width}px：取消済み現金と後日�
   await row.getByRole('button',{name:'この現金を請求へ充当・残額を指定'}).click();
   await row.getByLabel(/2026-10-16の請求へ充当/).fill('100');
   await row.getByRole('button',{name:'充当と残額を保存'}).click();
-  await expect(row.getByRole('status').filter({hasText:'1,050円を返金待ち'})).toBeVisible();
+  await expect(page.getByRole('status').filter({hasText:'1,050円を返金待ち'})).toBeVisible();
   await page.reload();
   await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
   await page.locator('.stage-4 > .stage-trigger').click();
