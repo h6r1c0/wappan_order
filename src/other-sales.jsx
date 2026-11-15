@@ -44,7 +44,7 @@ export function OtherSales({round,query='',showAllocations=true}){
           if(confirm('この販売実績を取り消しますか？')&&await save(s=>voidOtherSale(s,editing,reason),'その他の販売を取消'))setDraft(null);
         }}>記録を取り消す</button>}</div>
     </div>}
-    {sales.map(x=><div className="other-sale-row" key={x.id}><span>{x.date} {x.name} ×{x.qty}<small>{x.paymentStatus==='paid'?'受取済み':`個人請求 ${(x.allocations||[]).reduce((n,a)=>n+a.qty,0)}個 ／ 支払い済み・外部販売 ${x.paidExternalQty||0}個 ／ 割当待ち ${x.qty-(x.allocations||[]).reduce((n,a)=>n+a.qty,0)-(x.paidExternalQty||0)}個`}</small></span>
+    {sales.map(x=><div className="other-sale-row" key={x.id}><span>{x.date} {x.name} ×{x.qty}<small>{x.paymentStatus==='paid'?'受取済み':`個人請求 ${(x.allocations||[]).reduce((n,a)=>n+a.qty,0)}個 ／ 支払済・外部販売 ${x.paidExternalQty||0}個 ／ 割当待ち ${x.qty-(x.allocations||[]).reduce((n,a)=>n+a.qty,0)-(x.paidExternalQty||0)}個`}</small></span>
       <strong>{yen(x.qty*(x.unitPrice-x.unitCost))}</strong><button type="button" className="text-action" onClick={()=>choose(x)}>編集 ›</button>
       {showAllocations&&x.paymentStatus==='unpaid'&&round&&<OtherAllocation key={x.id} sale={x} round={round}/>}</div>)}
   </details>;

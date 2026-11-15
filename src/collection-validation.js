@@ -30,7 +30,17 @@ export function validateCollectionWorkflow(s){
   if(!Array.isArray(allocations)||new Set(allocations.map(x=>x.id)).size!==allocations.length||new Set(allocations.map(x=>x.entryId)).size!==allocations.length)throw Error('受取の充当履歴が不正です');
   for(const x of allocations){
     const entry=(s.collectionEntries||[]).find(e=>e.id===x.entryId&&e.roundId===x.roundId&&e.buyerId===x.buyerId&&e.received>0);
-    const target=s.rounds.find(r=>r.id===x.roundId),ids=new Set([...(s.receivableItems||[]).filter(i=>i.buyerId===x.buyerId).map(i=>i.id),...s.rounds.filter(r=>r.date<=target?.date).map(r=>`round:${r.id}:${x.buyerId}`)]);
-    if(!x.id||!entry||!Array.isArray(x.parts)||!x.parts.length||new Set(x.parts.map(p=>p.itemId)).size!==x.parts.length||x.parts.reduce((n,p)=>n+p.amount,0)!==entry.received||x.parts.some(p=>!amount(p.amount)||!p.amount||!ids.has(p.itemId)))throw Error('受取の充当先と金額が一致しません');
+    const target=s.rounds.find(r=>r.id===x.roundId),ids=new Set([...(s.receivableItems||[]).filter(i=>i.buyerId===x.buyerId).map(i=>i.id),...s.rounds.filter(r=>(x.held!=null?(r.test===target?.test||r.collectionLive):r.date<=target?.date)).map(r=>`round:${r.id}:${x.buyerId}`)]);
+    if(!x.id||!entry||!Array.isArray(x.parts)||(!x.parts.length&&!(x.held>0))||new Set(x.parts.map(p=>p.itemId)).size!==x.parts.length||x.parts.reduce((n,p)=>n+p.amount,0)+(x.held||0)!==entry.received||!amount(x.held||0)||x.held>0&&!['credit','refund-pending'].includes(x.heldPurpose)||x.parts.some(p=>!amount(p.amount)||!p.amount||!ids.has(p.itemId)))throw Error('受取の充当先と金額が一致しません');
+  }
+  for(const e of s.collectionEntries||[]){
+    if(!e.sourceReceiptId)continue;
+    const original=s.collectionEntries.find(x=>x.id===e.sourceReceiptId&&x.received>0&&x.buyerId===e.buyerId&&x.roundId===e.roundId);
+    if(!original||e.received>=0||e.reason!=='返金がある')throw Error('返金元の受取記録を確認してください');
+  }
+  const active=(s.collectionEntries||[]).filter(x=>!(s.collectionCorrections||[]).some(c=>c.kind==='collectionEntries'&&c.targetId===x.id));
+  for(const e of active.filter(x=>x.received>0)){
+    const a=allocations.find(x=>x.entryId===e.id),refund=active.filter(x=>x.sourceReceiptId===e.id).reduce((n,x)=>n-x.received,0);
+    if(refund>(a?.held??e.received))throw Error('返金額が未充当の現金を超えています');
   }
 }

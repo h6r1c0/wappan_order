@@ -518,16 +518,20 @@ function OriginSummary({rows,state,totalRevenue,adjustment}){
  </details>;
 }
 function RoundLineChart({points,metric,onMetric,group,onGroup,selected,onSelect}){
- const values=points.flatMap(p=>[p.total,...Object.values(p.parts)]),low=Math.min(0,...values),high=Math.max(1,...values),
-  x=i=>24+(points.length<2?138:i*276/(points.length-1)),y=v=>142-(v-low)/(high-low)*115;
- const groups=[...new Set(points.flatMap(p=>Object.keys(p.parts)))],colors=['#168060','#d07034','#6273a7','#ab6678','#7d7d7d'];
+ const values=points.flatMap(p=>[p.total,...Object.values(p.parts)]),min=Math.min(0,...values),max=Math.max(1,...values);
+ const raw=(max-min)/4,power=10**Math.floor(Math.log10(raw)),step=[1,2,5,10].map(n=>n*power).find(n=>n>=raw)||power*10;
+ const low=Math.floor(min/step)*step,high=Math.max(low+step,Math.ceil(max/step)*step),ticks=Array.from({length:Math.round((high-low)/step)+1},(_,i)=>low+i*step);
+ const x=i=>64+(points.length<2?133:i*266/(points.length-1)),y=v=>164-(v-low)/(high-low)*132;
+ const groups=[...new Set(points.flatMap(p=>Object.keys(p.parts)))],colors=['#087b69','#b9561e','#7350a1','#b03964','#667167'];
  return <section className="round-chart" aria-label="注文回別の実績推移"><h3>注文回別の推移</h3>
-   <div className="round-chart-controls"><label>金額 <select value={metric} onChange={e=>onMetric(e.target.value)}><option value="profit">利益</option><option value="revenue">売上</option></select></label><label>内訳 <select value={group} onChange={e=>onGroup(e.target.value)}><option value="origin">商品由来別</option><option value="method">販売方法別</option></select></label></div>
-   <div className="round-chart-plot"><svg viewBox="0 0 324 172" role="img" aria-label={`${metric==='profit'?'利益':'売上'}の注文回別折れ線グラフ`}>
-    <line x1="24" x2="300" y1={y(0)} y2={y(0)} stroke="#bbc5bf"/>
+   <div className="round-chart-controls"><label>金額 <select aria-label="金額" value={metric} onChange={e=>onMetric(e.target.value)}><option value="profit">利益</option><option value="revenue">売上</option></select></label><label>内訳 <select aria-label="内訳" value={group} onChange={e=>onGroup(e.target.value)}><option value="origin">商品由来別</option><option value="method">販売方法別</option></select></label></div>
+   <div className="round-chart-plot"><svg viewBox="0 0 354 198" role="group" aria-label={`${metric==='profit'?'利益':'売上'}の注文回別折れ線グラフ`}>
+    <text x="4" y="15" fontSize="11" fill="#364a55">金額（円）</text>
+    {ticks.map(t=><g key={t}><line x1="64" x2="330" y1={y(t)} y2={y(t)} stroke={t===0?'#879b9d':'#d9e1e1'} strokeDasharray={t===0?undefined:'3 3'}/><text x="58" y={y(t)+4} textAnchor="end" fontSize="12" fill="#364a55">{t.toLocaleString('ja-JP')}</text></g>)}
+    <text x="197" y="194" textAnchor="middle" fontSize="11" fill="#364a55">注文日</text>
     {groups.map((g,n)=><g key={g} fill="none" stroke={colors[n%colors.length]} strokeWidth="1.3">{points.slice(1).map((p,i)=>!p.manual&&!points[i].manual&&g in p.parts&&g in points[i].parts?<line key={i} x1={x(i)} y1={y(points[i].parts[g])} x2={x(i+1)} y2={y(p.parts[g])}/>:null)}</g>)}
     <polyline fill="none" stroke="#273f51" strokeWidth="3.3" points={points.map((p,i)=>`${x(i)},${y(p.total)}`).join(' ')}/>
-    {points.map((p,i)=><circle key={p.date} cx={x(i)} cy={y(p.total)} r="4" fill="#273f51"/>)}
+    {points.map((p,i)=><g key={p.date} role="button" tabIndex="0" aria-label={`${p.date} ${yen(p.total)}の内訳`} onClick={()=>onSelect(p.date)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSelect(p.date);}}}><title>{p.date} {yen(p.total)}</title><circle cx={x(i)} cy={y(p.total)} r="14" fill="transparent"/><circle cx={x(i)} cy={y(p.total)} r={selected===p.date?6:4} fill="#273f51"/></g>)}
    </svg></div>
    <div className="round-chart-dates">{points.map(p=><button type="button" className={selected===p.date?'selected':''} key={p.date} onClick={()=>onSelect(p.date)}>{p.date.slice(5).replace('-','/')}{p.manual?' 手入力':''}</button>)}</div>
    {points.find(p=>p.date===selected)&&<p role="status">{selected}　全体 {yen(points.find(p=>p.date===selected).total)}{points.find(p=>p.date===selected).manual?'（過去の手入力実績・内訳なし）':''}{points.find(p=>p.date===selected).unconfirmed?'（暫定・未確定を除く）':''}<br/>{Object.entries(points.find(p=>p.date===selected).parts).map(([name,value])=>`${name} ${yen(value)}`).join(' ／ ')}</p>}

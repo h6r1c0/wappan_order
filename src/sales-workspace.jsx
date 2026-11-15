@@ -1,3 +1,4 @@
+import {ExternalBatch} from './external-batch.jsx';
 import React,{useState,useRef} from 'react';
 import {addSale,assignUnknownSale,stockRemaining,stockAllocation,today,yen,normalize,collections} from './domain';
 import {useApp,Button,BuyerPicker,Field,Empty,Qty,Money,buyerCompare} from './ui';
@@ -89,7 +90,7 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory,onEditSale}){
     else if(current.stock){for(const [id,qty] of Object.entries(grid))if(qty>0)applyStock(next,current.stock,qty,id);if(externalQty)applyStock(next,current.stock,externalQty,null);}
     else applyOther(next,current.other,rows,true);
    }else for(const x of selection){const qty=buyerDraft[x.key];if(qty>x.left)throw Error(x.name+'の残数が変わりました');
-    if(x.stock)applyStock(next,x.stock,qty,destinationType==='buyer'?buyerId:null);else if(destinationType==='external')replaceOtherDistribution(next,x.other.id,x.other.allocations||[],(x.other.paidExternalQty||0)+qty,'支払い済み・外部販売を割当');else applyOther(next,x.other,[{buyerId,qty}],false);}
+    if(x.stock)applyStock(next,x.stock,qty,destinationType==='buyer'?buyerId:null);else if(destinationType==='external')replaceOtherDistribution(next,x.other.id,x.other.allocations||[],(x.other.paidExternalQty||0)+qty,'支払済・外部販売を割当');else applyOther(next,x.other,[{buyerId,qty}],false);}
   };
   busy.current=true;setSaving(true);setError('');
   try{action(structuredClone(state));if(await save(action,'販売先と数量をまとめて割り当て')){
@@ -124,7 +125,7 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory,onEditSale}){
      {current.left>0||current.other?<button type="button" className="text-action new-allocation-toggle" onClick={()=>setNewAllocation(v=>!v)} aria-expanded={newAllocation}>{current.other&&current.left===0?'保存済みの数量を訂正':newAllocation?'新規割当を閉じる':'新たに割り当てる'} {newAllocation?'⌄':'›'}</button>:null}
      {newAllocation&&<><h4 className="new-allocation-heading">{current.other&&current.left===0?'保存済みの割当を訂正':'新しい割当（未保存）'}</h4>
        <BuyerQuantityGrid buyers={state.buyers} test={round?.test} value={grid} onChange={v=>{setGrids({...grids,[picked]:v});setNotice('');}} name={current.name} max={current.other?current.other.qty:current.left}/>
-       <div className="external-in-product"><Qty label="支払い済み・外部販売" value={externalQty} min={0} max={Math.max(0,current.other?current.other.qty-total:current.left-total)} onChange={setExternalQty}/>{current.stock&&<Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field>}</div>
+       <div className="external-in-product"><Qty label="支払済・外部販売" value={externalQty} min={0} max={Math.max(0,current.other?current.other.qty-total:current.left-total)} onChange={setExternalQty}/>{current.stock&&<Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field>}</div>
        <p>今回の入力 {total+externalQty}個 ／ 保存後の残り {current.other?current.other.qty-total-externalQty:current.left-total-externalQty}個</p>
        {correction&&<Field label="保存済みの割当を訂正・取消する理由"><input value={reason} onChange={e=>setReason(e.target.value)}/></Field>}
        {(current.stock&&total+externalQty>current.left||current.other&&total+externalQty>current.other.qty)&&<p role="alert">在庫・販売数量を超えています。</p>}
@@ -134,8 +135,8 @@ export function SalesWorkspace({stocks,roundId,mode,onHistory,onEditSale}){
      {current.stock&&<button type="button" className="text-action" onClick={()=>onHistory(current.stock)}>販売履歴と商品情報</button>}
     </section>;
  return <section className={'sales-workspace sales-workspace-'+mode} data-unsaved={(current?.other?externalQty!==(current.other.paidExternalQty||0):externalQty>0)||Object.values(buyerDrafts).some(d=>Object.values(d).some(Boolean))||Object.entries(grids).some(([key,v])=>key.startsWith('other:')?(()=>{const sale=others.find(x=>'other:'+x.id===key);return sale&&Object.entries(v).some(([id,qty])=>qty!==((sale.allocations||[]).find(a=>a.buyerId===id)?.qty||0))})():Object.values(v).some(Boolean))}>
-  {notice&&<p role="status">{notice}</p>}
-  {mode==='buyer'&&<><h3>販売先から割当</h3><div className="choice-grid" aria-label="販売先種別"><Button secondary={destinationType!=='buyer'} onClick={()=>setDestinationType('buyer')}>個人に請求</Button><Button secondary={destinationType!=='external'} onClick={()=>setDestinationType('external')}>支払い済み</Button></div>{destinationType==='buyer'?<BuyerPicker value={buyerId} onChange={setBuyerId} includeTest={round?.test}/>:<Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field>}</>}
+  {notice&&<p role="status">{notice}</p>}{mode==='product'&&<ExternalBatch key={roundId} roundId={roundId}/>}
+  {mode==='buyer'&&<><h3>販売先から割当</h3><div className="choice-grid" aria-label="販売先種別"><Button secondary={destinationType!=='buyer'} onClick={()=>setDestinationType('buyer')}>個人に請求</Button><Button secondary={destinationType!=='external'} onClick={()=>setDestinationType('external')}>支払済</Button></div>{destinationType==='buyer'?<BuyerPicker value={buyerId} onChange={setBuyerId} includeTest={round?.test}/>:<Field label="販売先・団体名（任意）"><input value={destinationName} onChange={e=>setDestinationName(e.target.value)}/></Field>}</>}
   {(mode==='product'||buyerId||destinationType==='external')&&<>
    <div className="tabs category-tabs" aria-label="販売商品を絞り込む">{[['ALL','すべて'],['パン','パン'],['焼き菓子','焼き菓子'],['その他','その他']].map(([v,label])=><Button key={v} secondary={category!==v} onClick={()=>setCategory(v)}>{label}</Button>)}</div>
    <Field label="商品名を検索" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>

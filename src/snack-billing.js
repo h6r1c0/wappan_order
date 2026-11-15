@@ -1,3 +1,4 @@
+import {stableStringify} from './structural-equality.js';
 import {receivedQuantity} from './shortages.js';
 
 export function saveSnackUsage(state,eventId,quantities,costs,reason='実使用数を記録'){
@@ -102,7 +103,9 @@ export function snackQuantityRows(state,event,plan=event.snackDraft||event.billi
     const common=sum((plan?.groups||[]).map(g=>g.quantities?.[line.id]||0));
     const retail=sum((state.stocks||[]).filter(st=>st.eventLineId===line.id&&!st.cancelled).map(st=>st.qty));
     const received=receivedQuantity(line),allocated=fiscal+direct+common,used=allocated;
-    return {line,ordered:line.sourceStockId?0:line.qty,received,used,retail,fiscal,direct,common,allocated,
+    const confirmed=event.billing?snackPurposeQuantity(event,line.id,event.billing):0;
+    const transferable=Math.max(0,received-retail-Math.max(allocated,confirmed));
+    return {transferable,blockedByBilling:Math.max(0,received-allocated-retail-transferable),line,ordered:line.sourceStockId?0:line.qty,received,used,retail,fiscal,direct,common,allocated,
       unassigned:received-used-retail,unused:received-used-retail,
       excess:Math.max(0,allocated+retail-received)};
   });
@@ -367,4 +370,13 @@ export function confirmSnackPlan(state,eventId,reason='請求を確定'){
   if(copy.billingHistory)event.billingHistory=copy.billingHistory;
   // Keep saved section drafts for subsequent independent corrections.
   return preview;
+}
+
+// Allocation arrays are sets of keyed facts; section saves may reorder them.
+export function snackPlanSignature(plan){
+ const p=plan||emptySnackPlan(),ordered=(rows,key)=>[...(rows||[])].sort((a,b)=>key(a).localeCompare(key(b)));
+ return stableStringify({...p,
+  fiscal:ordered(p.fiscal,x=>x.lineId),
+  household:ordered(p.household,x=>`${x.buyerId}:${x.lineId||''}:${x.groupId||''}`),
+  groups:ordered(p.groups,x=>x.id).map(g=>({...g,lineIds:[...(g.lineIds||[])].sort()}))});
 }

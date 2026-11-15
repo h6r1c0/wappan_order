@@ -2,7 +2,7 @@ import React,{useState,useEffect,useRef} from 'react';
 import {useApp,Button,Field,Money,Qty,BuyerPicker} from './ui';
 import {BuyerQuantityGrid} from './buyer-quantity-grid.jsx';
 import {yen,correctSnackToSalesTransfer,soldQty,snackTransferLimits,validate} from './domain';
-import {saveSnackSection,confirmSnackPlan,emptySnackPlan,suggestedSnackPrice,suggestedGroupPrice,snackQuantityRows,mergeSnackGroups} from './snack-billing.js';
+import {saveSnackSection,confirmSnackPlan,emptySnackPlan,suggestedSnackPrice,suggestedGroupPrice,snackQuantityRows,mergeSnackGroups,snackPlanSignature} from './snack-billing.js';
 import {receivedQuantity} from './shortages.js';
 
 const amount=(rows,id)=>rows.filter(x=>x.lineId===id).reduce((n,x)=>n+x.qty,0);
@@ -30,12 +30,12 @@ export function SnackBilling({event,onTransfer}){
   const [mergeTarget,setMergeTarget]=useState({});
   const [correction,setCorrection]=useState(null),[correctionQty,setCorrectionQty]=useState(0),[correctionReason,setCorrectionReason]=useState('');
   const [correctionError,setCorrectionError]=useState('');
-  const persisted=useRef(JSON.stringify(event.snackDraft||event.billing||emptySnackPlan()));
+  const persisted=useRef(snackPlanSignature(event.snackDraft||event.billing||emptySnackPlan()));
   useEffect(()=>{
-    const next=JSON.stringify(event.snackDraft||event.billing||emptySnackPlan());
+    const next=snackPlanSignature(event.snackDraft||event.billing||emptySnackPlan());
     if(next!==persisted.current){
       const previous=persisted.current;
-      setDraft(current=>JSON.stringify(current)===previous?structuredClone(event.snackDraft||event.billing||emptySnackPlan()):current);
+      setDraft(current=>snackPlanSignature(current)===previous?structuredClone(event.snackDraft||event.billing||emptySnackPlan()):current);
       persisted.current=next;
     }
   },[event.snackDraft,event.billing]);
@@ -47,6 +47,17 @@ export function SnackBilling({event,onTransfer}){
       const probe=structuredClone(state);saveSnackSection(probe,event.id,section,value,reason||'おやつの区分を保存');
       setError('');
       if(await save(s=>saveSnackSection(s,event.id,section,value,reason||'おやつの区分を保存'),`${section==='fiscal'?'財政':section==='direct'?'直接割当':section==='common'?'共通単価':'おやつ名'}を保存`)){
+        const savedPlan=probe.events.find(e=>e.id===event.id).snackDraft;
+        setDraft(current=>{
+          const sectionValue=p=>section==='label'?{label:p.label}:section==='fiscal'?{fiscal:p.fiscal}:section==='direct'?{household:p.household.filter(x=>!x.groupId&&x.lineId)}:{groups:p.groups,household:p.household.filter(x=>x.groupId)};
+          if(snackPlanSignature(sectionValue(current))!==snackPlanSignature(sectionValue(draft)))return current;
+          const next={...current};
+          if(section==='direct')next.household=[...current.household.filter(x=>x.groupId||!x.lineId),...savedPlan.household.filter(x=>!x.groupId&&x.lineId)];
+          if(section==='fiscal')next.fiscal=savedPlan.fiscal;
+          if(section==='common'){next.groups=savedPlan.groups;next.household=[...current.household.filter(x=>!x.groupId),...savedPlan.household.filter(x=>x.groupId)];}
+          if(section==='label')next.label=savedPlan.label;
+          return next;
+        });
         setSaved('この区分を途中保存しました。確定済み請求の訂正は、下のボタンで集金へ反映してください。');if(!event.billing)setReason('');
       }
     }catch(e){setError(e.message);}
@@ -89,11 +100,11 @@ export function SnackBilling({event,onTransfer}){
       ...Object.entries(values).filter(([,qty])=>qty>0).map(([buyerId,qty])=>({buyerId,lineId:line.id,qty,unitPrice:lineItems.find(x=>x.buyerId===buyerId)?.unitPrice??price}))]});
   };
   const changeDirectPrice=unitPrice=>{setDirectPrice(unitPrice);change({...draft,household:draft.household.map(x=>!x.groupId&&x.lineId===selectedLine?{...x,unitPrice}:x)});};
-  const unsaved=JSON.stringify(draft)!==JSON.stringify(event.snackDraft||event.billing||emptySnackPlan());
+  const unsaved=snackPlanSignature(draft)!==snackPlanSignature(event.snackDraft||event.billing||emptySnackPlan());
   const stored=event.snackDraft||event.billing||emptySnackPlan();
-  const changed={fiscal:JSON.stringify(draft.fiscal)!==JSON.stringify(stored.fiscal),
-    direct:JSON.stringify(direct)!==JSON.stringify(stored.household.filter(x=>!x.groupId&&x.lineId)),
-    common:JSON.stringify([groups,draft.household.filter(x=>x.groupId)])!==JSON.stringify([stored.groups||[],stored.household.filter(x=>x.groupId)])};
+  const changed={fiscal:snackPlanSignature({...emptySnackPlan(),fiscal:draft.fiscal})!==snackPlanSignature({...emptySnackPlan(),fiscal:stored.fiscal}),
+    direct:snackPlanSignature({...emptySnackPlan(),household:direct})!==snackPlanSignature({...emptySnackPlan(),household:stored.household.filter(x=>!x.groupId&&x.lineId)}),
+    common:snackPlanSignature({...emptySnackPlan(),groups,household:draft.household.filter(x=>x.groupId)})!==snackPlanSignature({...emptySnackPlan(),groups:stored.groups||[],household:stored.household.filter(x=>x.groupId)})};
   const sectionLabel=(title,key)=><>{title}<small className="snack-step-status">{changed[key]?'編集中・未保存':event.snackDraft?'途中保存済み':'未保存'}</small></>;
   const fiscalRow=l=><div className="snack-billing-row" key={l.id}><span>{l.name}<small>仕入単価 {yen(l.cost)}</small></span>
     <Qty label={`${l.name} 財政分`} value={amount(draft.fiscal,l.id)} max={receivedQuantity(l)} onChange={qty=>editFiscal(l.id,qty)}/></div>;
@@ -110,7 +121,8 @@ export function SnackBilling({event,onTransfer}){
       {status.filter(x=>!x.line.sourceStockId).map(x=>{
         const stocks=state.stocks.filter(st=>st.eventLineId===x.line.id&&st.qty>0);
         return <div className="snack-billing-row" key={x.line.id}><span>{x.line.name}<small>入荷 {x.received}個 ／ 販売へ {x.retail}個 ／ 残り {x.unassigned}個</small></span>
-          {x.unassigned>0&&<button type="button" className="text-action" disabled={x.line.cost==null||unsaved} onClick={()=>onTransfer(x.line)}>数量を指定して振替 ›</button>}
+          {x.unassigned>0&&<button type="button" className="text-action" disabled={x.line.cost==null||unsaved||x.transferable===0} onClick={()=>onTransfer(x.line)}>数量を指定して振替 ›</button>}
+          {x.blockedByBilling>0&&<small className="notice">未振分{x.unassigned}個のうち{x.blockedByBilling}個は、確定済み請求に含まれています。下の訂正理由を入力し、おやつ請求を再確定すると振替できます。</small>}
           {stocks.map(st=>{const limits=snackTransferLimits(state,st.id);return <div className="snack-transfer-entry" key={st.id}>
             <Qty label={`${x.line.name} 販売用振替の保存済み数量を訂正`} value={correction===st.id?correctionQty:st.qty} min={limits.minimum} max={Math.max(st.qty,limits.maximum)} onChange={qty=>{setCorrection(st.id);setCorrectionQty(qty);setCorrectionReason('');setCorrectionError('');}}/>
             {limits.unused===0&&<small>減らせません：販売済み {limits.sold}個、再振替済み {limits.moved}個。最小 {limits.minimum}個</small>}

@@ -380,7 +380,7 @@ function Round({ round: r, initialTab = null, back }) {
         <>
           <div className="collection-total"><span>{rows.some(x=>x.unpriced.length)?'判明分の小計・請求未確定':'今回の請求合計'}</span>
             <strong>{yen(rows.reduce((a, b) => a + b.total, 0))}</strong></div>
-          {(()=>{const external=externalSalesSummary(state,r);return <details className="collection-external"><summary>支払い済み・外部販売 <strong>{yen(external.total)}</strong></summary>
+          {(()=>{const external=externalSalesSummary(state,r);return <details className="collection-external"><summary>支払済・外部販売 <strong>{yen(external.total)}</strong></summary>
             {external.lines.length?external.lines.map((line,i)=><div key={i}>{productDisplayName(line.name)} {line.qty}個 × {yen(line.unitPrice)}{line.place?` ／ ${line.place}`:''}<strong>{yen(line.amount)}</strong></div>):<small>登録された外部販売はありません。</small>}
             <small>登録売上です。実際の受取現金と照合してください。個人未収には含みません。</small>
           </details>})()}

@@ -1,0 +1,92 @@
+{
+  "source": "2026-11-15 本人のPR #46公開後の実機不具合・限定した本番復旧の指示全16節",
+  "purpose": "金銭原本・請求・在庫・保存の整合を優先して限定復旧を行い、部分充当と返金待ち、確定請求訂正、未割当外部一括、集計表示を隔離データで検証する。実返金・財政精算・外部現金受取・推測販売は実行しない。",
+  "targets": [
+    {
+      "id": "WAP-0087",
+      "ledgerRef": "WAP-0087",
+      "ledgerDigest": "5965d75f9892b65fe032b35ddf42bc18e07d8fbf44df258fe5724e4f75f3c076"
+    },
+    {
+      "id": "WAP-0088",
+      "ledgerRef": "WAP-0088",
+      "ledgerDigest": "ac7ab4dc89cae8a8e8bba75ed7e0bfae47fc32657cf2107885bce2e39c3bf859"
+    },
+    {
+      "id": "WAP-0089",
+      "ledgerRef": "WAP-0089",
+      "ledgerDigest": "afc6d229451cec49da76a25a2fc3cbe74f6f1c725ae1c53fd5b260ced79e58c3"
+    },
+    {
+      "id": "WAP-0092",
+      "ledgerRef": "WAP-0092",
+      "ledgerDigest": "beb0e3e7c3c685429b00f450cb0ed54794b59a77ce45d598efb7b76fab5a0370"
+    },
+    {
+      "id": "WAP-0094",
+      "ledgerRef": "WAP-0094",
+      "ledgerDigest": "aae2a1dd0c934bdd8e15229f69ed51585bed91dd2923b02292a6d6553fa0b976"
+    },
+    {
+      "id": "WAP-0095",
+      "ledgerRef": "WAP-0095",
+      "ledgerDigest": "09707ee876cc44c49628c7c041439b34ef3f5aa496aa090855695f8f47afaae4"
+    },
+    {
+      "id": "WAP-0096",
+      "ledgerRef": "WAP-0096",
+      "ledgerDigest": "51b7d3ccf1bf3b43cee387c338d1de72473dc3fd04b9f8c09411d922f306d43d"
+    },
+    {
+      "id": "WAP-0097",
+      "ledgerRef": "WAP-0097",
+      "ledgerDigest": "83cfe7afa8a332f75078d5aaedd74c68641499cbc132cf58fc6ca1be726a1b86"
+    },
+    {
+      "id": "WAP-0098",
+      "ledgerRef": "WAP-0098",
+      "ledgerDigest": "3de4c315175074bfef333bbff2e4799a7646797db76af340cb3f776420396c53"
+    },
+    {
+      "id": "WAP-0099",
+      "ledgerRef": "WAP-0099",
+      "ledgerDigest": "c786ced85ab24765fa411acaad251f55ed407eeaac4d3c7eb01ec92bda08ac49"
+    },
+    {
+      "id": "WAP-0083",
+      "ledgerRef": "WAP-0083",
+      "ledgerDigest": "7b7dd2b05b3959e045a8cfd93aaa22e09870d87073a8261e5f4dc7ffb889bed3"
+    },
+    {
+      "id": "WAP-0086",
+      "ledgerRef": "WAP-0086",
+      "ledgerDigest": "9f77a41c61e118c116c1bc0c74c8390948aca32469235acf1898b8b27f663dcc"
+    },
+    {
+      "id": "WAP-0042",
+      "ledgerRef": "WAP-0042",
+      "ledgerDigest": "17655091d3927bcdb346de69d8aac1f8af0e377c3fd1fa568901ad2a3ca74c91"
+    },
+    {
+      "id": "WAP-0080",
+      "ledgerRef": "WAP-0080",
+      "ledgerDigest": "f98320c90e20d3d737908f0ae89ef6f1e5089b73e6a2eaa513c5d790379b6791"
+    },
+    {
+      "id": "WAP-0046",
+      "ledgerRef": "WAP-0046",
+      "ledgerDigest": "cd512acb5643912045c67a9fef475331c0cc817ee3dd92d7c5b8a511020a8ce3"
+    },
+    {
+      "id": "WAP-0091",
+      "ledgerRef": "WAP-0091",
+      "ledgerDigest": "bd84d1acb11c9843918a990c2b029506cc27ea04de3de9abc026f446ffa52474"
+    },
+    {
+      "id": "WAP-0093",
+      "ledgerRef": "WAP-0093",
+      "ledgerDigest": "cdec0e49e36a8add7ed3ad851c0faced46a7e8b415840b10f50bb521e280b545"
+    }
+  ],
+  "deferred": []
+}
