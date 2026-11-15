@@ -340,10 +340,10 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
   await expect(person.locator('.collection-amount')).toHaveText('預かり10円');
   await page.locator('.collection-completed summary').click();
   await person.locator('.collection-open').click();
-  await person.getByLabel('今回新たに受け取った現金',{exact:true}).fill('10');
-  await person.getByLabel('金額が違う理由').selectOption('返金がある');
-  await person.getByLabel('返金額',{exact:true}).fill('10');
-  await person.getByRole('button',{name:'返金を保存'}).click();
+  await person.getByRole('button',{name:'実際に返した分を記録'}).click();
+  await person.getByLabel('実際に返した金額',{exact:true}).fill('10');
+  await person.getByLabel('この金額を実際に返しました',{exact:true}).check();
+  await person.getByRole('button',{name:'実施済みの返金を保存'}).click();
   await expect.poll(()=>shared.state.collectionEntries.length).toBe(2);
   expect(shared.state.collectionEntries[1].received).toBe(-10);
   expect(shared.state.rounds[0].invoice).toBe(100);
