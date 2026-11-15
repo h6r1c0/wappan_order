@@ -2,8 +2,8 @@ import {test,expect} from '@playwright/test';
 import {initialState,newRound} from '../../src/domain.js';
 import {backend,login} from './workflow-helpers.js';
 
-for(const width of [320,375,430])test(`${width}px：取消済み現金と後日の預かりを旧請求の受取済みにしない`,async({browser})=>{
- const context=await browser.newContext({viewport:{width,height:812}}),page=await context.newPage();
+for(const width of [320,375,430])test(`${width}px：取消済み現金と後日の預かりを旧請求の受取済みにしない`,async({page,context,browserName})=>{
+ await page.setViewportSize({width,height:812});
  const state=initialState(),old=newRound(state,'2026-10-16',true),later=newRound(state,'2026-10-30',true);
  state.rounds.push(old,later);
  old.status='納品済み';old.shortageConfirmation='none';old.invoice=100;
@@ -14,7 +14,7 @@ for(const width of [320,375,430])test(`${width}px：取消済み現金と後日�
  state.collectionCorrections=[{id:'void',kind:'collectionEntries',targetId:'old-void',roundId:later.id,buyerId:'hori',reason:'取消'}];
  state.collectionEntries.push({id:'held',roundId:later.id,buyerId:'hori',date:later.date,received:1150,adjustment:0,reason:'多く受け取ったので次回へ預かる'});
  const shared={state,revision:0};
- try{
+ {
   await backend(context,shared);await login(page);
   await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
   await page.locator('.stage-4 > .stage-trigger').click();
@@ -34,6 +34,6 @@ for(const width of [320,375,430])test(`${width}px：取消済み現金と後日�
   await expect(row.locator('.cash-totals')).toContainText('1,050円');
   expect(shared.state.collectionEntries).toHaveLength(2);
   expect(shared.state.collectionAllocations[0].held).toBe(1050);
-  await page.screenshot({path:`test-results/cross-round-${browser.browserType().name()}-${width}.png`,fullPage:true});
- }finally{await context.close();}
+  await page.screenshot({path:`test-results/cross-round-${browserName}-${width}.png`,fullPage:true});
+ }
 });

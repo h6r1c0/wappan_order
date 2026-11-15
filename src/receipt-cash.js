@@ -25,6 +25,7 @@ export function collectionCashLedger(state,roundId,buyerId){
 export function allocateReceivedCash(state,entryId,parts,{heldPurpose='refund-pending',reason='受取済み現金の充当先と残額を確認',requestId}={}){
  const entry=effectiveCollectionState(state).collectionEntries.find(e=>e.id===entryId&&e.received>0);
  if(!entry)throw Error('有効な受取済み現金を選んでください');
+ if(entry.adjustment)throw Error('債権調整を含む旧受取です。調整と現金の内訳を先に照合してください');
  const old=(state.collectionAllocations||[]).find(a=>a.entryId===entryId);
  if(requestId&&old?.requestId===requestId){if(!equalValue(old.parts,parts)||old.heldPurpose!==heldPurpose)throw Error('同じ操作番号の内容が変わっています');return old;}
  if(!Array.isArray(parts)||new Set(parts.map(p=>p.itemId)).size!==parts.length||!['credit','refund-pending'].includes(heldPurpose)||!reason.trim())throw Error('充当先・残額の扱い・理由を確認してください');

@@ -524,7 +524,7 @@ function RoundLineChart({points,metric,onMetric,group,onGroup,selected,onSelect}
  const x=i=>64+(points.length<2?133:i*266/(points.length-1)),y=v=>164-(v-low)/(high-low)*132;
  const groups=[...new Set(points.flatMap(p=>Object.keys(p.parts)))],colors=['#087b69','#b9561e','#7350a1','#b03964','#667167'];
  return <section className="round-chart" aria-label="注文回別の実績推移"><h3>注文回別の推移</h3>
-   <div className="round-chart-controls"><label>金額 <select value={metric} onChange={e=>onMetric(e.target.value)}><option value="profit">利益</option><option value="revenue">売上</option></select></label><label>内訳 <select value={group} onChange={e=>onGroup(e.target.value)}><option value="origin">商品由来別</option><option value="method">販売方法別</option></select></label></div>
+   <div className="round-chart-controls"><label>金額 <select aria-label="金額" value={metric} onChange={e=>onMetric(e.target.value)}><option value="profit">利益</option><option value="revenue">売上</option></select></label><label>内訳 <select aria-label="内訳" value={group} onChange={e=>onGroup(e.target.value)}><option value="origin">商品由来別</option><option value="method">販売方法別</option></select></label></div>
    <div className="round-chart-plot"><svg viewBox="0 0 354 198" role="group" aria-label={`${metric==='profit'?'利益':'売上'}の注文回別折れ線グラフ`}>
     <text x="4" y="15" fontSize="11" fill="#364a55">金額（円）</text>
     {ticks.map(t=><g key={t}><line x1="64" x2="330" y1={y(t)} y2={y(t)} stroke={t===0?'#879b9d':'#d9e1e1'} strokeDasharray={t===0?undefined:'3 3'}/><text x="58" y={y(t)+4} textAnchor="end" fontSize="10" fill="#364a55">{t.toLocaleString('ja-JP')}</text></g>)}

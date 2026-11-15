@@ -3048,3 +3048,5 @@ main[data-page='集計'] .hero progress::-moz-progress-bar {background:#f4c84b;}
 .receipt-cash summary {cursor:pointer;padding:10px 0;overflow-wrap:anywhere;}
 .external-batch {margin:12px 0;}.external-batch-row{padding:12px 0;border-bottom:1px solid #d7dfda;}
 .round-chart-plot svg g[role='button']{cursor:pointer;outline-offset:3px;}
+main[data-page='集計'] .hero progress {background:#385c70;border-color:#385c70;}
+main[data-page='集計'] .hero progress::-webkit-progress-bar {background:#385c70;}

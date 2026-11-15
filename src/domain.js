@@ -588,7 +588,7 @@ export function collectionDueItems(s, roundId, buyerId) {
   const appliedByReceipt={},creditSources=[{entry:null,amount:credit}];
   const apply=(entry,item,amount)=>{
     const used=Math.min(Math.max(0,amount),item.balance);item.balance-=used;
-    if(entry.received>0&&used){const parts=appliedByReceipt[entry.id]??=[];const part=parts.find(p=>p.itemId===item.id);if(part)part.amount+=used;else parts.push({itemId:item.id,amount:used});}
+    if(entry.received>0&&used){const parts=appliedByReceipt[entry.id]??=[];const cash=Math.min(used,Math.max(0,entry.received-parts.reduce((n,p)=>n+p.amount,0)));const part=parts.find(p=>p.itemId===item.id);if(part)part.amount+=cash;else if(cash)parts.push({itemId:item.id,amount:cash});}
     return used;
   };
   for(const entry of entries){
