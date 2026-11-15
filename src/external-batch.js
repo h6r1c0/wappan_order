@@ -3,7 +3,7 @@ import {replaceOtherDistribution} from './other-sales.js';
 import {equalValue} from './structural-equality.js';
 export function unassignedExternalItems(state,roundId){
  const round=state.rounds.find(r=>r.id===roundId);if(!round)return [];
- return [...state.stocks.filter(s=>s.roundId===roundId).map(stock=>{const pending=state.sales.filter(s=>s.stockId===stock.id&&!s.void&&(s.pending||s.destinationType==='unknown'));return {key:'stock:'+stock.id,name:stock.name,qty:stockRemaining(state,stock)+pending.reduce((n,s)=>n+s.qty,0),price:stock.price,pending:pending.length>0,date:stock.date};}),
+ return [...state.stocks.filter(s=>s.roundId===roundId).map(stock=>{const pending=state.sales.filter(s=>s.stockId===stock.id&&!s.void&&(s.pending||s.destinationType==='unknown'));return {key:'stock:'+stock.id,name:stock.name,source:stock.eventLineId?'おやつからの振替':'販売用の入荷',qty:stockRemaining(state,stock)+pending.reduce((n,s)=>n+s.qty,0),price:stock.price,pending:pending.length>0,date:stock.date};}),
  ...(state.otherSales||[]).filter(s=>!s.void&&s.paymentStatus==='unpaid'&&s.date===round.date&&s.test===round.test).map(s=>({key:'other:'+s.id,name:s.name,qty:s.qty-(s.allocations||[]).reduce((n,x)=>n+x.qty,0)-(s.paidExternalQty||0),price:s.unitPrice,recorded:true,date:s.date}))].filter(s=>s.qty>0);
 }
 export function allocateExternalBatch(state,roundId,items,{date,name='',requestId=uid(),reason='未割当商品の外部販売を照合'}={}){

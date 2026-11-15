@@ -13,7 +13,7 @@ export function ReceiptCash({round,buyer}){
  const run=async(fn,description,success)=>{if(busy)return;setBusy(true);setError('');try{if(await save(fn,description)){notify(success);setMessage(success);setEditing('');setRefunding('');request.current=uid();}}catch(e){setError(e.message);}finally{setBusy(false);}};
  const begin=cash=>{setEditing(cash.entry.id);setAmounts(Object.fromEntries(cash.parts.map(p=>[p.itemId,p.amount])));setPurpose(cash.allocation?.heldPurpose||'refund-pending');setError('');setMessage('');request.current=uid();};
  if(!ledger.receipts.length&&!ledger.refunded)return null;
- return <section className="receipt-cash" aria-label="受取済み現金と充当"><h3>受取済み現金と充当</h3><p>関連する注文回をまとめて表示。充当は、新しい現金受取ではありません。</p>
+ return <section className="receipt-cash" aria-label="受取済み現金と充当"><h3>{buyer.name}：受取済み現金と充当</h3><p>関連する注文回をまとめて表示。充当は、新しい現金受取ではありません。</p>
  <dl className="cash-totals"><div><dt>受取総額</dt><dd>{yen(ledger.received)}</dd></div><div><dt>請求に充当済み</dt><dd>{ledger.unlinkedRefund?'要照合':yen(ledger.allocated)}</dd></div><div><dt>未充当・預かり</dt><dd>{ledger.unlinkedRefund?'要照合':yen(Math.max(0,ledger.remaining-ledger.refundPending))}</dd></div><div><dt>返金待ち</dt><dd>{yen(ledger.refundPending)}</dd></div><div><dt>返金済み</dt><dd>{yen(ledger.refunded)}</dd></div></dl>
  {ledger.unlinkedRefund&&<p className="notice">返金元が未確認の古い返金があります。履歴を照合してから充当・返金を訂正してください。</p>}
  {ledger.receipts.map(cash=><details key={cash.entry.id} open={ledger.receipts.length===1||editing===cash.entry.id||refunding===cash.entry.id?true:undefined}><summary>{cash.entry.date} 受取 {yen(cash.entry.received)} ／ {cash.refundPending?'返金待ち':'未充当'} {yen(cash.remaining)}</summary>
