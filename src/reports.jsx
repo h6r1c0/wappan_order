@@ -527,7 +527,7 @@ function RoundLineChart({points,metric,onMetric,group,onGroup,selected,onSelect}
    <div className="round-chart-controls"><label>金額 <select aria-label="金額" value={metric} onChange={e=>onMetric(e.target.value)}><option value="profit">利益</option><option value="revenue">売上</option></select></label><label>内訳 <select aria-label="内訳" value={group} onChange={e=>onGroup(e.target.value)}><option value="origin">商品由来別</option><option value="method">販売方法別</option></select></label></div>
    <div className="round-chart-plot"><svg viewBox="0 0 354 198" role="group" aria-label={`${metric==='profit'?'利益':'売上'}の注文回別折れ線グラフ`}>
     <text x="4" y="15" fontSize="11" fill="#364a55">金額（円）</text>
-    {ticks.map(t=><g key={t}><line x1="64" x2="330" y1={y(t)} y2={y(t)} stroke={t===0?'#879b9d':'#d9e1e1'} strokeDasharray={t===0?undefined:'3 3'}/><text x="58" y={y(t)+4} textAnchor="end" fontSize="10" fill="#364a55">{t.toLocaleString('ja-JP')}</text></g>)}
+    {ticks.map(t=><g key={t}><line x1="64" x2="330" y1={y(t)} y2={y(t)} stroke={t===0?'#879b9d':'#d9e1e1'} strokeDasharray={t===0?undefined:'3 3'}/><text x="58" y={y(t)+4} textAnchor="end" fontSize="12" fill="#364a55">{t.toLocaleString('ja-JP')}</text></g>)}
     <text x="197" y="194" textAnchor="middle" fontSize="11" fill="#364a55">注文日</text>
     {groups.map((g,n)=><g key={g} fill="none" stroke={colors[n%colors.length]} strokeWidth="1.3">{points.slice(1).map((p,i)=>!p.manual&&!points[i].manual&&g in p.parts&&g in points[i].parts?<line key={i} x1={x(i)} y1={y(points[i].parts[g])} x2={x(i+1)} y2={y(p.parts[g])}/>:null)}</g>)}
     <polyline fill="none" stroke="#273f51" strokeWidth="3.3" points={points.map((p,i)=>`${x(i)},${y(p.total)}`).join(' ')}/>
