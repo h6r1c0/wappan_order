@@ -35,5 +35,18 @@ for(const width of [320,375,430])test(`${width}px：取消済み現金と後日�
   expect(shared.state.collectionEntries).toHaveLength(2);
   expect(shared.state.collectionAllocations[0].held).toBe(1050);
   await page.screenshot({path:`test-results/cross-round-${browserName}-${width}.png`,fullPage:true});
+  if(width===375){
+   await row.getByRole('button',{name:'実際に返した分を記録'}).click();
+   await expect(row.getByRole('button',{name:'実施済みの返金を保存'})).toBeDisabled();
+   expect(shared.state.collectionEntries).toHaveLength(2);
+   await row.getByRole('button',{name:'請求・過去の履歴を調べる ›'}).click();
+   await row.locator('.collection-history').filter({hasText:'1,150円'}).getByRole('button',{name:'この記録を確認・訂正 ›'}).click();
+   await row.getByLabel('履歴の訂正理由').selectOption('操作ミス（現金の受取なし）');
+   await expect(row.getByLabel('訂正後の実際受取額')).toHaveValue('0');
+   await expect(row.getByText('取消のみで、新たな受取・返金は作りません。',{exact:false})).toBeVisible();
+   await row.getByRole('button',{name:'対象記録の訂正を保存'}).click();
+   await expect.poll(()=>shared.state.collectionCorrections.length).toBe(2);
+   expect(shared.state.collectionEntries).toHaveLength(2);
+  }
  }
 });

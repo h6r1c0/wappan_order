@@ -1,5 +1,5 @@
 import {ReceiptCash} from './receipt-cash.jsx';
-import {collectionCashLedger,allocateReceivedCash} from './receipt-cash.js';
+import {collectionCashLedger,allocateReceivedCash,refundReceivedCash} from './receipt-cash.js';
 import React,{useState,useRef,useEffect} from 'react';
 import {collectionPosition,collectionDueItems,today,uid,yen,collections} from './domain';
 import {useApp,Button,Field,Money,Qty,copyText,buyerCompare} from './ui';
@@ -138,11 +138,12 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
         {!history.length&&<small>この回の受取記録はありません。</small>}
         {allocationEntry&&<div className="fact-confirmation allocation-confirmation"><p>受取 {yen(allocationEntry.received)} の充当先</p>{allocationOptions.map(x=><Money key={x.id} label={`${x.date} ${x.note}（未収 ${yen(x.balance)}）`} value={allocationAmounts[x.id]??null} onChange={v=>setAllocationAmounts(a=>({...a,[x.id]:v}))}/>)}<small>候補が入っている場合も、対象の請求分を確認して保存してください。充当額の合計 {yen(splitTotal)}。残り {yen(allocationEntry.received-splitTotal)} は返金待ちです。現金受取記録は変更しません。</small><Button disabled={busy||splitTotal>allocationEntry.received} onClick={async()=>{if(await act(s=>allocateReceivedCash(s,allocationEntry.id,Object.entries(allocationAmounts).filter(([,v])=>v>0).map(([itemId,amount])=>({itemId,amount}))), '受取の充当先を保存')){setAllocationEntry(null);setAllocationAmounts({});}}}>充当先を保存</Button><button type="button" className="text-action" onClick={()=>setAllocationEntry(null)}>戻る</button></div>}
         {editEntry&&<div className="fact-confirmation"><p>訂正対象：{editEntry.kind==='collectionEntries'?`受取 ${yen(editEntry.received)}`:`支払済み確認 ${yen(editEntry.amount)}`}</p>
-          <Field label="履歴の訂正理由"><select value={correction} onChange={e=>setCorrection(e.target.value)}><option value="">理由を選ぶ</option>{correctionReasons.map(x=><option key={x}>{x}</option>)}</select></Field>
+          <Field label="履歴の訂正理由"><select value={correction} onChange={e=>{setCorrection(e.target.value);if(e.target.value==='操作ミス（現金の受取なし）')setCorrectedCash(0);}}><option value="">理由を選ぶ</option>{correctionReasons.map(x=><option key={x}>{x}</option>)}</select></Field>
           {editEntry.kind==='collectionEntries'&&<Money label={editEntry.received<0?'訂正後の返金額':'訂正後の実際受取額'} value={correctedCash} onChange={setCorrectedCash}/>}
+          {editEntry.kind==='collectionEntries'&&<p>元の記録 {yen(editEntry.received)} は履歴に残して計算から除きます。{correctedCash===0?'取消のみで、新たな受取・返金は作りません。':`この記録の正しい${editEntry.received<0?'返金':'受取'}額 ${yen(correctedCash)} に訂正します。新たな現金移動ではありません。`}</p>}
           <Button disabled={!correction||busy||editEntry.kind==='collectionEntries'&&correctedCash==null} onClick={async()=>{if(await act(s=>{
             correctCollectionRecord(s,editEntry.kind,editEntry.id,correction);
-            if(editEntry.kind==='collectionEntries'&&correctedCash!==0){const cash=editEntry.received<0?-correctedCash:correctedCash;receiveCollection(s,{roundId:editEntry.roundId,buyerId:buyer.id,received:cash,reason:cash<0?'返金がある':cash>collectionPosition(s,editEntry.roundId,buyer.id).balance?'多く受け取ったので次回へ預かる':'一部しか受け取っていない'});}
+            if(editEntry.kind==='collectionEntries'&&correctedCash!==0){const cash=editEntry.received<0?-correctedCash:correctedCash;if(cash<0&&editEntry.sourceReceiptId)refundReceivedCash(s,editEntry.sourceReceiptId,{amount:correctedCash,date:editEntry.date,note:'元の返金記録の金額訂正'});else receiveCollection(s,{roundId:editEntry.roundId,buyerId:buyer.id,received:cash,reason:cash<0?'返金がある':cash>collectionPosition(s,editEntry.roundId,buyer.id).balance?'多く受け取ったので次回へ預かる':'一部しか受け取っていない'});}
           },'履歴を保持して誤記録を訂正'))setEditEntry(null);}}>対象記録の訂正を保存</Button><button className="text-action" type="button" onClick={()=>setEditEntry(null)}>戻る</button></div>}
         <ReceivableAdjustment round={round} buyer={buyer}/>
         <Field label="調査メモ（任意）"><input value={memo} onChange={e=>setMemo(e.target.value)}/></Field>
