@@ -290,7 +290,7 @@ test('納品後: 未確認2個を購入者と名称なし外部へ分割', async
   const work=page.locator('.sales-workspace:visible');
   await work.getByRole('button',{name:/くるみパン 未割当 2個/}).click();
   await setQty(work,'くるみパン ホリの数量',1);
-  await setQty(work,'支払い済み・外部販売',1);
+  await setQty(work,'支払済・外部販売',1);
   await work.getByRole('button',{name:'この商品の割当をまとめて保存'}).click();
   await expect(work.locator('.product-buyer-assignment')).toContainText('未割当 0個');
   expect(shared.state.sales.reduce((n,s)=>n+s.qty,0)).toBe(2);
@@ -334,13 +334,13 @@ test('納品と集金: 欠品修正、納品書総額、通常受取、差額繰
   const person=page.locator('.collection-entry[data-buyer="hori"]');
   await person.locator('.collection-open').click();
   const due=collections(shared.state,'','',r.id,true)[0].total;
-  await person.getByLabel('実際受取額',{exact:true}).fill(String(due+10));
+  await person.getByLabel('今回新たに受け取った現金',{exact:true}).fill(String(due+10));
   await person.getByLabel('金額が違う理由').selectOption('多く受け取ったので次回へ預かる');
   await person.getByRole('button',{name:'受取額を保存'}).click();
   await expect(person.locator('.collection-amount')).toHaveText('預かり10円');
   await page.locator('.collection-completed summary').click();
   await person.locator('.collection-open').click();
-  await person.getByLabel('実際受取額',{exact:true}).fill('10');
+  await person.getByLabel('今回新たに受け取った現金',{exact:true}).fill('10');
   await person.getByLabel('金額が違う理由').selectOption('返金がある');
   await person.getByLabel('返金額',{exact:true}).fill('10');
   await person.getByRole('button',{name:'返金を保存'}).click();
@@ -455,7 +455,7 @@ test('販売先割当: 10個から外部6個、購入者から複数商品をま
   await backend(context,shared);await login(page);await page.locator('.round-list-item').click();
   await openAfter(page,'販売用の仕分け');
   let work=page.locator('.sales-workspace:visible');
-  await work.getByRole('button',{name:'支払い済み'}).click();
+  await work.getByRole('button',{name:'支払済'}).click();
   await setQty(work,'くるみパン 割当数量',6);
   await work.getByRole('button',{name:'選んだ商品をまとめて保存'}).click();
   await page.getByRole('button',{name:'購入者からまとめて割当',exact:true}).click();
@@ -1549,7 +1549,7 @@ test('11/9レビュー：別注文回の未収を保ち、購入者への販売�
  await expect.poll(()=>shared.state.sales.filter(x=>x.buyerId==='kondo-qa-1109'&&x.chargeRoundId===r.id).length).toBe(1);
  await page.getByLabel('販売商品を絞り込む').getByRole('button',{name:'その他',exact:true}).click();
  await page.getByRole('button',{name:/隔離レモン 未割当 1個/}).click();
- await setQty(page,'支払い済み・外部販売',1);
+ await setQty(page,'支払済・外部販売',1);
  await page.getByRole('button',{name:'この商品の割当をまとめて保存'}).click();
  await expect.poll(()=>shared.state.otherSales.find(x=>x.id===lemon.id).paidExternalQty).toBe(1);
  await page.reload();await page.locator('.round-list-item').filter({hasText:'2026/10/30'}).click();

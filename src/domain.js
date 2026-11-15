@@ -585,11 +585,17 @@ export function collectionDueItems(s, roundId, buyerId) {
   let unallocated=0;
   let held=0;
   const unallocatedEntryIds=[];
+  const appliedByReceipt={},creditSources=[{entry:null,amount:credit}];
+  const apply=(entry,item,amount)=>{
+    const used=Math.min(Math.max(0,amount),item.balance);item.balance-=used;
+    if(entry.received>0&&used){const parts=appliedByReceipt[entry.id]??=[];const part=parts.find(p=>p.itemId===item.id);if(part)part.amount+=used;else parts.push({itemId:item.id,amount:used});}
+    return used;
+  };
   for(const entry of entries){
     let amount=entry.received+entry.adjustment;
     if(amount<0){
       let refund=-amount;const fromHeld=Math.min(held,refund);held-=fromHeld;refund-=fromHeld;
-      const fromCredit=Math.min(credit,refund);credit-=fromCredit;refund-=fromCredit;
+      const fromCredit=Math.min(credit,refund);credit-=fromCredit;refund-=fromCredit;let removeCredit=fromCredit;for(const source of [...creditSources].reverse()){const used=Math.min(source.amount,removeCredit);source.amount-=used;removeCredit-=used;if(!removeCredit)break;}
       for(const item of [...items].reverse()){const reopen=Math.min(refund,item.amount-item.balance);item.balance+=reopen;refund-=reopen;if(!refund)break;}
       if(refund)items.push({id:`refund:${entry.id}`,kind:'refund',roundId:entry.roundId,date:entry.date,amount:refund,balance:refund,reason:'返金',note:'受取訂正後に確認が必要な返金分'});
       continue;
@@ -598,7 +604,11 @@ export function collectionDueItems(s, roundId, buyerId) {
     if(application){
       for(const part of application.parts){
         const chosen=items.find(x=>x.id===part.itemId);
-        if(chosen) chosen.balance-=Math.min(part.amount,chosen.balance);
+        if(chosen) apply(entry,chosen,part.amount);
+      }
+      if(eligibleIds.has(entry.roundId)){
+        const applied=(appliedByReceipt[entry.id]||[]).reduce((n,p)=>n+p.amount,0);
+        held+=Math.max(0,entry.received-applied);
       }
       continue;
     }
@@ -607,7 +617,7 @@ export function collectionDueItems(s, roundId, buyerId) {
     // remainder to a different invoice or an inferred credit.
     if(!eligibleIds.has(entry.roundId)){
       const chosen=items.find(x=>x.id===entry.itemId);
-      if(chosen)chosen.balance-=Math.min(amount,chosen.balance);
+      if(chosen)apply(entry,chosen,amount);
       continue;
     }
     // An overpayment explicitly kept for a future decision is not permission
@@ -616,7 +626,7 @@ export function collectionDueItems(s, roundId, buyerId) {
     // a later, explicit allocation.
     if(entry.reason==='多く受け取ったので次回へ預かる'&&!entry.itemId){
       const own=items.filter(x=>x.roundId===entry.roundId&&x.balance>0);
-      if(own.length===1){const used=Math.min(amount,own[0].balance);own[0].balance-=used;amount-=used;}
+      if(own.length===1){const used=apply(entry,own[0],amount);amount-=used;}
       held+=amount;
       continue;
     }
@@ -633,16 +643,16 @@ export function collectionDueItems(s, roundId, buyerId) {
     }
     if(entry.itemId){
       const chosen=items.find(x=>x.id===entry.itemId);
-      if(chosen){const used=Math.min(amount,chosen.balance);chosen.balance-=used;amount-=used;}
+      if(chosen){const used=apply(entry,chosen,amount);amount-=used;}
     }
     for(const item of open){
-      const used=Math.min(amount,item.balance);item.balance-=used;amount-=used;
+      const used=apply(entry,item,amount);amount-=used;
       if(!amount) break;
     }
-    credit+=amount;
+    credit+=amount;creditSources.push({entry,amount});
   }
-  if(credit) for(const item of items){const used=Math.min(credit,item.balance);item.balance-=used;credit-=used;if(!credit)break;}
-  return {items,credit:credit+held,held,unallocated,unallocatedEntryIds};
+  if(credit)for(const source of creditSources){for(const item of items){const used=Math.min(source.amount,item.balance);if(source.entry)apply(source.entry,item,used);else item.balance-=used;source.amount-=used;credit-=used;if(!source.amount)break;}}
+  return {items,credit:credit+held,held,unallocated,unallocatedEntryIds,appliedByReceipt};
 }
 export function collectionPosition(s, roundId, buyerId) {
   s=effectiveCollectionState(s);
@@ -691,7 +701,7 @@ export function collectionPosition(s, roundId, buyerId) {
   const rawBalance=carry+current-received-adjusted-confirmedHistorical-laterForPrior-laterForCurrent;
   const priorDue=dueState.items.filter(x=>x.roundId!==roundId).reduce((n,x)=>n+x.balance,0);
   const priorBalance=carry-laterForPrior-currentForPrior;
-  return { carry:dueState.held&&priorDue>0?priorDue:priorBalance, current, received:received+laterForCurrent-currentForPrior, adjusted, confirmedHistorical,
+  return { carry:dueState.held?priorDue:priorBalance, current, received:received+laterForCurrent-currentForPrior, adjusted, confirmedHistorical,
     balance:outstanding>0?rawBalance+dueState.held:rawBalance,
     credits, availableCredit:refundableCredit, held:dueState.held, entries, unallocated:dueState.unallocated, due:dueState.items.filter(x=>x.balance>0) };
 }

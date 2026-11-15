@@ -3035,3 +3035,16 @@ nav button.active:nth-child(4) {background:#f3ecfa;color:#724296;}
   main[data-page='集計'] .hero progress::-webkit-progress-value {background:#65c7f2;border-radius:999px;}
   main[data-page='集計'] .hero progress::-moz-progress-bar {background:#65c7f2;border-radius:999px;}
 }
+/* Shared approved crayon texture; keep link text width and stage colors. */
+#root:has(> .login-header) .login-reset::after {left:0;right:0;width:100%;}
+.report-mode button.selected {text-decoration:none;position:relative;}
+.report-mode button.selected::after {content:'';position:absolute;left:0;right:0;bottom:0;height:5px;background:currentColor;mask:url('./assets/crayon-underline.svg') 0 0/100% 100% no-repeat;}
+main[data-page='集計'] .hero progress {accent-color:#f4c84b;}
+main[data-page='集計'] .hero progress::-webkit-progress-value {background:#f4c84b;}
+main[data-page='集計'] .hero progress::-moz-progress-bar {background:#f4c84b;}
+.receipt-cash {padding:12px;border:1px solid #d7b7bf;border-radius:12px;margin-bottom:16px;background:#fff8fa;}
+.cash-totals {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.cash-totals div {min-width:0;}.cash-totals dt{font-size:13px;}.cash-totals dd{margin:0;font-weight:700;font-size:19px;}
+.receipt-cash summary {cursor:pointer;padding:10px 0;overflow-wrap:anywhere;}
+.external-batch {margin:12px 0;}.external-batch-row{padding:12px 0;border-bottom:1px solid #d7dfda;}
+.round-chart-plot svg g[role='button']{cursor:pointer;outline-offset:3px;}

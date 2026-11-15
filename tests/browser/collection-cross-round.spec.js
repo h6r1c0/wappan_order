@@ -19,7 +19,21 @@ for(const width of [320,375,430])test(`${width}px：取消済み現金と後日�
   await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
   await page.locator('.stage-4 > .stage-trigger').click();
   const row=page.locator('.collection-entry[data-buyer="hori"]');
-  await expect(row.getByRole('button',{name:'全額受取'})).toBeVisible();
+  await expect(row.getByRole('button',{name:'全額受取',exact:true})).toHaveCount(0);
+  await row.locator('.collection-open').click();
+  await row.getByRole('button',{name:'この現金を請求へ充当・残額を指定'}).click();
+  await row.getByLabel(/2026-10-16の請求へ充当/).fill('100');
+  await row.getByRole('button',{name:'充当と残額を保存'}).click();
+  await expect(row.getByRole('status').filter({hasText:'1,050円を返金待ち'})).toBeVisible();
+  await page.reload();
+  await page.locator('.round-list-item').filter({hasText:'2026/10/16'}).click();
+  await page.locator('.stage-4 > .stage-trigger').click();
+  await page.getByText(/受取済み・過去分の登録/).click();
+  await row.locator('.collection-open').click();
+  await expect(row.locator('.cash-totals')).toContainText('1,150円');
+  await expect(row.locator('.cash-totals')).toContainText('1,050円');
+  expect(shared.state.collectionEntries).toHaveLength(2);
+  expect(shared.state.collectionAllocations[0].held).toBe(1050);
   await page.screenshot({path:`test-results/cross-round-${browser.browserType().name()}-${width}.png`,fullPage:true});
  }finally{await context.close();}
 });
