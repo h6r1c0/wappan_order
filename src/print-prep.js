@@ -98,6 +98,8 @@ export function envelopePrintRows(state,round){
 // The full snapshot remains in the order and in the sales record sheet.
 const shortLabels = new Map([
   ['シナモンレーズンクッキー','シナモンRクッキー'],
+  ['おから入りホットビスケット 約50g×3個','ホットビスケット'],
+  ['ハロウィンパンセット 3種×1個','ハロウィンセット'],
   ['Ｆ.Ｔ.ジンジャークッキー','ジンジャークッキー'],
   ['Ｆ.Ｔ.鳩ココアクッキー','鳩ココアクッキー'],
   ['F.T.エスプレッソクッキー','エスプレッソクッキー'],
@@ -124,8 +126,10 @@ export function sortingPrintName(name, products) {
   let candidate=shortLabels.get(name)||stripped;
   if(/^バジルとチーズのフォカッチャ$/u.test(candidate))candidate='フォカッチャ';
   if(!candidate||candidate===name) return productDisplayName(name);
+  const family=name.startsWith('おから入りホットビスケット')?'おから入りホットビスケット':
+    name.startsWith('ハロウィンパンセット')?'ハロウィンパンセット':'';
   // When two products would read the same, retain the full name and its specification.
-  return products.some(p => p.name!==name && (p.name===candidate || shortLabels.get(p.name)===candidate ||
+  return products.some(p => p.name!==name && ((family&&p.name.startsWith(family)) || p.name===candidate || shortLabels.get(p.name)===candidate ||
     (p.name||'').replace(/\s*[（(](?:リーン[,、]?\s*)?(?:冷|涼)[）)]/gu,'').replace(/\s*約\s*\d+(?:g|ｇ|㎝|cm).*/u,'').trim()===candidate))
     ? productDisplayName(name) : productDisplayName(candidate);
 }

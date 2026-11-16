@@ -96,7 +96,7 @@ export async function createPrintPdf(model,fontBytes) {
       const name=product.printName||product.name;
       let size=name.length<=11?9:9.5;
       if(name.length<=11&&font.widthOfTextAtSize(name,size)>mm(32.65))size=8.5;
-      return {...product,pdfSize:size,printUnits:wrap(name,size,32.65).length};
+      return {...product,pdfSize:size,printUnits:wrap(name,model.kind==='envelopes'?Math.min(8.3,size):size,model.kind==='envelopes'?26.6:32.65).length};
     })}));
     for(const sheet of sortingPages(measuredRows)){
       const page=newPage(),cellHeight=235/sheet.rowCount;
@@ -118,9 +118,12 @@ export async function createPrintPdf(model,fontBytes) {
         for(const product of row.lines){
           const name=product.printName||product.name;
           const size=model.kind==='envelopes'?Math.min(8.3,product.pdfSize):product.pdfSize;
-          const parts=wrap(name,size,model.kind==='envelopes'?28.5:32.65);
+          const parts=wrap(name,size,model.kind==='envelopes'?26.6:32.65);
           parts.forEach((part,i)=>text(page,part,x+2.8,productTop+3.8+i*4.5,size));
-          text(page,model.kind==='envelopes'?`×${product.qty} ${product.amount==null?'未確定':`${product.amount}円`}`:`×${product.qty}`,x+43.45,productTop+3.8,model.kind==='envelopes'?7:9.5,{right:true,bold:true});
+          if(model.kind==='envelopes'){
+            text(page,String(product.qty),x+31.2,productTop+3.8,7.5,{right:true,bold:true});
+            text(page,product.amount==null?'未確定':`${product.amount}円`,x+43.45,productTop+3.8,7,{right:true,bold:true});
+          }else text(page,`×${product.qty}`,x+43.45,productTop+3.8,9.5,{right:true,bold:true});
           productTop+=parts.length*4.5+1;
         }
         if(model.kind==='envelopes'){

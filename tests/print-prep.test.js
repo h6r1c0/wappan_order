@@ -121,6 +121,10 @@ test('仕分けの略称は規格や識別を守り、衝突時は正式名称�
   assert.equal(sortingPrintName(products[3].name,products),'くるみパン 1個');
   assert.equal(sortingPrintName(products[4].name,products),'くるみパン 2個');
   assert.equal(sortingPrintName('シナモンレーズンクッキー',products),'シナモンRクッキー');
+  assert.equal(sortingPrintName('おから入りホットビスケット 約50g×3個',products),'ホットビスケット');
+  assert.equal(sortingPrintName('ハロウィンパンセット 3種×1個',products),'ハロウィンセット');
+  assert.equal(sortingPrintName('おから入りホットビスケット 約50g×3個',[...products,{name:'おから入りホットビスケット 約70g×2個'}]),'おから入りホットビスケット 約50g×3個');
+  assert.equal(sortingPrintName('ハロウィンパンセット 3種×1個',[...products,{name:'ハロウィンパンセット 4種×1個'}]),'ハロウィンパンセット 3種×1個');
   products.push({name:'甘夏サンドクッキー'});
   assert.equal(sortingPrintName(products[0].name,products),'甘夏サンドクッキー(冷) 約70g');
 });

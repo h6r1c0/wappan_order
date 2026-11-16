@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {PDFDocument,PDFName,decodePDFRawStream} from 'pdf-lib';
 import {createPrintPdf} from '../src/print-pdf.js';
-import {sortingPages,salesPrintName} from '../src/print-prep.js';
+import {sortingPages,salesPrintName,sortingPrintName} from '../src/print-prep.js';
 const font=await readFile(new URL('../src/assets/fonts/NotoSansJP-Regular.ttf',import.meta.url));
 
 test('独立PDFはA4の帳票だけで印刷JavaScriptを持たず、読み取り元を変更しない',async()=>{
@@ -81,4 +81,18 @@ test('長い現行商品名も顧客向け印刷名では商品列1行に収ま�
   assert.ok(names.every(name=>embedded.widthOfTextAtSize(name,10)<=50*72/25.4));
   const bytes=await createPrintPdf({kind:'sales',date:'2026-10-16',sales:names.map(name=>({name,price:390,qty:5}))},font);
   assert.equal((await PDFDocument.load(bytes)).getPageCount(),1);
+});
+
+test('A4ラベルの短縮名は1行幅に収まり、数量1・複数の別欄と請求額を維持する',async()=>{
+ const doc=await PDFDocument.create();doc.registerFontkit((await import('@pdf-lib/fontkit')).default);
+ const embedded=await doc.embedFont(font,{subset:false});
+ const products=[{name:'おから入りホットビスケット 約50g×3個'},{name:'ハロウィンパンセット 3種×1個'}];
+ const lines=products.map((product,i)=>({name:product.name,printName:sortingPrintName(product.name,products),qty:i+1,amount:(i+1)*400}));
+ assert.deepEqual(lines.map(l=>l.printName),['ホットビスケット','ハロウィンセット']);
+ assert.ok(lines.every(line=>embedded.widthOfTextAtSize(line.printName,8.3)<=26.6*72/25.4));
+ const rows=[{id:'buyer',name:'長めの購入者名',billAmount:1200,billPending:false,normal:1200,snack:0,lines}];
+ const bytes=await createPrintPdf({kind:'envelopes',date:'2026-10-16',staff:'担当者',pages:sortingPages(rows)},font);
+ const page=(await PDFDocument.load(bytes)).getPage(0);
+ assert.ok(Math.abs(page.getWidth()-210*72/25.4)<.01);
+ assert.ok(Math.abs(page.getHeight()-297*72/25.4)<.01);
 });
