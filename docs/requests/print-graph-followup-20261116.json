@@ -1,0 +1,48 @@
+{
+  "source": "2026-11-16 本人：PR #47公開後の実機確認による帳票・グラフ表示とGoogle受付準備の追加指示",
+  "purpose": "印刷専用短縮名とラベル数量・金額、グラフ凡例と日付を改善。データ・計算・抽出条件を維持し、Google側はアカウント選択まで作成・共有しない。",
+  "targets": [
+    {
+      "id": "WAP-0080",
+      "ledgerRef": "WAP-0080",
+      "ledgerDigest": "f98320c90e20d3d737908f0ae89ef6f1e5089b73e6a2eaa513c5d790379b6791"
+    },
+    {
+      "id": "WAP-0046",
+      "ledgerRef": "WAP-0046",
+      "ledgerDigest": "cd512acb5643912045c67a9fef475331c0cc817ee3dd92d7c5b8a511020a8ce3"
+    },
+    {
+      "id": "WAP-0083",
+      "ledgerRef": "WAP-0083",
+      "ledgerDigest": "7b7dd2b05b3959e045a8cfd93aaa22e09870d87073a8261e5f4dc7ffb889bed3"
+    },
+    {
+      "id": "WAP-0086",
+      "ledgerRef": "WAP-0086",
+      "ledgerDigest": "9f77a41c61e118c116c1bc0c74c8390948aca32469235acf1898b8b27f663dcc"
+    },
+    {
+      "id": "WAP-0096",
+      "ledgerRef": "WAP-0096",
+      "ledgerDigest": "51b7d3ccf1bf3b43cee387c338d1de72473dc3fd04b9f8c09411d922f306d43d"
+    },
+    {
+      "id": "WAP-0091",
+      "ledgerRef": "WAP-0091",
+      "ledgerDigest": "bd84d1acb11c9843918a990c2b029506cc27ea04de3de9abc026f446ffa52474"
+    },
+    {
+      "id": "WAP-0093",
+      "ledgerRef": "WAP-0093",
+      "ledgerDigest": "cdec0e49e36a8add7ed3ad851c0faced46a7e8b415840b10f50bb521e280b545"
+    }
+  ],
+  "deferred": [
+    {
+      "id": "WAP-0094",
+      "reason": "確定済み請求の実機確認は今回の印刷・グラフ表示範囲外",
+      "next": "前回PR #47の公開後実機確認として継続"
+    }
+  ]
+}

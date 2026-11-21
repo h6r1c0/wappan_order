@@ -522,19 +522,28 @@ function RoundLineChart({points,metric,onMetric,group,onGroup,selected,onSelect}
  const raw=(max-min)/4,power=10**Math.floor(Math.log10(raw)),step=[1,2,5,10].map(n=>n*power).find(n=>n>=raw)||power*10;
  const low=Math.floor(min/step)*step,high=Math.max(low+step,Math.ceil(max/step)*step),ticks=Array.from({length:Math.round((high-low)/step)+1},(_,i)=>low+i*step);
  const x=i=>64+(points.length<2?133:i*266/(points.length-1)),y=v=>164-(v-low)/(high-low)*132;
- const groups=[...new Set(points.flatMap(p=>Object.keys(p.parts)))],colors=['#087b69','#b9561e','#7350a1','#b03964','#667167'];
+ const groups=[...new Set(points.flatMap(p=>Object.keys(p.parts)))];
+ // These keys are the actual roundSeries categories, not inferred from line order.
+ const palette=group==='origin'?{'wappan':'#087b69','non-wappan':'#b9561e',unknown:'#7350a1'}:
+   {'個人請求':'#087b69','支払い済み・外部販売':'#b9561e','販売方法未確認':'#7350a1','通常注文・販売用（原価配分未確認）':'#b03964'};
+ const fallback=['#667167','#854e73','#8c671a'];
+ const colorOf=g=>palette[g]||fallback[groups.indexOf(g)%fallback.length];
+ const labelOf=g=>group==='origin'?({'wappan':'わっぱん商品','non-wappan':'わっぱん以外',unknown:'由来未確認'}[g]||g):g;
+ const labels=points.length?[...new Set([0,1,2,3].map(n=>Math.round(n*(points.length-1)/3)))]:[];
+ const current=points.find(p=>p.date===selected);
  return <section className="round-chart" aria-label="注文回別の実績推移"><h3>注文回別の推移</h3>
    <div className="round-chart-controls"><label>金額 <select aria-label="金額" value={metric} onChange={e=>onMetric(e.target.value)}><option value="profit">利益</option><option value="revenue">売上</option></select></label><label>内訳 <select aria-label="内訳" value={group} onChange={e=>onGroup(e.target.value)}><option value="origin">商品由来別</option><option value="method">販売方法別</option></select></label></div>
+   <div className="round-chart-legend" aria-label="線の意味"><span><i style={{background:'#273f51'}}/>全体</span>{groups.map(g=><span key={g}><i style={{background:colorOf(g)}}/>{labelOf(g)}</span>)}</div>
    <div className="round-chart-plot"><svg viewBox="0 0 354 198" role="group" aria-label={`${metric==='profit'?'利益':'売上'}の注文回別折れ線グラフ`}>
     <text x="4" y="15" fontSize="11" fill="#364a55">金額（円）</text>
     {ticks.map(t=><g key={t}><line x1="64" x2="330" y1={y(t)} y2={y(t)} stroke={t===0?'#879b9d':'#d9e1e1'} strokeDasharray={t===0?undefined:'3 3'}/><text x="58" y={y(t)+4} textAnchor="end" fontSize="12" fill="#364a55">{t.toLocaleString('ja-JP')}</text></g>)}
-    <text x="197" y="194" textAnchor="middle" fontSize="11" fill="#364a55">注文日</text>
-    {groups.map((g,n)=><g key={g} fill="none" stroke={colors[n%colors.length]} strokeWidth="1.3">{points.slice(1).map((p,i)=>!p.manual&&!points[i].manual&&g in p.parts&&g in points[i].parts?<line key={i} x1={x(i)} y1={y(points[i].parts[g])} x2={x(i+1)} y2={y(p.parts[g])}/>:null)}</g>)}
+    {labels.map(i=><text key={points[i].date} x={x(i)} y="191" textAnchor="middle" fontSize="10" fill="#364a55">{points[i].date.slice(5).replace('-','/')}</text>)}
+    {groups.map(g=><g key={g} fill="none" stroke={colorOf(g)} strokeWidth="1.8">{points.slice(1).map((p,i)=>!p.manual&&!points[i].manual&&g in p.parts&&g in points[i].parts?<line key={i} x1={x(i)} y1={y(points[i].parts[g])} x2={x(i+1)} y2={y(p.parts[g])}/>:null)}</g>)}
     <polyline fill="none" stroke="#273f51" strokeWidth="3.3" points={points.map((p,i)=>`${x(i)},${y(p.total)}`).join(' ')}/>
     {points.map((p,i)=><g key={p.date} role="button" tabIndex="0" aria-label={`${p.date} ${yen(p.total)}の内訳`} onClick={()=>onSelect(p.date)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSelect(p.date);}}}><title>{p.date} {yen(p.total)}</title><circle cx={x(i)} cy={y(p.total)} r="14" fill="transparent"/><circle cx={x(i)} cy={y(p.total)} r={selected===p.date?6:4} fill="#273f51"/></g>)}
    </svg></div>
-   <div className="round-chart-dates">{points.map(p=><button type="button" className={selected===p.date?'selected':''} key={p.date} onClick={()=>onSelect(p.date)}>{p.date.slice(5).replace('-','/')}{p.manual?' 手入力':''}</button>)}</div>
-   {points.find(p=>p.date===selected)&&<p role="status">{selected}　全体 {yen(points.find(p=>p.date===selected).total)}{points.find(p=>p.date===selected).manual?'（過去の手入力実績・内訳なし）':''}{points.find(p=>p.date===selected).unconfirmed?'（暫定・未確定を除く）':''}<br/>{Object.entries(points.find(p=>p.date===selected).parts).map(([name,value])=>`${name} ${yen(value)}`).join(' ／ ')}</p>}
+   <div className="round-chart-dates" aria-label="表示する注文日">{labels.map(i=><button type="button" className={selected===points[i].date?'selected':''} key={points[i].date} onClick={()=>onSelect(points[i].date)}>{points[i].date.slice(5).replace('-','/')}{points[i].manual?' 手入力':''}</button>)}</div>
+   {current&&<p role="status">{current.date}　全体 {yen(current.total)}{current.manual?'（過去の手入力実績・内訳なし）':''}{current.unconfirmed?'（暫定・未確定を除く）':''}<br/>{Object.entries(current.parts).map(([name,value])=>`${labelOf(name)} ${yen(value)}`).join(' ／ ')}</p>}
    {!points.length&&<small>対象の注文回・過去実績はありません。</small>}
    <small>分類できない実績は「由来未確認」に残します。日付のない調整額はこのグラフに含めません。</small>
  </section>;
