@@ -162,6 +162,7 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
 }
 export function RoundCollections({round,rows,sessions={},onDraft,onSource,initialFocus=''}){
   const {state,save,notify}=useApp(),[focus,setFocus]=useState(initialFocus),[exporting,setExporting]=useState(false),[exception,setException]=useState(''),[recentReceipt,setRecentReceipt]=useState(null),[envelopeStaff,setEnvelopeStaff]=useState(()=>typeof localStorage==='undefined'?'':localStorage.getItem('wappan-envelope-staff')||'');
+  const [printResult,setPrintResult]=useState(null);
   const audit=billingAudit(state,round.id);
   const ids=new Set(state.buyers.map(x=>x.id));
   for(const buyer of state.buyers)if(collectionPosition(state,round.id,buyer.id).carry)ids.add(buyer.id);
@@ -174,10 +175,10 @@ export function RoundCollections({round,rows,sessions={},onDraft,onSource,initia
   const unresolved=audit.issues.length>0;
   const exportBills=async()=>{
     if(exporting)return;if(unresolved&&!exception){notify('未確定の請求があります。下の警告から確認してください。');return;}
-    setExporting(true);try{await openPrintPreview({kind:'collections',date:round.date,pending:unresolved,bills:sorted.map(id=>{const p=collectionPosition(state,round.id,id),a=audit.buyers.find(x=>x.buyerId===id);return {name:state.buyers.find(x=>x.id===id)?.name,total:Math.max(0,p.current+p.carry-p.confirmedHistorical),lines:a?.lines||[],carry:p.carry,confirmed:p.confirmedHistorical,received:p.received,balance:p.balance,issues:a?.issues||[],reason:exception};})});}catch(e){notify(e.message);}finally{setExporting(false);}
+    setPrintResult(null);setExporting(true);try{setPrintResult(await openPrintPreview({kind:'collections',date:round.date,pending:unresolved,bills:sorted.map(id=>{const p=collectionPosition(state,round.id,id),a=audit.buyers.find(x=>x.buyerId===id);return {name:state.buyers.find(x=>x.id===id)?.name,total:Math.max(0,p.current+p.carry-p.confirmedHistorical),lines:a?.lines||[],carry:p.carry,confirmed:p.confirmedHistorical,received:p.received,balance:p.balance,issues:a?.issues||[],reason:exception};})}));}catch(e){notify(e.message);}finally{setExporting(false);}
   };
-  const exportEnvelopes=async()=>{if(exporting)return;setExporting(true);
-    try{const result=await openPrintPreview({kind:'envelopes',date:round.date,staff:envelopeStaff.trim(),pages:sortingPages(envelopePrintRows(state,round))});if(result.blocked)notify('PDFを開けませんでした。ポップアップの許可を確認してください。');}
+  const exportEnvelopes=async()=>{if(exporting)return;setPrintResult(null);setExporting(true);
+    try{setPrintResult(await openPrintPreview({kind:'envelopes',date:round.date,staff:envelopeStaff.trim(),pages:sortingPages(envelopePrintRows(state,round))}));}
     catch(e){notify(e.message);}finally{setExporting(false);}
   };
   const auditDetails=<>
@@ -187,6 +188,7 @@ export function RoundCollections({round,rows,sessions={},onDraft,onSource,initia
   </>;
   return <div className="stack collection-list">
     <div className="envelope-print"><Field label="集金袋ラベルの担当者名（ここで一括編集）"><input value={envelopeStaff} onChange={e=>{setEnvelopeStaff(e.target.value);localStorage.setItem('wappan-envelope-staff',e.target.value);}} placeholder="例：渡邉"/></Field><button className="text-action" type="button" disabled={exporting} onClick={exportEnvelopes}>集金袋に貼る個別ラベルを印刷 ›</button><small>未確定の請求は金額を確定額として印刷しません。</small></div>
+    {printResult&&<p className="print-result" role="status">{printResult.blocked?'別画面を開けませんでした。':'プレビューが黒い場合は元の画面に戻り、'} <a href={printResult.url} target="_blank" rel="noopener noreferrer">PDFを開く ›</a>　<a href={printResult.url} download={printResult.file.name}>PDFを保存 ›</a>{typeof navigator!=='undefined'&&navigator.canShare?.({files:[printResult.file]})&&<>　<button type="button" className="text-action" onClick={()=>navigator.share({files:[printResult.file],title:printResult.file.name}).catch(()=>{})}>PDFを共有・印刷 ›</button></>}</p>}
     {unresolved?<section className="billing-audit" aria-label="集金前の自動照合"><h3>集金前の確認</h3><p role="alert">要確認 {audit.issues.length}件</p>{audit.issues.map((x,i)=><button className="audit-issue" type="button" key={i} onClick={()=>go(x.buyerId)}>{x.name}：{x.message} ›</button>)}{auditDetails}</section>
       :<details className="billing-audit billing-audit-done" aria-label="集金前の自動照合"><summary>請求照合済み <span>販売用・印刷 ›</span></summary><p>注文・受取確定数・単価を照合しました。</p>{auditDetails}</details>}
     <div className="collection-list-heading"><strong>{activeIds.length===sorted.filter(id=>collectionPosition(state,round.id,id).balance>0).length?'未受取':'未受取・要確認'} {activeIds.length}人</strong><small>集金予定額</small></div>

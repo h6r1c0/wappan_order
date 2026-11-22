@@ -1,18 +1,17 @@
+import {createPrintPdf} from './print-pdf.js';
+
 let resources;
 const previews=[];
 const documents=new Map();
 function pdfResources(){
-  if(!resources)resources=Promise.all([
-    import('./print-pdf.js'),
-    (async()=>{
+  if(!resources)resources=(async()=>{
       const controller=new AbortController();
       const timeout=setTimeout(()=>controller.abort(),20000);
       try{
         const r=await fetch(new URL('./assets/fonts/NotoSansJP-Regular.ttf',import.meta.url),{signal:controller.signal});
         if(!r.ok)throw new Error('print-font');return await r.arrayBuffer();
       }finally{clearTimeout(timeout);}
-    })(),
-  ]).catch(error=>{resources=null;throw error;});
+    })().catch(error=>{resources=null;throw error;});
   return resources;
 }
 
@@ -26,9 +25,10 @@ export async function openPrintPreview(model){
   }
   let preview;
   try{preview=window.open('about:blank','_blank');}catch{preview=null;}
-  const title=model.kind==='sales'?'販売記録表':'個人注文仕分け表';
+  const title={sales:'販売記録表',sorting:'個人注文仕分け表',envelopes:'集金袋用個別ラベル',collections:'集金袋用請求表'}[model.kind]||'帳票';
   if(preview){
-    preview.opener=null;
+    // Keep the opener's origin while navigating to its blob URL. WebKit can
+    // display a blank PDF when the new tab is isolated before navigation.
     preview.document.title=title;
     const message=preview.document.createElement('p');
     message.textContent='帳票を準備しています…';
@@ -39,18 +39,18 @@ export async function openPrintPreview(model){
     const key=JSON.stringify(model);
     let file=documents.get(model.kind)?.key===key?documents.get(model.kind).file:null;
     if(!file){
-      const [{createPrintPdf},fontBytes]=await pdfResources();
+      const fontBytes=await pdfResources();
       const bytes=await createPrintPdf(model,fontBytes);
       file=new File([bytes],`${title}_${model.date}.pdf`,{type:'application/pdf'});
       documents.set(model.kind,{key,file});
     }
     const url=URL.createObjectURL(file);
     if(preview&&!preview.closed){
-      try{preview.location.replace(url);previews.push({window:preview,url});return {url,blocked:false};}
+      try{preview.location.replace(url);previews.push({window:preview,url});return {url,file,blocked:false};}
       catch{ /* Keep a normal link available if the browser rejects navigation. */ }
     }
     previews.push({window:null,url});
-    return {url,blocked:true};
+    return {url,file,blocked:true};
   }catch(error){
     if(preview&&!preview.closed)preview.document.body.textContent='帳票を作成できませんでした。この画面を閉じて、元の画面からもう一度お試しください。';
     throw error;

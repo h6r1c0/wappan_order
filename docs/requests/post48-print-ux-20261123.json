@@ -1,0 +1,38 @@
+{
+  "source": "2026-11-23 本人：PR #48後のiPhone印刷黒画面、集計グラフ、クレヨン質感、3用途タブの実機追加指示",
+  "purpose": "既存の正常な帳票・会計・集計値・切替入力を保持し、PDF表示経路と集計・装飾を改善。ヘルプ・受付・Muse・本番会計データは対象外。",
+  "targets": [
+    {
+      "id": "WAP-0042",
+      "ledgerRef": "WAP-0042",
+      "ledgerDigest": "17655091d3927bcdb346de69d8aac1f8af0e377c3fd1fa568901ad2a3ca74c91"
+    },
+    {
+      "id": "WAP-0043",
+      "ledgerRef": "WAP-0043",
+      "ledgerDigest": "0708f99cee314e59970f9bd279903a0087162c2227432b14d3e6a8eb54d809d2"
+    },
+    {
+      "id": "WAP-0047",
+      "ledgerRef": "WAP-0047",
+      "ledgerDigest": "faccfc211845050914f6c6bc15816f59fa3598d164ecd244d775579c0d7dea15"
+    },
+    {
+      "id": "WAP-0083",
+      "ledgerRef": "WAP-0083",
+      "ledgerDigest": "7b7dd2b05b3959e045a8cfd93aaa22e09870d87073a8261e5f4dc7ffb889bed3"
+    },
+    {
+      "id": "WAP-0086",
+      "ledgerRef": "WAP-0086",
+      "ledgerDigest": "9f77a41c61e118c116c1bc0c74c8390948aca32469235acf1898b8b27f663dcc"
+    }
+  ],
+  "deferred": [
+    {
+      "id": "WAP-0091",
+      "reason": "問い合わせ受付・Museは本人が今回対象外と指定",
+      "next": "本体の品質とレイアウトが安定した後に別途継続"
+    }
+  ]
+}

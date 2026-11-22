@@ -3053,3 +3053,26 @@ main[data-page='集計'] .hero progress::-moz-progress-bar {background:#f4c84b;}
 .round-chart-plot svg g[role='button']{cursor:pointer;outline-offset:3px;}
 main[data-page='集計'] .hero progress {background:#385c70;border-color:#385c70;}
 main[data-page='集計'] .hero progress::-webkit-progress-bar {background:#385c70;}
+
+/* The same wax edge used by link underlines also shapes the existing L. */
+@media screen {
+  .stage.active > .stage-trigger::before,
+  .round-list-item::before {width:10px;left:-2px;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;}
+  .stage.active > .stage-trigger::after,
+  .round-list-item::after {height:7px;bottom:-2px;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;}
+  main[data-page='集計'] .summary::before {width:10px;left:2px;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;}
+  main[data-page='集計'] .hero {border:0;box-shadow:none;}
+  main[data-page='集計'] .hero::before {width:10px;left:-2px;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;}
+  main[data-page='集計'] .hero::after {content:'';position:absolute;left:0;right:0;bottom:-2px;height:7px;background:#285f96 url('./assets/pencil/blue-deep.png') center/100% 100% no-repeat;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;pointer-events:none;}
+  main[data-page='集計'] .hero .text-action::after {mask-image:url('./assets/crayon-underline.svg');mask-size:100% 100%;mask-repeat:no-repeat;filter:none;background-image:url('./assets/pencil/blue-light.png');}
+
+  .stage-content .purpose-grid .purpose.selected,
+  .stage-content .purpose-next .text-action.selected {position:relative;background:#eaf5fc url('./assets/pencil/blue-light.png') center/100% 100% no-repeat;color:#235b83;border:1px solid #8bb1c8;border-radius:8px;font-weight:750;}
+  .stage-content .purpose-grid .purpose.selected>span {color:inherit;background:transparent;}
+  .purpose-next .text-action.selected::before,.purpose-grid .purpose.selected>span::before {content:none;}
+  .stage-content .purpose-grid .purpose.selected::after,
+  .stage-content .purpose-next .text-action.selected::after {content:'';position:absolute;left:12px;right:12px;bottom:2px;height:6px;background:#286d9e url('./assets/pencil/blue-deep.png') center/100% 100% no-repeat;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;pointer-events:none;opacity:1;}
+  .stage-content .purpose-next .text-action {min-height:44px;border:1px solid transparent;border-radius:8px;}
+  .stage-content .purpose-grid .purpose {min-height:48px;}
+  .round-chart-detail {background:#f1f6fa;border-radius:8px;padding:8px;line-height:1.55;}
+}
