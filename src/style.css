@@ -3056,10 +3056,8 @@ main[data-page='集計'] .hero progress::-webkit-progress-bar {background:#385c7
 
 /* The same wax edge used by link underlines also shapes the existing L. */
 @media screen {
-  .stage.active > .stage-trigger::before,
-  .round-list-item::before {width:10px;left:-2px;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;}
-  .stage.active > .stage-trigger::after,
-  .round-list-item::after {height:7px;bottom:-2px;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;}
+  .stage.active > .stage-trigger::before {width:10px;left:-2px;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;}
+  .stage.active > .stage-trigger::after {height:7px;bottom:-2px;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;}
   main[data-page='集計'] .summary::before {width:10px;left:2px;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;}
   main[data-page='集計'] .hero {border:0;box-shadow:none;}
   main[data-page='集計'] .hero::before {width:10px;left:-2px;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;}
