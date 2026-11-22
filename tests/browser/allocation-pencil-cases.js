@@ -163,7 +163,8 @@ export function registerAllocationTests(engine){
     if(n===1){for(const purpose of ['個人注文','販売用','おやつ用']){
      const tab=page.locator('.purpose-grid .purpose').filter({hasText:purpose});await tab.click();
      const size=await tab.evaluate(el=>({button:el.getBoundingClientRect().width,ink:el.querySelector('span').getBoundingClientRect().width,height:el.getBoundingClientRect().height,image:getComputedStyle(el).backgroundImage}));
-     expect(size.ink).toBeLessThan(size.button);expect(size.height).toBeGreaterThanOrEqual(44);expect(size.image).toBe('none');
+     expect(size.ink).toBeLessThan(size.button);expect(size.height).toBeGreaterThanOrEqual(44);expect(size.image).toContain('green-light');
+     await expect(tab).toHaveAttribute('aria-pressed','true');
     }}
     await capture(page,engine,width,'after',`stage-${n}-L`);await trigger.click();
    }
