@@ -3067,11 +3067,11 @@ main[data-page='集計'] .hero progress::-webkit-progress-bar {background:#385c7
   main[data-page='集計'] .hero .text-action::after {mask-image:url('./assets/crayon-underline.svg');mask-size:100% 100%;mask-repeat:no-repeat;filter:none;background-image:url('./assets/pencil/blue-light.png');}
 
   .stage-content .purpose-grid .purpose.selected,
-  .stage-content .purpose-next .text-action.selected {position:relative;background:#eaf5fc url('./assets/pencil/blue-light.png') center/100% 100% no-repeat;color:#235b83;border:1px solid #8bb1c8;border-radius:8px;font-weight:750;}
+  .stage-content .purpose-next .text-action.selected {position:relative;background:#ecf6ed url('./assets/pencil/green-light.png') center/100% 100% no-repeat;color:#286c47;border:1px solid #8cb69a;border-radius:8px;font-weight:750;}
   .stage-content .purpose-grid .purpose.selected>span {color:inherit;background:transparent;}
   .purpose-next .text-action.selected::before,.purpose-grid .purpose.selected>span::before {content:none;}
   .stage-content .purpose-grid .purpose.selected::after,
-  .stage-content .purpose-next .text-action.selected::after {content:'';position:absolute;left:12px;right:12px;bottom:2px;height:6px;background:#286d9e url('./assets/pencil/blue-deep.png') center/100% 100% no-repeat;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;pointer-events:none;opacity:1;}
+  .stage-content .purpose-next .text-action.selected::after {content:'';position:absolute;left:12px;right:12px;bottom:2px;height:6px;background:#286c47 url('./assets/pencil/green-deep.png') center/100% 100% no-repeat;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;pointer-events:none;opacity:1;}
   .stage-content .purpose-next .text-action {min-height:44px;border:1px solid transparent;border-radius:8px;}
   .stage-content .purpose-grid .purpose {min-height:48px;}
   .round-chart-detail {background:#f1f6fa;border-radius:8px;padding:8px;line-height:1.55;}
