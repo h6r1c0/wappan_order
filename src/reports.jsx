@@ -531,7 +531,7 @@ function RoundLineChart({points,metric,onMetric,group,onGroup,selected,onSelect}
  const labelOf=g=>group==='origin'?({'wappan':'わっぱん商品','non-wappan':'わっぱん以外',unknown:'由来未確認'}[g]||g):g;
  const active=points.findIndex(p=>p.date===selected),activeIndex=active<0?points.length-1:active;
  const labels=points.map((_,i)=>i).filter(i=>points.length<=7||i===0||i===points.length-1||i%Math.ceil((points.length-1)/5)===0)
-   .filter(i=>i===activeIndex||Math.abs(i-activeIndex)>1);
+   .filter(i=>i!==activeIndex&&Math.abs(i-activeIndex)>1);
  const current=points[activeIndex];
  return <section className="round-chart" aria-label="注文回別の実績推移"><h3>注文回別の推移</h3>
    <div className="round-chart-controls"><label>金額 <select aria-label="金額" value={metric} onChange={e=>onMetric(e.target.value)}><option value="profit">利益</option><option value="revenue">売上</option></select></label><label>内訳 <select aria-label="内訳" value={group} onChange={e=>onGroup(e.target.value)}><option value="origin">商品由来別</option><option value="method">販売方法別</option></select></label></div>
