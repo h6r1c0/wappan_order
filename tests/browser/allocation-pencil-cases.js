@@ -157,9 +157,9 @@ export function registerAllocationTests(engine){
    await page.setViewportSize({width,height:812});
    for(let n=1;n<=4;n++){
     const trigger=page.locator(`.stage-${n} > .stage-trigger`);await trigger.click();
-    const css=await trigger.evaluate(el=>{const a=getComputedStyle(el,'::before'),b=getComputedStyle(el,'::after');return {left:a.left,top:a.top,bottom:a.bottom,footLeft:b.left,footBottom:b.bottom,v:a.backgroundImage,h:b.backgroundImage,font:getComputedStyle(el).fontFamily,numberFont:getComputedStyle(el.querySelector('.stage-number')).fontFamily};});
+    const css=await trigger.evaluate(el=>{const a=getComputedStyle(el,'::before'),b=getComputedStyle(el,'::after');return {left:a.left,top:a.top,bottom:a.bottom,footLeft:b.left,footBottom:b.bottom,v:a.backgroundImage,h:b.backgroundImage,verticalMask:a.maskImage,horizontalMask:b.maskImage,font:getComputedStyle(el).fontFamily,numberFont:getComputedStyle(el.querySelector('.stage-number')).fontFamily};});
     expect(css).toMatchObject({left:'0px',top:'0px',bottom:'0px',footLeft:'0px',footBottom:'0px'});
-    expect(css.v).toContain(['green','blue','orange','red'][n-1]+'-deep');expect(css.h).toBe(css.v);expect(css.numberFont).toBe(css.font);
+    expect(css.v).toContain(['green','blue','orange','red'][n-1]+'-deep');expect(css.h).toBe(css.v);expect(css.verticalMask).toContain('crayon-vertical');expect(css.horizontalMask).toContain('crayon-underline');expect(css.numberFont).toBe(css.font);
     if(n===1){for(const purpose of ['個人注文','販売用','おやつ用']){
      const tab=page.locator('.purpose-grid .purpose').filter({hasText:purpose});await tab.click();
      const size=await tab.evaluate(el=>({button:el.getBoundingClientRect().width,ink:el.querySelector('span').getBoundingClientRect().width,height:el.getBoundingClientRect().height,image:getComputedStyle(el).backgroundImage}));
