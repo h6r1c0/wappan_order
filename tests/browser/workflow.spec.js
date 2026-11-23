@@ -1641,9 +1641,9 @@ test('11/15レビュー：過去の手入力売上を全体線に表示し内訳
  await page.getByLabel('対象年度（4月〜翌3月）').selectOption('2026');
  const chart=page.getByRole('region',{name:'注文回別の実績推移'});
  await chart.getByRole('combobox',{name:/^金額/}).selectOption('revenue');
- await chart.getByRole('button',{name:'04/17 手入力'}).click();await expect(chart.getByRole('status')).toContainText('全体 800円（過去の手入力実績・内訳なし）');
+  await chart.getByRole('button',{name:/2026-04-17 .*内訳/}).click();await expect(chart.getByRole('status')).toContainText('全体 800円（過去の手入力実績・内訳なし）');
  await chart.getByRole('combobox',{name:/^内訳/}).selectOption('method');await expect(chart.getByRole('status')).toContainText('内訳なし');
- await chart.getByRole('button',{name:'09/11',exact:true}).click();await expect(chart.getByRole('status')).toContainText('全体 430円');
+  await chart.getByRole('button',{name:/2026-09-11 .*内訳/}).click();await expect(chart.getByRole('status')).toContainText('全体 430円');
  for(const width of [320,375,430]){await page.setViewportSize({width,height:812});await chart.scrollIntoViewIfNeeded();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`test-results/manual-sales-${browserName}-${width}.png`});}
  expect(shared.state).toEqual(before);expect(shared.revision).toBe(0);
 });

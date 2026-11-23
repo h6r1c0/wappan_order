@@ -50,11 +50,13 @@ test('WebKit: 同じ入口で販売→再印刷→仕分け→再印刷→販売
     'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 Version/18.7 Mobile/15E148 Safari/604.1'}));
   const first=await openPdf(page,'販売記録表を印刷');
   const bytes=await pdfBytes(page,first);
+  await expect(page.getByRole('link',{name:'PDFを保存'})).toHaveAttribute('download',/販売記録表.*\.pdf/);
   expect((await PDFDocument.load(bytes)).getTitle()).toBe('販売記録表 2026-09-11');
   await fs.writeFile('test-results/webkit-sales-a4.pdf',bytes);
   const second=await openPdf(page,'販売記録表を印刷');expect(second).not.toBe(first);
   const sorting=await pdfBytes(page,await openPdf(page,'個人仕分け表を印刷'));
   expect((await PDFDocument.load(sorting)).getPageCount()).toBe(1);
+  await expect(page.getByRole('link',{name:'PDFを保存'})).toHaveAttribute('download',/個人注文仕分け表.*\.pdf/);
   await fs.writeFile('test-results/webkit-sorting-a4.pdf',sorting);
   await page.evaluate(()=>{window.__previewWindows.at(-1).closed=true;}); // canceled/closed preview
   await openPdf(page,'個人仕分け表を印刷');

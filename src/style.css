@@ -3050,6 +3050,28 @@ main[data-page='集計'] .hero progress::-moz-progress-bar {background:#f4c84b;}
 .cash-totals div {min-width:0;}.cash-totals dt{font-size:13px;}.cash-totals dd{margin:0;font-weight:700;font-size:19px;}
 .receipt-cash summary {cursor:pointer;padding:10px 0;overflow-wrap:anywhere;}
 .external-batch {margin:12px 0;}.external-batch-row{padding:12px 0;border-bottom:1px solid #d7dfda;}
-.round-chart-plot svg g[role='button']{cursor:pointer;outline-offset:3px;}
+.round-chart-plot svg g[role='button']{cursor:pointer;outline:none;}
+.round-chart-plot svg g[role='button']:focus-visible circle:last-child{stroke:#d1841f;stroke-width:4;}
 main[data-page='集計'] .hero progress {background:#385c70;border-color:#385c70;}
 main[data-page='集計'] .hero progress::-webkit-progress-bar {background:#385c70;}
+
+/* The same wax edge used by link underlines also shapes the existing L. */
+@media screen {
+  .stage.active > .stage-trigger::before {width:10px;left:0;clip-path:none;mask:url('./assets/crayon-vertical.svg') center/100% 100% no-repeat;}
+  .stage.active > .stage-trigger::after {height:7px;bottom:0;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;}
+  main[data-page='集計'] .summary::before {width:10px;left:2px;clip-path:none;mask:url('./assets/crayon-vertical.svg') center/100% 100% no-repeat;}
+  main[data-page='集計'] .hero {border:0;box-shadow:none;}
+  main[data-page='集計'] .hero::before {width:10px;left:-2px;clip-path:none;mask:url('./assets/crayon-vertical.svg') center/100% 100% no-repeat;}
+  main[data-page='集計'] .hero::after {content:'';position:absolute;left:0;right:0;bottom:-2px;height:7px;background:#285f96 url('./assets/pencil/blue-deep.png') center/100% 100% no-repeat;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;pointer-events:none;}
+  main[data-page='集計'] .hero .text-action::after {mask-image:url('./assets/crayon-underline.svg');mask-size:100% 100%;mask-repeat:no-repeat;filter:none;background-image:url('./assets/pencil/blue-light.png');}
+
+  .stage-content .purpose-grid .purpose.selected,
+  .stage-content .purpose-next .text-action.selected {position:relative;background:#ecf6ed url('./assets/pencil/green-light.png') center/100% 100% no-repeat;color:#286c47;border:1px solid #8cb69a;border-radius:8px;font-weight:750;}
+  .stage-content .purpose-grid .purpose.selected>span {color:inherit;background:transparent;}
+  .purpose-next .text-action.selected::before,.purpose-grid .purpose.selected>span::before {content:none;}
+  .stage-content .purpose-grid .purpose.selected::after,
+  .stage-content .purpose-next .text-action.selected::after {content:'';position:absolute;left:12px;right:12px;bottom:2px;height:6px;background:#286c47 url('./assets/pencil/green-deep.png') center/100% 100% no-repeat;clip-path:none;mask:url('./assets/crayon-underline.svg') center/100% 100% no-repeat;pointer-events:none;opacity:1;}
+  .stage-content .purpose-next .text-action {min-height:44px;border:1px solid transparent;border-radius:8px;}
+  .stage-content .purpose-grid .purpose {min-height:48px;}
+  .round-chart-detail {background:#f1f6fa;border-radius:8px;padding:8px;line-height:1.55;}
+}
