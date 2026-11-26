@@ -5,8 +5,8 @@
 
 | ID | 対応結果 | 証拠・残る作業 | 実機確認 |
 | --- | --- | --- | --- |
-| WAP-0100 | 部分完了 | `src/supplier-order.js` `src/supplier-order.jsx`、通常・別締切・複数納品日・文面編集とコピー。自動・ブラウザ試験、本人iPhone確認待ち | 未確認 |
+| WAP-0100 | 部分完了 | `src/supplier-order.js` `src/supplier-order.jsx`、通常・別締切・複数納品日・文面編集とコピー。PR #50 の単体・Chromium 98件通過。追加WebKit・本人iPhone確認待ち | 未確認 |
 | WAP-0101 | 部分完了 | `src/supplier-pdf.js` `src/supplier-order.js`、元PDFの保存と自動欄読取、差分発注、送付時点のPDF・数量スナップショット。添付パン・菓子用紙を隔離データで描画。未知の季節限定レイアウトの自動読取、仕入先の正式期限・訂正受付条件は未確認。 | 未確認 |
-| WAP-0102 | 部分完了 | `src/supplier-order.jsx` `src/collections.jsx` `src/style.css`、注文募集と集金袋ラベルの独立設定、閉じた状態と未保存値の印刷分離。ブラウザ・本人iPhone確認待ち | 未確認 |
+| WAP-0102 | 部分完了 | `src/supplier-order.jsx` `src/collections.jsx` `src/style.css`、注文募集と集金袋ラベルの独立設定、閉じた状態と未保存値の印刷分離。PR #50 の375px画像を検品。追加WebKit・本人iPhone確認待ち | 未確認 |
 
 本番業務データへの書込みは行わない。元のFAX写真と提供PDFはリポジトリに入れない。新しい注文書用紙は本人がアプリから取り込んだ時に共有状態へ保存され、既存の月別商品マスターと過去の請求を上書きしない。注文書PDF作成・印刷は送付済み登録ではない。送付済みとして明示操作した時だけ、そのPDFと商品別数量を履歴に追加する。保存は既存のrevision照合を使う。過去の送付事実が不明な注文回は未発注と断定しない。

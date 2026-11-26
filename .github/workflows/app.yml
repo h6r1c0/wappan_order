@@ -49,6 +49,7 @@ jobs:
       - run: npx playwright test --browser webkit tests/browser/workflow.spec.js -g '11/9レビュー'
       - run: npx playwright test --browser webkit tests/browser/cash-settlement.spec.js
       - run: npx playwright test
+      - run: npx playwright test --browser webkit tests/browser/supplier-order.spec.js
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
