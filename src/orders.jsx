@@ -14,6 +14,7 @@ import {Markets} from './markets';
 import {ExcelImport} from './masters';
 import {TaskIcon} from './task-icon';
 import {PrintPrep} from './print-prep.jsx';
+import {OrderGuide,SupplierOrder} from './supplier-order.jsx';
 import {productDisplayName} from './product-names.js';
 import {estimatePrice} from './price-estimate.js';
 import {externalSalesSummary} from './external-sales-summary.js';
@@ -275,6 +276,7 @@ function Round({ round: r, initialTab = null, back }) {
         <summary>商品情報を更新</summary>
         <Button secondary onClick={() => setExcelImport(true)}>{monthLabel}の商品を更新</Button>
       </details>}
+              <OrderGuide round={r}/>
               <button type="button" className="text-action batch-import-entry" onClick={()=>setLineImport(true)}>注文内容を貼り付け{r.pendingImports?.length?` ／ 保留 ${r.pendingImports.length}行`:''}</button>
               <div className="purpose-grid" role="group" aria-label="注文の用途を選ぶ">
                 {PURPOSES.map((label) => (
@@ -447,6 +449,7 @@ function Round({ round: r, initialTab = null, back }) {
           >
             商品名・数量をコピー ›
           </button>
+          <SupplierOrder round={r}/>
           {r.status === "入力中" && (
             <Button
               onClick={() =>

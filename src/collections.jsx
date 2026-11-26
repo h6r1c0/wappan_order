@@ -162,6 +162,7 @@ function BuyerCollection({round,buyer,row,focus,onDone,onOpen,session,onDraft,on
 }
 export function RoundCollections({round,rows,sessions={},onDraft,onSource,initialFocus=''}){
   const {state,save,notify}=useApp(),[focus,setFocus]=useState(initialFocus),[exporting,setExporting]=useState(false),[exception,setException]=useState(''),[recentReceipt,setRecentReceipt]=useState(null),[envelopeStaff,setEnvelopeStaff]=useState(()=>typeof localStorage==='undefined'?'':localStorage.getItem('wappan-envelope-staff')||'');
+  const [editingEnvelopeStaff,setEditingEnvelopeStaff]=useState(false),[envelopeStaffDraft,setEnvelopeStaffDraft]=useState(envelopeStaff);
   const [printResult,setPrintResult]=useState(null);
   const audit=billingAudit(state,round.id);
   const ids=new Set(state.buyers.map(x=>x.id));
@@ -187,7 +188,9 @@ export function RoundCollections({round,rows,sessions={},onDraft,onSource,initia
     <button className="text-action collection-print" type="button" disabled={exporting||unresolved&&!exception} onClick={exportBills}>集金袋に記入する金額の一覧を印刷{unresolved?'（請求未確定）':''} ›</button>
   </>;
   return <div className="stack collection-list">
-    <div className="envelope-print"><Field label="集金袋ラベルの担当者名（ここで一括編集）"><input value={envelopeStaff} onChange={e=>{setEnvelopeStaff(e.target.value);localStorage.setItem('wappan-envelope-staff',e.target.value);}} placeholder="例：渡邉"/></Field><button className="text-action" type="button" disabled={exporting} onClick={exportEnvelopes}>集金袋に貼る個別ラベルを印刷 ›</button><small>未確定の請求は金額を確定額として印刷しません。</small></div>
+    <div className="envelope-print"><p className="envelope-staff-compact">担当者名：{envelopeStaff||'未設定'} <button className="text-action" type="button" onClick={()=>{setEnvelopeStaffDraft(envelopeStaff);setEditingEnvelopeStaff(!editingEnvelopeStaff);}}>変更</button></p>
+      {editingEnvelopeStaff&&<div className="envelope-staff-editor"><Field label="集金袋ラベルの担当者名"><input value={envelopeStaffDraft} onChange={e=>setEnvelopeStaffDraft(e.target.value)} placeholder="例：渡邉"/></Field><button type="button" className="button secondary" onClick={()=>{const next=envelopeStaffDraft.trim();localStorage.setItem('wappan-envelope-staff',next);setEnvelopeStaff(next);setEditingEnvelopeStaff(false);}}>保存</button><button type="button" className="text-action" onClick={()=>setEditingEnvelopeStaff(false)}>戻る</button></div>}
+      <button className="text-action" type="button" disabled={exporting} onClick={exportEnvelopes}>集金袋に貼る個別ラベルを印刷 ›</button><small>未確定の請求は金額を確定額として印刷しません。</small></div>
     {printResult&&<p className="print-result" role="status">{printResult.blocked?'別画面を開けませんでした。':'プレビューが黒い場合は元の画面に戻り、'} <a href={printResult.url} target="_blank" rel="noopener noreferrer">PDFを開く ›</a>　<a href={printResult.url} download={printResult.file.name}>PDFを保存 ›</a>{typeof navigator!=='undefined'&&navigator.canShare?.({files:[printResult.file]})&&<>　<button type="button" className="text-action" onClick={()=>navigator.share({files:[printResult.file],title:printResult.file.name}).catch(()=>{})}>PDFを共有・印刷 ›</button></>}</p>}
     {unresolved?<section className="billing-audit" aria-label="集金前の自動照合"><h3>集金前の確認</h3><p role="alert">要確認 {audit.issues.length}件</p>{audit.issues.map((x,i)=><button className="audit-issue" type="button" key={i} onClick={()=>go(x.buyerId)}>{x.name}：{x.message} ›</button>)}{auditDetails}</section>
       :<details className="billing-audit billing-audit-done" aria-label="集金前の自動照合"><summary>請求照合済み <span>販売用・印刷 ›</span></summary><p>注文・受取確定数・単価を照合しました。</p>{auditDetails}</details>}
