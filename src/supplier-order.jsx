@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {useApp,Button,Field,copyText} from './ui.jsx';
 import {deadlines,guideText,supplierSettings,neededLines,planDispatch,recordDispatch,acceptDispatchCorrection,shortDate,validDate} from './supplier-order.js';
 import {today} from './domain.js';
+import {extractTemplate,renderSupplierPdf,toBase64} from './supplier-pdf.js';
 
 function CompactSettings(){
   const {state,save,notify}=useApp();
@@ -63,10 +64,9 @@ export function SupplierOrder({round}){
   const plan=template?planDispatch(state,round,activeTemplate,ids,{...template.mappings,...mappings}):null;
   const previous=(state.supplierDispatches||[]).filter(x=>x.roundId===round.id);
   const supplierDue=deadlines(round,supplierSettings(state)).supplier;
-  const importFile=async file=>{if(!file)return;setBusy(true);try{const {extractTemplate}=await import('./supplier-pdf.js');const t=await extractTemplate(file);setTemplateDraft(t);}catch(e){notify(e.message);}finally{setBusy(false);}};
+  const importFile=async file=>{if(!file)return;setBusy(true);try{const t=await extractTemplate(file);setTemplateDraft(t);}catch(e){notify(e.message);}finally{setBusy(false);}};
   const generate=async()=>{if(!template||!plan||plan.issues.length){notify(plan?.issues.join('／')||'用紙を選んでください');return;}
     setBusy(true);try{
-      const {renderSupplierPdf,toBase64}=await import('./supplier-pdf.js');
       const font=await fetch(new URL('./assets/fonts/NotoSansJP-Regular.ttf',import.meta.url)).then(r=>{if(!r.ok)throw Error('日本語フォントを取得できません');return r.arrayBuffer();});
       const settings=supplierSettings(state);
       const orderDate=new Date().toISOString().slice(0,10);
