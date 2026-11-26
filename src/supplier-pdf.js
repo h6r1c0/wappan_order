@@ -1,6 +1,7 @@
 import {PDFDocument,rgb} from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import {createFont} from 'fonteditor-core';
+import {getDocument,GlobalWorkerOptions} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {productFamily,packSize} from './supplier-order.js';
 
 export const toBase64=bytes=>{let value='';for(let i=0;i<bytes.length;i+=8192)value+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(value);};
@@ -9,7 +10,6 @@ const norm=value=>String(value).normalize('NFKC').replace(/[\s　]/g,'');
 export async function extractTemplate(file,{cMapUrl}={}){
   if(file.size>900000)throw Error('注文書PDFは900KB以下にしてください（保存履歴の肥大化を防ぎます）');
   const bytes=new Uint8Array(await file.arrayBuffer());
-  const {getDocument,GlobalWorkerOptions}=await import('pdfjs-dist/legacy/build/pdf.mjs');
   GlobalWorkerOptions.workerSrc=new URL('../node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs',import.meta.url).href;
   const task=getDocument({data:bytes.slice(),cMapUrl:cMapUrl||`${import.meta.env?.BASE_URL||'/'}cmaps/`,cMapPacked:true});
   const pdf=await task.promise;
