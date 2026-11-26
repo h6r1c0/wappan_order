@@ -19,6 +19,13 @@ export async function extractTemplate(file,{cMapUrl}={}){
   const whole=norm(items.map(x=>x.text).join(''));
   const kind=/定番菓子|季節菓子/.test(whole)?'sweets':/わっぱん注文書/.test(whole)?'bread':'unknown';
   if(kind==='unknown')throw Error('わっぱん提供の注文書として用紙を判定できません');
+  if(Math.abs(view.width-841.89)>5||Math.abs(view.height-595.28)>5)
+    throw Error('用紙の寸法が異なります。記入位置を確認できないため、このPDFは登録できません');
+  if(kind==='bread'){
+    const heads=items.filter(x=>x.text==='注文数');
+    if(![[305,80],[378,80],[378,159],[710,80]].every(([x,y])=>heads.some(h=>Math.abs(h.x-x)<6&&Math.abs(h.y-y)<6)))
+      throw Error('注文欄の位置が以前の用紙と異なります。自動記入せず、用紙を確認してください');
+  }
   const month=kind==='bread'?`${whole.match(/(20\d\d)年(\d{1,2})月お届け/)?.[1]||''}-${String(whole.match(/(20\d\d)年(\d{1,2})月お届け/)?.[2]||'').padStart(2,'0')}`:'';
   if(kind==='bread'&&!/^20\d\d-\d\d$/.test(month))throw Error('注文書の対象月を読み取れません');
   const bands=[];
@@ -29,7 +36,7 @@ export async function extractTemplate(file,{cMapUrl}={}){
   const rows=[];
   for(const band of bands){
     if(kind==='bread'){
-      for(const [start,end,priceMin,priceMax,qtyX] of [[60,201,250,302,315],[430,570,645,687,723]]){
+      for(const [start,end,priceMin,priceMax,qtyX] of [[60,201,250,302,band.y<160?315:383],[430,570,645,687,723]]){
         if(band.y<90||band.y>520||!band.items.some(x=>x.x>=priceMin&&x.x<=priceMax&&/^\d{2,4}$/.test(x.text)))continue;
         const bits=band.items.filter(x=>x.x>=start&&x.x<end).sort((a,b)=>a.x-b.x);
         const name=bits.map(x=>x.text).join('').replace(/^[※・]+/,'').trim();
