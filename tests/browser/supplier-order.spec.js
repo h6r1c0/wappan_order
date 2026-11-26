@@ -49,3 +49,17 @@ for(const width of [320,375,430])test(`${width}px：案内文と発注書・ラ�
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:`test-results/supplier-order-${width}.png`,fullPage:true});
 });
+
+test('提供用紙と同じ構造の隔離PDFをブラウザーで読み込み、送付前PDFを作る',async({page,context})=>{
+  const shared=await setup(page,context);
+  await page.locator('.stage-2 > .stage-trigger').click();
+  await page.getByText('今月の注文書PDFを取り込む').click();
+  await page.getByLabel('わっぱん提供の注文書PDF').setInputFiles('tests/fixtures/supplier-sheet-synthetic.pdf');
+  await expect(page.getByText('1商品行を読み取りました')).toBeVisible();
+  await page.getByRole('button',{name:'この用紙を登録'}).click();
+  await expect(page.getByLabel('使用するわっぱんの注文書')).toHaveValue(/.+/);
+  await page.getByRole('button',{name:'発注書PDFを作成して確認'}).click();
+  await expect(page.locator('.supplier-preview-result a').first()).toHaveAttribute('href',/^blob:/);
+  expect(shared.state.supplierTemplates).toHaveLength(2);
+  expect(shared.state.supplierDispatches).toHaveLength(0);
+});
