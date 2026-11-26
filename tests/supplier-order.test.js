@@ -20,8 +20,8 @@ test('11月と12月の通常締切・例外・曜日を納品日から算出',()
   assert.deepEqual(defaultDeadlines('2026-11-27'),{sweets:'2026-11-11',bread:'2026-11-18',exceptions:[],supplier:''});
   assert.equal(defaultDeadlines('2026-12-11').sweets,'2026-11-25');
   assert.equal(defaultDeadlines('2026-12-18').bread,'2026-12-09');
-  const r={date:'2026-12-18',orderDeadlines:{bread:'2026-12-07',exceptions:[{label:'クリスマス商品',date:'2026-12-02'}]}};
-  assert.match(guideText([{date:'2026-12-11',orderDeadlines:{exceptions:[{label:'クリスマス商品',date:'2026-12-02'}]}},r]),/クリスマス商品　12\/2（水）[\s\S]*パン　12\/7（月）/);
+  const r={date:'2026-12-18',orderDeadlines:{bread:'2026-12-07',breadLabel:'クリスマス商品以外の定番パン',exceptions:[{label:'クリスマス商品',date:'2026-12-02'}]}};
+  assert.match(guideText([{date:'2026-12-11',orderDeadlines:{exceptions:[{label:'クリスマス商品',date:'2026-12-02'}]}},r]),/クリスマス商品　12\/2（水）[\s\S]*クリスマス商品以外の定番パン　12\/7（月）/);
   assert.equal(deadlines(r).sweets,'2026-12-02');
   assert.equal(defaultDeadlines('2027-01-08').sweets,'2026-12-23');
   assert.equal(defaultDeadlines('2026-11-27',{sweetsDays:16,breadDays:9,supplierDays:3}).supplier,'2026-11-24');

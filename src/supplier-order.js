@@ -18,7 +18,7 @@ export function guideText(rounds,settings=supplierSettings({})){
   const header=ordered.length===1?`${Number(ordered[0].date.slice(5,7))}月のわっぱん\n${shortDate(ordered[0].date)}到着`:`${[...new Set(ordered.map(r=>Number(r.date.slice(5,7))))].join('・')}月のわっぱん（${ordered.map(r=>shortDate(r.date)).join('、')}到着）`;
   const blocks=ordered.map(round=>{
     const d=deadlines(round,settings);
-    const entries=[['焼き菓子',d.sweets],['パン',d.bread],...d.exceptions.map(x=>[x.label,x.date])];
+    const entries=[['焼き菓子',d.sweets],...d.exceptions.map(x=>[x.label,x.date]),[d.breadLabel|| (d.exceptions.length?'パン（別締切の商品を除く）':'パン'),d.bread]];
     return `${ordered.length>1?`\n${shortDate(round.date)}到着分\n`:''}注文〆切日\n${entries.map(([label,date])=>`${label}　${shortDate(date)}`).join('\n')}`;
   });
   return `${header}\n\n${blocks.join('\n\n')}\n\n${settings.notice.replaceAll('{連絡先}',settings.contact).trim()}`;
