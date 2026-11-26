@@ -2,7 +2,6 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {useApp,Button,Field,copyText} from './ui.jsx';
 import {deadlines,guideText,supplierSettings,neededLines,planDispatch,recordDispatch,acceptDispatchCorrection,shortDate,validDate} from './supplier-order.js';
 import {today} from './domain.js';
-import {extractTemplate,renderSupplierPdf,toBase64} from './supplier-pdf.js';
 
 function CompactSettings(){
   const {state,save,notify}=useApp();
@@ -16,8 +15,9 @@ function CompactSettings(){
       <Field label="発注書の挨拶"><input value={draft.greeting} onChange={e=>setDraft({...draft,greeting:e.target.value})}/></Field>
       <Field label="案内の定型文（{連絡先}を使用できます）"><textarea rows="3" value={draft.notice} onChange={e=>setDraft({...draft,notice:e.target.value})}/></Field>
       <div className="supplier-setting-days"><Field label="焼き菓子：納品日の何日前"><input type="number" min="0" max="90" value={draft.sweetsDays} onChange={e=>setDraft({...draft,sweetsDays:Number(e.target.value)})}/></Field><Field label="パン：納品日の何日前"><input type="number" min="0" max="90" value={draft.breadDays} onChange={e=>setDraft({...draft,breadDays:Number(e.target.value)})}/></Field></div>
-      <small>わっぱんへの正式な発注期限は未確認のため、注文回ごとに必要になってから設定します。</small>
-      <Button onClick={async()=>{if(!draft.contact.trim()||!draft.customer.trim()||![draft.sweetsDays,draft.breadDays].every(x=>Number.isSafeInteger(x)&&x>=0&&x<=90)){notify('連絡先・お客様名・締切日数を確認してください');return;}if(await save(s=>{s.supplierOrderSettings={...draft,contact:draft.contact.trim(),customer:draft.customer.trim()};},'発注の基本設定を変更'))setEditing(false);}}>基本設定を保存</Button>
+      <Field label="わっぱんへの発注期限：納品日の何日前（未確認なら空欄）"><input type="number" min="0" max="90" value={draft.supplierDays??''} onChange={e=>setDraft({...draft,supplierDays:e.target.value===''?null:Number(e.target.value)})}/></Field>
+      <small>正式な発注期限は未確認です。確認できるまでは空欄にしてください。注文回ごとにも変更できます。</small>
+      <Button onClick={async()=>{if(!draft.contact.trim()||!draft.customer.trim()||![draft.sweetsDays,draft.breadDays].every(x=>Number.isSafeInteger(x)&&x>=0&&x<=90)||draft.supplierDays!=null&&(!Number.isSafeInteger(draft.supplierDays)||draft.supplierDays<0||draft.supplierDays>90)){notify('連絡先・お客様名・締切日数を確認してください');return;}if(await save(s=>{s.supplierOrderSettings={...draft,contact:draft.contact.trim(),customer:draft.customer.trim()};},'発注の基本設定を変更'))setEditing(false);}}>基本設定を保存</Button>
     </div>}</div>;
 }
 export function OrderGuide({round}){
@@ -62,9 +62,10 @@ export function SupplierOrder({round}){
   const plan=template?planDispatch(state,round,activeTemplate,ids,{...template.mappings,...mappings}):null;
   const previous=(state.supplierDispatches||[]).filter(x=>x.roundId===round.id);
   const supplierDue=deadlines(round,supplierSettings(state)).supplier;
-  const importFile=async file=>{if(!file)return;setBusy(true);try{const t=await extractTemplate(file);setTemplateDraft(t);}catch(e){notify(e.message);}finally{setBusy(false);}};
+  const importFile=async file=>{if(!file)return;setBusy(true);try{const {extractTemplate}=await import('./supplier-pdf.js');const t=await extractTemplate(file);setTemplateDraft(t);}catch(e){notify(e.message);}finally{setBusy(false);}};
   const generate=async()=>{if(!template||!plan||plan.issues.length){notify(plan?.issues.join('／')||'用紙を選んでください');return;}
     setBusy(true);try{
+      const {renderSupplierPdf,toBase64}=await import('./supplier-pdf.js');
       const font=await fetch(new URL('./assets/fonts/NotoSansJP-Regular.ttf',import.meta.url)).then(r=>{if(!r.ok)throw Error('日本語フォントを取得できません');return r.arrayBuffer();});
       const settings=supplierSettings(state);
       const orderDate=new Date().toISOString().slice(0,10);

@@ -53,7 +53,7 @@ export async function renderSupplierPdf(template,plan,settings,date,{fontBytes,n
   const doc=await PDFDocument.load(fromBase64(template.pdf));doc.registerFontkit(fontkit);
   // pdf-lib's fontkit subsetting drops some Japanese glyphs in rendered PDFs.
   // Trim the TTF first, then embed that small complete font without subsetting.
-  const writing=[settings.customer,settings.greeting,notice,date,orderDate,'0123456789/-：（）日月火水木金土曜個入り通信欄・追加注文の内容納品発注',...plan.notes,...plan.placements.map(x=>x.packCorrection||'')].join('');
+  const writing=[settings.customer,settings.greeting,notice,date,orderDate,'0123456789/-：　（）日月火水木金土曜個入り通信欄・追加注文の内容納品発注',...plan.notes,...plan.placements.map(x=>x.packCorrection||'')].join('');
   const codes=[...new Set([...writing].map(c=>c.codePointAt(0)))];
   const reduced=createFont(fontBytes,{type:'ttf',subset:codes});
   const font=await doc.embedFont(reduced.write({type:'ttf'}),{subset:false});

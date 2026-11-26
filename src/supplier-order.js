@@ -8,7 +8,7 @@ export function offsetDate(date,days){
   const d=new Date(`${date}T00:00:00Z`);d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);
 }
 export const shortDate=date=>`${Number(date.slice(5,7))}/${Number(date.slice(8))}（${'日月火水木金土'[new Date(`${date}T00:00:00Z`).getUTCDay()]}）`;
-export const defaultDeadlines=(date,settings=defaultSettings)=>({sweets:offsetDate(date,-settings.sweetsDays),bread:offsetDate(date,-settings.breadDays),exceptions:[],supplier:''});
+export const defaultDeadlines=(date,settings=defaultSettings)=>({sweets:offsetDate(date,-settings.sweetsDays),bread:offsetDate(date,-settings.breadDays),exceptions:[],supplier:Number.isSafeInteger(settings.supplierDays)?offsetDate(date,-settings.supplierDays):''});
 export const deadlines=(round,settings=defaultSettings)=>({...defaultDeadlines(round.date,settings),...round.orderDeadlines,exceptions:round.orderDeadlines?.exceptions||[]});
 export const defaultSettings={contact:'花房母',customer:'おひさま保育園 父母の会',addressee:'わっぱん ご担当者様',greeting:'いつもありがとうございます。下記のとおりお願いいたします。',notice:'税込価格の1円台を切り捨てた額で販売します。\n欲しい方は品名と数量を{連絡先}までご連絡ください。',sweetsDays:16,breadDays:9,supplierDays:null};
 export const supplierSettings=state=>({...defaultSettings,...state.supplierOrderSettings});
@@ -81,6 +81,14 @@ export function recordDispatch(state,entry){
   if(!state.rounds.some(r=>r.id===entry.roundId))throw Error('注文回が見つかりません');
   if(!entry.pdf||!entry.lines?.length||entry.issues?.length)throw Error('未確認の発注書は送付済みにできません');
   if(entry.lines.some(x=>!Number.isSafeInteger(x.qty)||!x.productId))throw Error('発注数量を確認してください');
+  // A second device may have saved a different dispatch after this PDF was made.
+  // Keep the exact sent snapshot, but never add it twice against a newer baseline.
+  const ordered=new Map();
+  for(const doc of state.supplierDispatches||[])if(doc.roundId===entry.roundId&&doc.status==='sent')
+    for(const line of doc.lines)if(line.qty>0||doc.acceptedAt)
+      ordered.set(line.productId,(ordered.get(line.productId)||0)+line.qty);
+  if(entry.lines.some(x=>x.orderedBefore!=null&&x.orderedBefore!==(ordered.get(x.productId)||0)))
+    throw Error('別の発注書が先に送付済みです。最新の発注済み数量と、この用紙を照合してください');
   state.supplierDispatches??=[];
   state.supplierDispatches.push({...structuredClone(entry),status:'sent'});
 }

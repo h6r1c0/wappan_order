@@ -24,6 +24,7 @@ test('11月と12月の通常締切・例外・曜日を納品日から算出',()
   assert.match(guideText([{date:'2026-12-11',orderDeadlines:{exceptions:[{label:'クリスマス商品',date:'2026-12-02'}]}},r]),/クリスマス商品　12\/2（水）[\s\S]*パン　12\/7（月）/);
   assert.equal(deadlines(r).sweets,'2026-12-02');
   assert.equal(defaultDeadlines('2027-01-08').sweets,'2026-12-23');
+  assert.equal(defaultDeadlines('2026-11-27',{sweetsDays:16,breadDays:9,supplierDays:3}).supplier,'2026-11-24');
 });
 test('セットとバラを混ぜても同じ注文欄へ二重に書かない',()=>{
   const s=state(),r=s.rounds[0];
@@ -38,8 +39,9 @@ test('送付前は発注済みにならず、送付原本・追加数量・減�
   const s=state(),r=s.rounds[0];
   const original=planDispatch(s,r,template,['cookie']);
   assert.equal(neededLines(s,r).find(x=>x.id==='cookie').qty,5);
-  const sent={id:'sent1',roundId:r.id,templateId:template.id,templateName:template.name,sentAt:'2026-11-01T10:00:00Z',lines:original.lines.map(x=>({productId:x.id,name:x.name,qty:x.qty})),pdf:'original',issues:[]};
+  const sent={id:'sent1',roundId:r.id,templateId:template.id,templateName:template.name,sentAt:'2026-11-01T10:00:00Z',lines:original.lines.map(x=>({productId:x.id,name:x.name,qty:x.qty,orderedBefore:x.ordered})),pdf:'original',issues:[]};
   recordDispatch(s,sent);assert.throws(()=>recordDispatch(s,sent),/送付済み/);
+  assert.throws(()=>recordDispatch(s,{...sent,id:'other-device'}),/別の発注書/);
   assert.equal(neededLines(s,r).find(x=>x.id==='cookie'),undefined);
   r.orders.b.quantities.cookie=7;
   const added=planDispatch(s,r,template,['cookie']);
@@ -49,7 +51,7 @@ test('送付前は発注済みにならず、送付原本・追加数量・減�
   r.orders.b.quantities.cookie=3;
   const less=planDispatch(s,r,template,['cookie']);
   assert.equal(less.lines[0].qty,-2);
-  recordDispatch(s,{...sent,id:'less',lines:less.lines.map(x=>({productId:x.id,name:x.name,qty:x.qty}))});
+  recordDispatch(s,{...sent,id:'less',lines:less.lines.map(x=>({productId:x.id,name:x.name,qty:x.qty,orderedBefore:x.ordered}))});
   assert.equal(neededLines(s,r).find(x=>x.id==='cookie').qty,-2);
   assert.match(planDispatch(s,r,template,['cookie']).issues.join(''),/回答を記録/);
   acceptDispatchCorrection(s,'less');

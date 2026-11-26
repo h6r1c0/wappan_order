@@ -15,6 +15,7 @@ import {ExcelImport} from './masters';
 import {TaskIcon} from './task-icon';
 import {PrintPrep} from './print-prep.jsx';
 import {OrderGuide,SupplierOrder} from './supplier-order.jsx';
+import {defaultDeadlines,supplierSettings} from './supplier-order.js';
 import {productDisplayName} from './product-names.js';
 import {estimatePrice} from './price-estimate.js';
 import {externalSalesSummary} from './external-sales-summary.js';
@@ -104,6 +105,7 @@ export function Orders() {
               const existing=state.rounds.find(r=>r.date===date&&r.test===test);
               if(existing){setCreating(false);setJustCreated(false);setId(existing.id);return;}
               const r = newRound(state, date, test, true);
+              r.orderDeadlines=defaultDeadlines(date,supplierSettings(state));
               for (const buyer of state.buyers) for (const fixed of buyer.fixed || []) {
                 if (fixed.qty > 0 && !r.products.some(p => p.id === fixed.productId))
                   throw Error(`${buyer.name}の固定注文の商品がこの注文回にありません。商品管理で商品ID・利用期間を確認してください`);
