@@ -3075,3 +3075,23 @@ main[data-page='集計'] .hero progress::-webkit-progress-bar {background:#385c7
   .stage-content .purpose-grid .purpose {min-height:48px;}
   .round-chart-detail {background:#f1f6fa;border-radius:8px;padding:8px;line-height:1.55;}
 }
+.supplier-work{margin:14px 0;padding:10px 12px;border:1px solid #d2ddd6;border-radius:12px;background:#fff;color:#34443f}
+.supplier-work>summary{cursor:pointer;font-weight:700;padding:5px 0}
+.supplier-work h3{margin:2px 0 8px;font-size:1.05rem}
+.supplier-work .field{margin:8px 0}
+.supplier-work textarea{width:100%;min-height:52px;resize:vertical;line-height:1.55}
+.supplier-work .button{margin:6px 0}
+.supplier-compact-setting,.supplier-deadline-short,.envelope-staff-compact{font-size:.88rem;line-height:1.5;margin:7px 0;color:#52655c}
+.supplier-compact-setting .text-action,.supplier-deadline-short .text-action,.envelope-staff-compact .text-action{font-size:.88rem;margin-left:6px}
+.supplier-setting-editor,.envelope-staff-editor{padding:9px 0 11px;max-width:560px}
+.supplier-setting-days,.supplier-exception{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.supplier-round-choice{display:inline-flex;gap:5px;align-items:center;padding:8px 10px;min-height:44px}
+.supplier-lines{margin:12px 0;border-top:1px solid #dfebe5}
+.supplier-line{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:4px 7px;border-bottom:1px solid #dfebe5;padding:7px 2px;min-height:46px}
+.supplier-line input{width:20px;height:20px}.supplier-line span{min-width:0;overflow-wrap:anywhere}.supplier-line small{grid-column:2/4;color:#617269}
+.supplier-row{display:block;border-bottom:1px solid #eee;padding:3px 0}
+.supplier-preview-result{padding:9px;margin:10px 0;background:#eef7f2;border-radius:8px}
+.supplier-preview-result a,.supplier-sent a{display:inline-block;padding:7px 4px}
+.supplier-sent{padding:8px 0;border-top:1px solid #ddd}.supplier-sent small{display:block}
+.envelope-staff-compact{margin:0 0 5px}
+@media(max-width:375px){.supplier-setting-days,.supplier-exception{grid-template-columns:1fr}}

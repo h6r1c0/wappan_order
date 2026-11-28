@@ -106,6 +106,7 @@ export function initialState() {
     adjustments: [],
     collectionEntries: [], receivableItems: [], collectionReconciliations: [],
     externalCashReceipts: [], externalCashCorrections: [], supplierLegacyPaid: [], supplierPlans: [], supplierPayments: [], supplierPaymentCorrections: [],
+    supplierTemplates: [], supplierDispatches: [],
     goals: { 2026: 50000 },
   };
 }
@@ -821,6 +822,18 @@ export function validate(s) {
     if (new Set(rows.map((r) => r[key])).size !== rows.length)
       throw Error("同じデータが重複しています");
   };
+  if(s.supplierTemplates){
+    unique(s.supplierTemplates);
+    for(const t of s.supplierTemplates)if(!['bread','sweets'].includes(t.kind)||!Array.isArray(t.rows)||!t.rows.length||typeof t.pdf!=='string'||t.pdf.length>1200000||t.rows.some(row=>!row.id||!row.name||!Number.isFinite(row.y)||!Number.isFinite(row.qtyX)))throw Error('発注書の用紙を確認してください');
+  }
+  if(s.supplierDispatches){
+    unique(s.supplierDispatches);
+    for(const d of s.supplierDispatches)if(!s.rounds.some(r=>r.id===d.roundId)||d.status!=='sent'||!d.sentAt||!d.pdf||!Array.isArray(d.lines)||d.lines.some(x=>!x.productId||!Number.isSafeInteger(x.qty)))throw Error('送付済み発注書を確認してください');
+  }
+  for(const r of s.rounds||[])if(r.orderDeadlines){
+    if(!Array.isArray(r.orderDeadlines.exceptions||[]))throw Error('別締切を確認してください');
+    for(const d of [r.orderDeadlines.sweets,r.orderDeadlines.bread,r.orderDeadlines.supplier,r.orderDeadlines.supplierSweets,r.orderDeadlines.supplierBread,...(r.orderDeadlines.exceptions||[]).flatMap(x=>[x.date,x.supplierDate])].filter(Boolean))if(!/^\d{4}-\d{2}-\d{2}$/.test(d))throw Error('注文締切を確認してください');
+  }
   [
     "products",
     "buyers",
