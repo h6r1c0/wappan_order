@@ -16,9 +16,9 @@ function CompactSettings(){
       <Field label="発注書の挨拶"><input value={draft.greeting} onChange={e=>setDraft({...draft,greeting:e.target.value})}/></Field>
       <Field label="案内の定型文（{連絡先}を使用できます）"><textarea rows="3" value={draft.notice} onChange={e=>setDraft({...draft,notice:e.target.value})}/></Field>
       <div className="supplier-setting-days"><Field label="焼き菓子：納品日の何日前"><input type="number" min="0" max="90" value={draft.sweetsDays} onChange={e=>setDraft({...draft,sweetsDays:Number(e.target.value)})}/></Field><Field label="パン：納品日の何日前"><input type="number" min="0" max="90" value={draft.breadDays} onChange={e=>setDraft({...draft,breadDays:Number(e.target.value)})}/></Field></div>
-      <Field label="わっぱんへの発注期限：納品日の何日前（未確認なら空欄）"><input type="number" min="0" max="90" value={draft.supplierDays??''} onChange={e=>setDraft({...draft,supplierDays:e.target.value===''?null:Number(e.target.value)})}/></Field>
-      <small>正式な発注期限は未確認です。確認できるまでは空欄にしてください。注文回ごとにも変更できます。</small>
-      <Button onClick={async()=>{if(!draft.contact.trim()||!draft.customer.trim()||![draft.sweetsDays,draft.breadDays].every(x=>Number.isSafeInteger(x)&&x>=0&&x<=90)||draft.supplierDays!=null&&(!Number.isSafeInteger(draft.supplierDays)||draft.supplierDays<0||draft.supplierDays>90)){notify('連絡先・お客様名・締切日数を確認してください');return;}if(await save(s=>{s.supplierOrderSettings={...draft,contact:draft.contact.trim(),customer:draft.customer.trim()};},'発注の基本設定を変更'))setEditing(false);}}>基本設定を保存</Button>
+      <div className="supplier-setting-days"><Field label="わっぱんへの焼き菓子発注：納品日の何日前"><input type="number" min="0" max="90" value={draft.supplierSweetsDays} onChange={e=>setDraft({...draft,supplierSweetsDays:Number(e.target.value)})}/></Field><Field label="わっぱんへのパン発注：納品日の何日前"><input type="number" min="0" max="90" value={draft.supplierBreadDays} onChange={e=>setDraft({...draft,supplierBreadDays:Number(e.target.value)})}/></Field></div>
+      <small>通常は園内締切の2日後です。必要な注文回だけ個別に変更できます。</small>
+      <Button onClick={async()=>{if(!draft.contact.trim()||!draft.customer.trim()||![draft.sweetsDays,draft.breadDays,draft.supplierSweetsDays,draft.supplierBreadDays].every(x=>Number.isSafeInteger(x)&&x>=0&&x<=90)){notify('連絡先・お客様名・締切日数を確認してください');return;}if(await save(s=>{s.supplierOrderSettings={...draft,contact:draft.contact.trim(),customer:draft.customer.trim()};},'発注の基本設定を変更'))setEditing(false);}}>基本設定を保存</Button>
     </div>}</div>;
 }
 export function OrderGuide({round}){
@@ -33,14 +33,15 @@ export function OrderGuide({round}){
   return <details className="supplier-work"><summary>注文募集の案内文を作る</summary>
     <CompactSettings/>
     {state.rounds.filter(r=>r.test===round.test&&r.date!==round.date).length>0&&<details><summary>複数の納品日をまとめる</summary>{state.rounds.filter(r=>r.test===round.test).sort((a,b)=>a.date.localeCompare(b.date)).map(r=><label key={r.id} className="supplier-round-choice"><input type="checkbox" checked={selected.includes(r.id)} disabled={r.id===round.id} onChange={e=>setSelected(e.target.checked?[...selected,r.id]:selected.filter(x=>x!==r.id))}/>{shortDate(r.date)}着</label>)}</details>}
-    <div className="supplier-deadline-short">園内注文〆切：焼き菓子 {shortDate(deadlines(round,settings).sweets)} ／ パン {shortDate(deadlines(round,settings).bread)} <button type="button" className="text-action" onClick={()=>{setSchedule(deadlines(round,settings));setEditing(!editing);}}>変更</button></div>
+    <div className="supplier-deadline-short">園内注文〆切：焼き菓子 {shortDate(deadlines(round,settings).sweets)} ／ パン {shortDate(deadlines(round,settings).bread)}<br/>わっぱんへ発注：焼き菓子 {shortDate(deadlines(round,settings).supplierSweets)} ／ パン {shortDate(deadlines(round,settings).supplierBread)} <button type="button" className="text-action" onClick={()=>{setSchedule(deadlines(round,settings));setEditing(!editing);}}>変更</button></div>
     {[['焼き菓子',deadlines(round,settings).sweets],['パン',deadlines(round,settings).bread]].filter(([,date])=>date>=today()&&date<=new Date(Date.parse(`${today()}T00:00:00Z`)+3*86400000).toISOString().slice(0,10)).map(([label,date])=><small className="supplier-due" key={label}>{label}の園内締切 {shortDate(date)}が近づいています。</small>)}
     {editing&&<div className="supplier-setting-editor"><Field label="焼き菓子の園内締切"><input type="date" value={schedule.sweets} onChange={e=>setDate('sweets',e.target.value)}/></Field><Field label="パンの園内締切"><input type="date" value={schedule.bread} onChange={e=>setDate('bread',e.target.value)}/></Field>
-      {schedule.exceptions.map((x,i)=><div key={i} className="supplier-exception"><Field label="別締切の対象"><input value={x.label} onChange={e=>setSchedule({...schedule,exceptions:schedule.exceptions.map((v,j)=>j===i?{...v,label:e.target.value}:v)})}/></Field><Field label="締切日"><input type="date" value={x.date} onChange={e=>setSchedule({...schedule,exceptions:schedule.exceptions.map((v,j)=>j===i?{...v,date:e.target.value}:v)})}/></Field><button type="button" className="text-action" onClick={()=>setSchedule({...schedule,exceptions:schedule.exceptions.filter((_,j)=>i!==j)})}>削除</button></div>)}
+      {schedule.exceptions.map((x,i)=><div key={i} className="supplier-exception"><Field label="別締切の対象"><input value={x.label} onChange={e=>setSchedule({...schedule,exceptions:schedule.exceptions.map((v,j)=>j===i?{...v,label:e.target.value}:v)})}/></Field><Field label="園内締切"><input type="date" value={x.date} onChange={e=>setSchedule({...schedule,exceptions:schedule.exceptions.map((v,j)=>j===i?{...v,date:e.target.value}:v)})}/></Field><Field label="別のわっぱん発注期限（必要な場合だけ）"><input type="date" value={x.supplierDate||''} onChange={e=>setSchedule({...schedule,exceptions:schedule.exceptions.map((v,j)=>j===i?{...v,supplierDate:e.target.value}:v)})}/></Field><button type="button" className="text-action" onClick={()=>setSchedule({...schedule,exceptions:schedule.exceptions.filter((_,j)=>i!==j)})}>削除</button></div>)}
       <button type="button" className="text-action" onClick={()=>setSchedule({...schedule,exceptions:[...schedule.exceptions,{label:'',date:''}]})}>別の締切を追加</button>
       {schedule.exceptions.length>0&&<Field label="通常のパンの案内名（別締切の商品との区別）"><input value={schedule.breadLabel||''} onChange={e=>setSchedule({...schedule,breadLabel:e.target.value})} placeholder="例：クリスマス商品以外の定番パン"/></Field>}
-      <Field label="わっぱんへの実際の発注期限（確認後に設定・空欄可）"><input type="date" value={schedule.supplier||''} onChange={e=>setDate('supplier',e.target.value)}/></Field>
-      <Button onClick={async()=>{if(!validDate(schedule.sweets)||!validDate(schedule.bread)||schedule.supplier&&!validDate(schedule.supplier)||schedule.exceptions.some(x=>!x.label.trim()||!validDate(x.date))){notify('締切日と対象を確認してください');return;}if(await save(s=>{const r=s.rounds.find(x=>x.id===round.id);r.orderDeadlines={...schedule,exceptions:schedule.exceptions.map(x=>({...x,label:x.label.trim()}))};},'注文回の締切を変更'))setEditing(false);}}>締切を保存</Button>
+      <Field label="わっぱんへの焼き菓子発注期限"><input type="date" value={schedule.supplierSweets} onChange={e=>setDate('supplierSweets',e.target.value)}/></Field>
+      <Field label="わっぱんへのパン発注期限"><input type="date" value={schedule.supplierBread} onChange={e=>setDate('supplierBread',e.target.value)}/></Field>
+      <Button onClick={async()=>{if(![schedule.sweets,schedule.bread,schedule.supplierSweets,schedule.supplierBread].every(validDate)||schedule.exceptions.some(x=>!x.label.trim()||!validDate(x.date)||x.supplierDate&&!validDate(x.supplierDate))){notify('締切日と対象を確認してください');return;}if(await save(s=>{const r=s.rounds.find(x=>x.id===round.id);const {supplier,...dates}=schedule;r.orderDeadlines={...dates,exceptions:schedule.exceptions.map(x=>({...x,label:x.label.trim()}))};},'注文回の締切を変更'))setEditing(false);}}>締切を保存</Button>
     </div>}
     <Field label="今回だけのお知らせ（任意）"><textarea rows="2" value={notice} onChange={e=>{setNotice(e.target.value);setCustom('');}} placeholder="例：クリスマス限定商品があります"/></Field>
     <Field label="LINEへ送る文章"><textarea rows="10" value={text} onChange={e=>setCustom(e.target.value)}/></Field>
@@ -63,7 +64,9 @@ export function SupplierOrder({round}){
   const activeTemplate=template?{...template,units:{...template.units,...units}}:null;
   const plan=template?planDispatch(state,round,activeTemplate,ids,{...template.mappings,...mappings}):null;
   const previous=(state.supplierDispatches||[]).filter(x=>x.roundId===round.id);
-  const supplierDue=deadlines(round,supplierSettings(state)).supplier;
+  const due=deadlines(round,supplierSettings(state));
+  const upcoming=new Date(Date.parse(`${today()}T00:00:00Z`)+3*86400000).toISOString().slice(0,10);
+  const pendingByKind=[['焼き菓子',due.supplierSweets,true],['パン',due.supplierBread,false]].filter(([,date,sweets])=>date>=today()&&date<=upcoming&&needed.some(line=>line.qty>0&&(round.products.find(p=>p.id===line.id)?.category==='焼き菓子')===sweets));
   const importFile=async file=>{if(!file)return;setBusy(true);try{const t=await extractTemplate(file);setTemplateDraft(t);}catch(e){notify(e.message);}finally{setBusy(false);}};
   const generate=async()=>{if(!template||!plan||plan.issues.length){notify(plan?.issues.join('／')||'用紙を選んでください');return;}
     setBusy(true);try{
@@ -79,7 +82,7 @@ export function SupplierOrder({round}){
   };
   return <section className="supplier-work supplier-dispatch"><h3>わっぱんへの発注書</h3>
     <small>発注書を作るだけでは発注済みになりません。実際に送付した後で記録します。</small>
-    {supplierDue&&needed.length>0&&supplierDue>=today()&&supplierDue<=new Date(Date.parse(`${today()}T00:00:00Z`)+3*86400000).toISOString().slice(0,10)&&<small className="supplier-due">わっぱんへの発注期限 {shortDate(supplierDue)}が近づいています。</small>}
+    {pendingByKind.map(([label,date])=><small className="supplier-due" key={label}>{label}のわっぱんへの発注期限 {shortDate(date)}が近づいています。</small>)}
     <div className="supplier-compact-setting">今回必要：{needed.filter(x=>x.qty>0).length}商品{needed.some(x=>x.qty<0)?' ／ 減数連絡あり':''}。送付済み履歴がない過去回は未発注と断定しません。</div>
     {needed.some(x=>x.qty<0)&&<p className="notice">減数・取消は先方へ連絡が必要です。発注済み数量は自動で減らしません。</p>}
     <Field label="使用するわっぱんの注文書"><select value={template?.id||''} onChange={e=>{setChosen(e.target.value);setSelected(null);setMappings({});setUnits({});setPrepared(null);}}><option value="">用紙を選ぶ</option>{templates.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>

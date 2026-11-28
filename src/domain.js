@@ -831,8 +831,8 @@ export function validate(s) {
     for(const d of s.supplierDispatches)if(!s.rounds.some(r=>r.id===d.roundId)||d.status!=='sent'||!d.sentAt||!d.pdf||!Array.isArray(d.lines)||d.lines.some(x=>!x.productId||!Number.isSafeInteger(x.qty)))throw Error('送付済み発注書を確認してください');
   }
   for(const r of s.rounds||[])if(r.orderDeadlines){
-    for(const d of [r.orderDeadlines.sweets,r.orderDeadlines.bread,r.orderDeadlines.supplier].filter(Boolean))if(!/^\d{4}-\d{2}-\d{2}$/.test(d))throw Error('注文締切を確認してください');
     if(!Array.isArray(r.orderDeadlines.exceptions||[]))throw Error('別締切を確認してください');
+    for(const d of [r.orderDeadlines.sweets,r.orderDeadlines.bread,r.orderDeadlines.supplier,r.orderDeadlines.supplierSweets,r.orderDeadlines.supplierBread,...(r.orderDeadlines.exceptions||[]).flatMap(x=>[x.date,x.supplierDate])].filter(Boolean))if(!/^\d{4}-\d{2}-\d{2}$/.test(d))throw Error('注文締切を確認してください');
   }
   [
     "products",

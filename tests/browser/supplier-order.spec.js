@@ -63,3 +63,21 @@ test('提供用紙と同じ構造の隔離PDFをブラウザーで読み込み�
   expect(shared.state.supplierTemplates).toHaveLength(2);
   expect(shared.state.supplierDispatches).toHaveLength(0);
 });
+
+test('園内と仕入先の別々の期限を表示・変更・再読込できる',async({page,context})=>{
+  const shared=await setup(page,context);
+  await page.locator('.stage-1 > .stage-trigger').click();
+  await page.getByText('注文募集の案内文を作る').click();
+  await expect(page.locator('.supplier-deadline-short')).toContainText('焼き菓子 11/13（金） ／ パン 11/20（金）');
+  await page.locator('.supplier-deadline-short').getByRole('button',{name:'変更'}).click();
+  await expect(page.getByLabel('わっぱんへの焼き菓子発注期限')).toHaveValue('2026-11-13');
+  await expect(page.getByLabel('わっぱんへのパン発注期限')).toHaveValue('2026-11-20');
+  await page.getByLabel('わっぱんへのパン発注期限').fill('2026-11-19');
+  await page.getByRole('button',{name:'締切を保存'}).click();
+  expect(shared.state.rounds[0].orderDeadlines.supplierBread).toBe('2026-11-19');
+  await page.reload();
+  await page.locator('.round-list-item').first().click();
+  await page.locator('.stage-1 > .stage-trigger').click();
+  await page.getByText('注文募集の案内文を作る').click();
+  await expect(page.locator('.supplier-deadline-short')).toContainText('焼き菓子 11/13（金） ／ パン 11/19（木）');
+});

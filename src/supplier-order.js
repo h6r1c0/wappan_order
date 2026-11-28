@@ -8,9 +8,19 @@ export function offsetDate(date,days){
   const d=new Date(`${date}T00:00:00Z`);d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);
 }
 export const shortDate=date=>`${Number(date.slice(5,7))}/${Number(date.slice(8))}（${'日月火水木金土'[new Date(`${date}T00:00:00Z`).getUTCDay()]}）`;
-export const defaultDeadlines=(date,settings=defaultSettings)=>({sweets:offsetDate(date,-settings.sweetsDays),bread:offsetDate(date,-settings.breadDays),exceptions:[],supplier:Number.isSafeInteger(settings.supplierDays)?offsetDate(date,-settings.supplierDays):''});
-export const deadlines=(round,settings=defaultSettings)=>({...defaultDeadlines(round.date,settings),...round.orderDeadlines,exceptions:round.orderDeadlines?.exceptions||[]});
-export const defaultSettings={contact:'花房母',customer:'おひさま保育園 父母の会',addressee:'わっぱん ご担当者様',greeting:'いつもありがとうございます。下記のとおりお願いいたします。',notice:'税込価格の1円台を切り捨てた額で販売します。\n欲しい方は品名と数量を{連絡先}までご連絡ください。',sweetsDays:16,breadDays:9,supplierDays:null};
+export const defaultDeadlines=(date,settings=defaultSettings)=>({sweets:offsetDate(date,-settings.sweetsDays),bread:offsetDate(date,-settings.breadDays),supplierSweets:offsetDate(date,-(settings.supplierSweetsDays??14)),supplierBread:offsetDate(date,-(settings.supplierBreadDays??7)),exceptions:[]});
+export const deadlines=(round,settings=defaultSettings)=>{
+  const saved=round.orderDeadlines||{};
+  const normal=defaultDeadlines(round.date,settings);
+  // The earlier draft had one optional supplier deadline. Preserve a date that was
+  // explicitly entered, while an empty draft inherits the newly confirmed defaults.
+  const legacy=saved.supplier&&validDate(saved.supplier)?saved.supplier:null;
+  return {...normal,...saved,
+    supplierSweets:saved.supplierSweets||legacy||normal.supplierSweets,
+    supplierBread:saved.supplierBread||legacy||normal.supplierBread,
+    exceptions:saved.exceptions||[]};
+};
+export const defaultSettings={contact:'花房母',customer:'おひさま保育園 父母の会',addressee:'わっぱん ご担当者様',greeting:'いつもありがとうございます。下記のとおりお願いいたします。',notice:'税込価格の1円台を切り捨てた額で販売します。\n欲しい方は品名と数量を{連絡先}までご連絡ください。',sweetsDays:16,breadDays:9,supplierSweetsDays:14,supplierBreadDays:7};
 export const supplierSettings=state=>({...defaultSettings,...state.supplierOrderSettings});
 export function guideText(rounds,settings=supplierSettings({})){
   if(!rounds.length)throw Error('納品日を選んでください');
